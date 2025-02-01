@@ -11,6 +11,7 @@ const VideoCallPage = () => {
   const [name, setName] = useState("");
   const [call, setCall] = useState({});
   const [me, setMe] = useState("");
+  const [callStatus, setCallStatus] = useState("Waiting to connect...");
 
   const myVideo = useRef();
   const userVideo = useRef();
@@ -65,6 +66,7 @@ const VideoCallPage = () => {
   };
 
   const answerCall = () => {
+    setCallStatus("In Call");
     setCallAccepted(true);
 
     const peer = new Peer({ initiator: false, trickle: false, stream });
@@ -83,6 +85,7 @@ const VideoCallPage = () => {
   };
 
   const callUser = (id) => {
+    setCallStatus("In Call");
     const peer = new Peer({ initiator: true, trickle: false, stream });
 
     peer.on("signal", (data) => {
@@ -108,6 +111,7 @@ const VideoCallPage = () => {
   };
 
   const leaveCall = () => {
+    setCallStatus("Call Ended");
     setCallEnded(true);
 
     if (connectionRef.current) {
@@ -161,21 +165,42 @@ const VideoCallPage = () => {
 
     const canvasStream = canvas.captureStream(30);
 
-    const audioStream = await navigator.mediaDevices.getUserMedia({
+    // Get the local audio stream
+    const localAudioStream = await navigator.mediaDevices.getUserMedia({
       audio: true,
     });
 
+    // Prepare AudioContext for mixing
+    const audioContext = new AudioContext();
+    const destination = audioContext.createMediaStreamDestination();
+
+    // Add local audio to the AudioContext
+    const localAudioSource =
+      audioContext.createMediaStreamSource(localAudioStream);
+    localAudioSource.connect(destination);
+
+    // Add remote audio to the AudioContext
+    if (callAccepted && userVideo.current?.srcObject) {
+      const remoteAudioStream = userVideo.current.srcObject;
+      const remoteAudioSource =
+        audioContext.createMediaStreamSource(remoteAudioStream);
+      remoteAudioSource.connect(destination);
+    }
+
+    // Create a combined stream
     const combinedStream = new MediaStream();
 
+    // Add canvas video track to the combined stream
     canvasStream
       .getVideoTracks()
       .forEach((track) => combinedStream.addTrack(track));
 
-    audioStream
+    // Add mixed audio track to the combined stream
+    destination.stream
       .getAudioTracks()
       .forEach((track) => combinedStream.addTrack(track));
 
-    mediaStream.current = audioStream;
+    mediaStream.current = localAudioStream; // Store the local audio stream to stop later
 
     return combinedStream;
   };
@@ -227,13 +252,20 @@ const VideoCallPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-6">
-      <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-4xl">
-        <h1 className="text-3xl font-semibold text-center text-blue-500 mb-6">
-          Doctor Video Call App
-        </h1>
-        <p className="text-gray-500 text-center mb-4">Your ID: {me}</p>
-
+    <div className="bg-gray-50 flex flex-col justify-center items-center">
+      <div className="bg-white shadow-lg rounded-lg p-8 w-full">
+        <div className="flex flex-col items-center">
+          <p className="text-center mb-4 font-bold text-black text-xl">
+            Your ID: {me}
+          </p>
+          <input
+            type="text"
+            placeholder="Enter your name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="border border-gray-300 rounded-lg px-4 w-[20rem] py-2 mb-4"
+          />
+        </div>
         <div
           ref={divRef}
           className="flex justify-center space-x-4 mb-6 video-container"
@@ -258,21 +290,15 @@ const VideoCallPage = () => {
             </div>
           )}
         </div>
+        <p className="text-gray-500 mb-4 text-center">{callStatus}</p>
 
         <div className="text-center mb-6">
-          <input
-            type="text"
-            placeholder="Enter your name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2 w-full max-w-xs mb-4"
-          />
           <button
             onClick={() => callUser(prompt("Enter ID to call:"))}
             className="bg-blue-500 text-white rounded-lg py-2 px-4 w-full max-w-xs hover:bg-blue-600 focus:outline-none"
           >
             <FaPhoneAlt className="inline-block mr-2" />
-            Call
+            Start Call
           </button>
         </div>
 
@@ -293,35 +319,32 @@ const VideoCallPage = () => {
 
         {callAccepted && !callEnded && (
           <div className="text-center mb-4">
+            {!recording ? (
+              <button
+                onClick={startRecording}
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+              >
+                <FaVideo className="inline-block mr-2" />
+                Start Recording
+              </button>
+            ) : (
+              <button
+                onClick={stopRecording}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+              >
+                <FaStop className="inline-block mr-2" />
+                Stop Recording
+              </button>
+            )}
             <button
               onClick={leaveCall}
-              className="bg-red-500 text-white rounded-lg py-2 px-4 hover:bg-red-600 focus:outline-none"
+              className="bg-red-500 text-white rounded-lg py-2 px-4 ml-2 hover:bg-red-600 focus:outline-none"
             >
               <FaPhoneSlash className="inline-block mr-2" />
               Hang Up
             </button>
           </div>
         )}
-
-        <div className="flex space-x-4 mb-4">
-          {!recording ? (
-            <button
-              onClick={startRecording}
-              className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-            >
-              <FaVideo className="inline-block mr-2" />
-              Start Recording
-            </button>
-          ) : (
-            <button
-              onClick={stopRecording}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-            >
-              <FaStop className="inline-block mr-2" />
-              Stop Recording
-            </button>
-          )}
-        </div>
 
         {videoBlob && (
           <div className="flex flex-col items-center">
