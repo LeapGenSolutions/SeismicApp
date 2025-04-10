@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { io } from "socket.io-client";
 import Peer from "simple-peer";
 import html2canvas from "html2canvas";
+import { v4 as uuidv4 } from 'uuid';
 import { FaPhoneAlt, FaPhoneSlash, FaVideo, FaStop } from "react-icons/fa";
 
 const VideoCallPage = () => {
@@ -49,7 +50,7 @@ const VideoCallPage = () => {
       const formData = new FormData();
       formData.append("file", blob, `meeting_${Date.now()}.webm`);
 
-      const response = await fetch("http://localhost:8080/upload", {
+      const response = await fetch("http://localhost:8080/upload/" + uuidv4().substring(0, 8), {
         method: "POST",
         body: formData,
       });
