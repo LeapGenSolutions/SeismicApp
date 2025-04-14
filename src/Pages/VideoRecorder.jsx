@@ -50,7 +50,7 @@ const VideoCallPage = () => {
       const formData = new FormData();
       formData.append("file", blob, `meeting_${Date.now()}.webm`);
 
-      const response = await fetch("http://localhost:8080/upload/" + uuidv4().substring(0, 8), {
+      const response = await fetch("https://doctorappleapgen-gserfnf8epg2amhd.centralus-01.azurewebsites.net/upload/" + uuidv4().substring(0, 8), {
         method: "POST",
         body: formData,
       });
