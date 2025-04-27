@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { io } from "socket.io-client";
 import Peer from "simple-peer";
 import html2canvas from "html2canvas";
-import { v4 as uuidv4 } from 'uuid';
 import { FaPhoneAlt, FaPhoneSlash, FaVideo, FaStop } from "react-icons/fa";
 
 const VideoCallPage = () => {
@@ -22,7 +21,7 @@ const VideoCallPage = () => {
 
   useEffect(() => {
     socket.current = io(
-      "https://doctorappleapgen-gserfnf8epg2amhd.centralus-01.azurewebsites.net/"
+      "https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net/"
     );
 
     navigator.mediaDevices
@@ -50,7 +49,7 @@ const VideoCallPage = () => {
       const formData = new FormData();
       formData.append("file", blob, `meeting_${Date.now()}.webm`);
 
-      const response = await fetch("https://doctorappleapgen-gserfnf8epg2amhd.centralus-01.azurewebsites.net/upload/" + uuidv4().substring(0, 8), {
+      const response = await fetch(`https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net/upload/${me}`, {
         method: "POST",
         body: formData,
       });
