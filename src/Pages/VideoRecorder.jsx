@@ -44,27 +44,6 @@ const VideoCallPage = () => {
     };
   }, []);
 
-  const uploadToServer = async (blob) => {
-    try {
-      const formData = new FormData();
-      formData.append("file", blob, `meeting_${Date.now()}.webm`);
-
-      const response = await fetch(`https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net/upload/${me}`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log("File uploaded successfully:", data);
-      } else {
-        console.error("Failed to upload file:", response.statusText);
-      }
-    } catch (error) {
-      console.error("Error uploading file to server:", error);
-    }
-  };
-
   const answerCall = () => {
     setCallStatus("In Call");
     setCallAccepted(true);
@@ -127,15 +106,14 @@ const VideoCallPage = () => {
 
   const divRef = useRef(null);
   const [recording, setRecording] = useState(false);
-  const [videoBlob, setVideoBlob] = useState(null);
+  const videoBlob = useState(null)[0];
   const mediaStream = useRef(null);
   const recorder = useRef(null);
   const chunks = useRef([]);
-  let intervalId = null;
 
   const startCanvasUpdates = (canvas, sourceDiv) => {
     const ctx = canvas.getContext("2d");
-    intervalId = setInterval(async () => {
+    setInterval(async () => {
       try {
         const snapshot = await html2canvas(sourceDiv);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -144,13 +122,6 @@ const VideoCallPage = () => {
         console.error("Error capturing canvas snapshot:", error);
       }
     }, 1000 / 30);
-  };
-
-  const stopCanvasUpdates = () => {
-    if (intervalId) {
-      clearInterval(intervalId);
-      intervalId = null;
-    }
   };
 
   const captureDivWithAudio = async () => {
@@ -205,51 +176,94 @@ const VideoCallPage = () => {
     return combinedStream;
   };
 
+  // Add these state variables
+  const [recordingInterval, setRecordingInterval] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Modified startRecording function
   const startRecording = async () => {
-    const stream = await captureDivWithAudio();
-    mediaStream.current = stream;
-
-    recorder.current = new MediaRecorder(stream);
-    chunks.current = [];
-
-    recorder.current.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) {
-        chunks.current.push(e.data);
-      }
-    };
-
-    recorder.current.onstop = async () => {
-      stopCanvasUpdates();
-      const blob = new Blob(chunks.current, { type: "video/webm" });
-      if (blob.size > 0) {
-        setVideoBlob(blob);
-        console.log("Blob created:", URL.createObjectURL(blob));
-        await uploadToServer(blob);
-      } else {
-        console.error("Blob size is zero.");
-      }
+    try {
+      const stream = await captureDivWithAudio();
+      mediaStream.current = stream;
       chunks.current = [];
-      stopAllStreams();
-    };
 
-    recorder.current.start();
-    console.log("Recording started");
-    setRecording(true);
-  };
+      recorder.current = new MediaRecorder(stream, {
+        mimeType: "video/webm;codecs=vp9,opus",
+      });
 
-  const stopAllStreams = () => {
-    if (mediaStream.current) {
-      mediaStream.current.getTracks().forEach((track) => track.stop());
-      mediaStream.current = null;
+      // Upload chunks every 5 seconds (adjust as needed)
+      const interval = setInterval(() => {
+        if (chunks.current.length > 0 && !isUploading) {
+          uploadChunks();
+        }
+      }, 5000);
+
+      setRecordingInterval(interval);
+
+      recorder.current.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunks.current.push(e.data);
+        }
+      };
+
+      recorder.current.start(5000); // Collect 1-second chunks
+      setRecording(true);
+    } catch (error) {
+      console.error("Recording start failed:", error);
     }
   };
 
+  // New function to upload chunks
+  const uploadChunks = async () => {
+    if (chunks.current.length === 0 || isUploading) return;
+
+    setIsUploading(true);
+    const chunkToUpload = chunks.current.shift();
+
+    try {
+      const formData = new FormData();
+      formData.append("chunk", chunkToUpload);
+
+      await fetch(`https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net/upload-chunk/${me}/${Date.now()}`, {
+        method: "POST",
+        body: formData,
+      });
+
+      console.log("Chunk uploaded successfully");
+    } catch (error) {
+      console.error("Chunk upload failed:", error);
+      // Requeue failed chunk
+      chunks.current.unshift(chunkToUpload);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Modified stopRecording function
   const stopRecording = () => {
     if (recorder.current && recorder.current.state === "recording") {
       recorder.current.stop();
     }
+    if (recordingInterval) {
+      clearInterval(recordingInterval);
+    }
+
+    // Upload any remaining chunks
+    if (chunks.current.length > 0) {
+      uploadChunks();
+    }
+
     setRecording(false);
   };
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingInterval) {
+        clearInterval(recordingInterval);
+      }
+    };
+  }, [recordingInterval]);
 
   return (
     <div className="bg-gray-50 flex flex-col justify-center items-center">
