@@ -1,106 +1,201 @@
 import React, { useState, useRef, useEffect } from "react";
 import { io } from "socket.io-client";
-import Peer from "simple-peer";
+import {
+  FaPhoneAlt,
+  FaPhoneSlash,
+  FaVideo,
+  FaStop,
+  FaCopy,
+} from "react-icons/fa";
 import html2canvas from "html2canvas";
-import { FaPhoneAlt, FaPhoneSlash, FaVideo, FaStop } from "react-icons/fa";
+
+const socket = io("http://localhost:8080");
+const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
 const VideoCallPage = () => {
   const [callAccepted, setCallAccepted] = useState(false);
   const [callEnded, setCallEnded] = useState(false);
-  const [stream, setStream] = useState();
   const [name, setName] = useState("");
-  const [call, setCall] = useState({});
+  const [userName, setUserName] = useState("");
   const [me, setMe] = useState("");
-  const [callStatus, setCallStatus] = useState("Waiting to connect...");
+  const [room, setRoom] = useState("");
+  const [isHost, setIsHost] = useState(false);
+  const [showShareLink, setShowShareLink] = useState(false);
+  const [joinLink, setJoinLink] = useState("");
 
-  const myVideo = useRef();
-  const userVideo = useRef();
-  const connectionRef = useRef();
+  const myVideo = useRef(null);
+  const userVideo = useRef(null);
+  const peerConnectionRef = useRef(null);
+  const localStreamRef = useRef(null);
 
-  const socket = useRef(null);
-
+  // Initialize and handle URL parameters
   useEffect(() => {
-    socket.current = io(
-      "https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net/"
-    );
+    const queryParams = new URLSearchParams(window.location.search);
+    const roomParam = queryParams.get("room");
+    const hostParam = queryParams.get("host");
 
-    navigator.mediaDevices
-      .getUserMedia({ video: true, audio: true })
-      .then((currentStream) => {
-        setStream(currentStream);
-        if (myVideo.current) {
-          myVideo.current.srcObject = currentStream;
+    if (roomParam) {
+      setRoom(roomParam);
+    }
+    if (hostParam) {
+      setUserName(hostParam);
+    }
+
+    socket.on("connect", () => {
+      console.log("Connected to server:", socket.id);
+      setMe(socket.id);
+    });
+
+    socket.on("user-joined", async ({ id, name }) => {
+      console.log(`User ${name} joined with ID ${id}`);
+      setUserName(name);
+
+      peerConnectionRef.current = new RTCPeerConnection(config);
+      if (localStreamRef.current) {
+        localStreamRef.current
+          .getTracks()
+          .forEach((track) =>
+            peerConnectionRef.current.addTrack(track, localStreamRef.current)
+          );
+      }
+
+      peerConnectionRef.current.onicecandidate = (e) => {
+        if (e.candidate) {
+          socket.emit("ice-candidate", {
+            target: id,
+            candidate: e.candidate,
+          });
         }
-      });
+      };
 
-    socket.current.on("me", (id) => setMe(id));
+      peerConnectionRef.current.ontrack = (e) => {
+        userVideo.current.srcObject = e.streams[0];
+      };
 
-    socket.current.on("callUser", ({ from, name: callerName, signal }) => {
-      setCall({ isReceivingCall: true, from, name: callerName, signal });
+      const offer = await peerConnectionRef.current.createOffer();
+      await peerConnectionRef.current.setLocalDescription(offer);
+      socket.emit("offer", { target: id, sdp: offer });
+    });
+
+    socket.on("offer", async (data) => {
+      peerConnectionRef.current = new RTCPeerConnection(config);
+      localStreamRef.current
+        .getTracks()
+        .forEach((track) =>
+          peerConnectionRef.current.addTrack(track, localStreamRef.current)
+        );
+
+      peerConnectionRef.current.onicecandidate = (e) => {
+        if (e.candidate) {
+          socket.emit("ice-candidate", {
+            target: data.sender,
+            candidate: e.candidate,
+          });
+        }
+      };
+
+      peerConnectionRef.current.ontrack = (e) => {
+        userVideo.current.srcObject = e.streams[0];
+      };
+
+      await peerConnectionRef.current.setRemoteDescription(
+        new RTCSessionDescription(data.sdp)
+      );
+      const answer = await peerConnectionRef.current.createAnswer();
+      await peerConnectionRef.current.setLocalDescription(answer);
+      socket.emit("answer", { target: data.sender, sdp: answer });
+    });
+
+    socket.on("answer", async (data) => {
+      await peerConnectionRef.current.setRemoteDescription(
+        new RTCSessionDescription(data.sdp)
+      );
+    });
+
+    socket.on("ice-candidate", async (data) => {
+      if (peerConnectionRef.current) {
+        try {
+          await peerConnectionRef.current.addIceCandidate(
+            new RTCIceCandidate(data.candidate)
+          );
+        } catch (e) {
+          console.error("Error adding received ICE candidate", e);
+        }
+      }
     });
 
     return () => {
-      socket.current.disconnect();
+      socket.off("user-joined");
+      socket.off("offer");
+      socket.off("answer");
+      socket.off("ice-candidate");
+      socket.off("user-left");
     };
   }, []);
 
-  const answerCall = () => {
-    setCallStatus("In Call");
-    setCallAccepted(true);
+  const joinRoom = async (isJoining = false) => {
+    if (socket.connected) {
+      socket.disconnect();
+    }
+    socket.connect();
+    if (!room) return alert("Enter room ID");
+    if (!name) return alert("Enter your name");
 
-    const peer = new Peer({ initiator: false, trickle: false, stream });
+    try {
+      const localStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+      myVideo.current.srcObject = localStream;
+      localStreamRef.current = localStream;
 
-    peer.on("signal", (data) => {
-      socket.current.emit("answerCall", { signal: data, to: call.from });
-    });
-
-    peer.on("stream", (currentStream) => {
-      userVideo.current.srcObject = currentStream;
-    });
-
-    peer.signal(call.signal);
-
-    connectionRef.current = peer;
+      socket.emit("join-room", { roomId: room, name, isHost: !isJoining });
+      setCallAccepted(true);
+      if (!isJoining) {
+        setIsHost(true);
+        generateJoinLink();
+      }
+    } catch (error) {
+      console.error("Error accessing media devices.", error);
+      alert("Could not access camera/mic.");
+    }
   };
 
-  const callUser = (id) => {
-    setCallStatus("In Call");
-    const peer = new Peer({ initiator: true, trickle: false, stream });
+  const generateJoinLink = () => {
+    const currentUrl = window.location.href.split("?")[0];
+    const link = `${currentUrl}?room=${encodeURIComponent(
+      room
+    )}&host=${encodeURIComponent(name)}`;
+    setJoinLink(link);
+    setShowShareLink(true);
+    return link;
+  };
 
-    peer.on("signal", (data) => {
-      socket.current.emit("callUser", {
-        userToCall: id,
-        signalData: data,
-        from: me,
-        name,
-      });
-    });
-
-    peer.on("stream", (currentStream) => {
-      userVideo.current.srcObject = currentStream;
-    });
-
-    socket.current.on("callAccepted", (signal) => {
-      setCallAccepted(true);
-
-      peer.signal(signal);
-    });
-
-    connectionRef.current = peer;
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(joinLink);
+    alert("Link copied to clipboard!");
   };
 
   const leaveCall = () => {
-    setCallStatus("Call Ended");
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+    }
+
+    socket.emit("leave-room", room);
+    socket.disconnect();
+
+    myVideo.current.srcObject = null;
+    userVideo.current.srcObject = null;
+    setRoom("");
     setCallEnded(true);
-
-    if (connectionRef.current) {
-      connectionRef.current.destroy();
-    }
-
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
-
+    setIsHost(false);
+    setShowShareLink(false);
     window.location.reload();
   };
 
@@ -206,7 +301,7 @@ const VideoCallPage = () => {
         }
       };
 
-      recorder.current.start(5000); // Collect 1-second chunks
+      recorder.current.start(3000); // Collect 3-second chunks
       setRecording(true);
     } catch (error) {
       console.error("Recording start failed:", error);
@@ -266,23 +361,99 @@ const VideoCallPage = () => {
   }, [recordingInterval]);
 
   return (
-    <div className="bg-gray-50 flex flex-col justify-center items-center">
-      <div className="bg-white shadow-lg rounded-lg p-8 w-full">
+    <div className="bg-gray-50 flex flex-col justify-center items-center min-h-screen p-4">
+      <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-4xl">
         <div className="flex flex-col items-center">
-          <p className="text-center mb-4 font-bold text-black text-xl">
-            Your ID: {me}
-          </p>
-          <input
-            type="text"
-            placeholder="Enter your name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 w-[20rem] py-2 mb-4"
-          />
+          <h1 className="text-2xl font-bold text-gray-800 mb-6">
+            {isHost ? "Host Meeting" : "Join Meeting"}
+          </h1>
+
+          {!callAccepted && (
+            <>
+              <div className="w-full max-w-md mb-6">
+                <label className="block text-gray-700 mb-2">Your Name</label>
+                <input
+                  type="text"
+                  placeholder="Enter your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-4 w-full py-2 mb-4"
+                />
+
+                <label className="block text-gray-700 mb-2">
+                  {isHost ? "Meeting ID" : "Meeting ID (from invite link)"}
+                </label>
+                <input
+                  placeholder="Meeting ID"
+                  value={room}
+                  onChange={(e) => setRoom(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-4 w-full py-2 mb-4"
+                />
+
+                {userName && (
+                  <div className="bg-blue-50 p-3 rounded-lg mb-4">
+                    <p className="text-blue-800">
+                      Joining meeting hosted by: <strong>{userName}</strong>
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex space-x-4">
+                <button
+                  onClick={() => {
+                    setIsHost(true);
+                    joinRoom();
+                  }}
+                  className="bg-blue-500 text-white rounded-lg py-2 px-6 hover:bg-blue-600 focus:outline-none"
+                >
+                  <FaPhoneAlt className="inline-block mr-2" />
+                  Start New Meeting
+                </button>
+
+                <button
+                  onClick={() => joinRoom(true)}
+                  disabled={!room || !name}
+                  className={`bg-green-500 text-white rounded-lg py-2 px-6 hover:bg-green-600 focus:outline-none ${
+                    !room || !name ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                >
+                  <FaPhoneAlt className="inline-block mr-2" />
+                  Join Meeting
+                </button>
+              </div>
+            </>
+          )}
         </div>
+
+        {showShareLink && (
+          <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+            <h3 className="font-medium text-gray-800 mb-2">
+              Invite others to join
+            </h3>
+            <div className="flex items-center">
+              <input
+                type="text"
+                value={joinLink}
+                readOnly
+                className="border border-gray-300 rounded-l-lg px-4 py-2 flex-grow"
+              />
+              <button
+                onClick={copyToClipboard}
+                className="bg-blue-500 text-white px-4 py-2 rounded-r-lg hover:bg-blue-600"
+              >
+                <FaCopy className="inline-block mr-1" /> Copy
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mt-2">
+              Share this link with participants to join your meeting
+            </p>
+          </div>
+        )}
+
         <div
           ref={divRef}
-          className="flex justify-center space-x-4 mb-6 video-container"
+          className="flex justify-center space-x-4 my-6 video-container"
         >
           <div className="relative w-64 h-48 bg-gray-200 rounded-lg overflow-hidden">
             <video
@@ -292,6 +463,9 @@ const VideoCallPage = () => {
               autoPlay
               className="w-full h-full object-cover"
             />
+            <p className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
+              {name || "You"}
+            </p>
           </div>
           {callAccepted && !callEnded && (
             <div className="relative w-64 h-48 bg-gray-200 rounded-lg overflow-hidden">
@@ -301,42 +475,19 @@ const VideoCallPage = () => {
                 autoPlay
                 className="w-full h-full object-cover"
               />
+              <p className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
+                {userName || "Participant"}
+              </p>
             </div>
           )}
         </div>
-        <p className="text-gray-500 mb-4 text-center">{callStatus}</p>
-
-        <div className="text-center mb-6">
-          <button
-            onClick={() => callUser(prompt("Enter ID to call:"))}
-            className="bg-blue-500 text-white rounded-lg py-2 px-4 w-full max-w-xs hover:bg-blue-600 focus:outline-none"
-          >
-            <FaPhoneAlt className="inline-block mr-2" />
-            Start Call
-          </button>
-        </div>
-
-        {call.isReceivingCall && !callAccepted && (
-          <div className="text-center mb-4">
-            <h2 className="text-xl font-semibold mb-2">
-              {call.name} is calling...
-            </h2>
-            <button
-              onClick={answerCall}
-              className="bg-green-500 text-white rounded-lg py-2 px-4 hover:bg-green-600 focus:outline-none"
-            >
-              <FaPhoneAlt className="inline-block mr-2" />
-              Answer
-            </button>
-          </div>
-        )}
 
         {callAccepted && !callEnded && (
           <div className="text-center mb-4">
             {!recording ? (
               <button
                 onClick={startRecording}
-                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 mr-2"
               >
                 <FaVideo className="inline-block mr-2" />
                 Start Recording
@@ -344,7 +495,7 @@ const VideoCallPage = () => {
             ) : (
               <button
                 onClick={stopRecording}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 mr-2"
               >
                 <FaStop className="inline-block mr-2" />
                 Stop Recording
@@ -352,20 +503,20 @@ const VideoCallPage = () => {
             )}
             <button
               onClick={leaveCall}
-              className="bg-red-500 text-white rounded-lg py-2 px-4 ml-2 hover:bg-red-600 focus:outline-none"
+              className="bg-red-500 text-white rounded-lg py-2 px-4 hover:bg-red-600 focus:outline-none"
             >
               <FaPhoneSlash className="inline-block mr-2" />
-              Hang Up
+              End Call
             </button>
           </div>
         )}
 
         {videoBlob && (
-          <div className="flex flex-col items-center">
-            <h3 className="mb-2 text-lg">Recorded Video:</h3>
+          <div className="flex flex-col items-center mt-6">
+            <h3 className="mb-2 text-lg font-medium">Recorded Video:</h3>
             <video
               controls
-              className="w-80 h-40 border border-gray-300"
+              className="w-full max-w-lg border border-gray-300 rounded-lg"
               src={URL.createObjectURL(videoBlob)}
             />
           </div>
