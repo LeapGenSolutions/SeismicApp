@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { io } from "socket.io-client";
 import {
-  FaPhoneAlt,
   FaPhoneSlash,
   FaVideo,
   FaStop,
@@ -19,7 +18,7 @@ const VideoCallPage = () => {
   const [userName, setUserName] = useState("");
   const [me, setMe] = useState("");
   const [room, setRoom] = useState("");
-  const [isHost, setIsHost] = useState(false);
+  const [isHost, setIsHost] = useState(true);
   const [showShareLink, setShowShareLink] = useState(false);
   const [joinLink, setJoinLink] = useState("");
 
@@ -27,6 +26,39 @@ const VideoCallPage = () => {
   const userVideo = useRef(null);
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
+
+  const [activeTab, setActiveTab] = useState("upcoming");
+  const [appointmentId, setAppointmentId] = useState("");
+  const [appointmentType, setAppointmentType] = useState("online");
+  const isLoadingUpcoming = useState(false)[0];
+
+  // Mock data - replace with your actual data
+  const upcomingAppointments = [
+    {
+      appointmentId: "demo-appointment-1",
+      patientName: "John Doe",
+      date: "2025-04-30",
+      time: "10:00 AM",
+      reason: "Follow-up consultation",
+    },
+    {
+      appointmentId: "demo-appointment-2",
+      patientName: "Jane Smith",
+      date: "2025-04-30",
+      time: "2:30 PM",
+      reason: "Initial consultation",
+    },
+  ];
+
+  const selectedAppointment =
+    upcomingAppointments.find((app) => app.appointmentId === appointmentId) ||
+    null;
+  const patient = selectedAppointment
+    ? {
+        firstName: selectedAppointment.patientName.split(" ")[0],
+        lastName: selectedAppointment.patientName.split(" ")[1],
+      }
+    : null;
 
   // Initialize and handle URL parameters
   useEffect(() => {
@@ -36,6 +68,7 @@ const VideoCallPage = () => {
 
     if (roomParam) {
       setRoom(roomParam);
+      setActiveTab("join");
     }
     if (hostParam) {
       setUserName(hostParam);
@@ -241,15 +274,17 @@ const VideoCallPage = () => {
     const destination = audioContext.createMediaStreamDestination();
 
     // Add local audio to the AudioContext
-    const localAudioSource =
-      audioContext.createMediaStreamSource(localAudioStream);
+    const localAudioSource = audioContext.createMediaStreamSource(
+      localAudioStream
+    );
     localAudioSource.connect(destination);
 
     // Add remote audio to the AudioContext
     if (callAccepted && userVideo.current?.srcObject) {
       const remoteAudioStream = userVideo.current.srcObject;
-      const remoteAudioSource =
-        audioContext.createMediaStreamSource(remoteAudioStream);
+      const remoteAudioSource = audioContext.createMediaStreamSource(
+        remoteAudioStream
+      );
       remoteAudioSource.connect(destination);
     }
 
@@ -362,70 +397,282 @@ const VideoCallPage = () => {
 
   return (
     <div className="bg-gray-50 flex flex-col justify-center items-center min-h-screen p-4">
-      <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-4xl">
-        <div className="flex flex-col items-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-6">
-            {isHost ? "Host Meeting" : "Join Meeting"}
-          </h1>
-
-          {!callAccepted && (
-            <>
-              <div className="w-full max-w-md mb-6">
-                <label className="block text-gray-700 mb-2">Your Name</label>
-                <input
-                  type="text"
-                  placeholder="Enter your name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-4 w-full py-2 mb-4"
-                />
-
-                <label className="block text-gray-700 mb-2">
-                  {isHost ? "Meeting ID" : "Meeting ID (from invite link)"}
-                </label>
-                <input
-                  placeholder="Meeting ID"
-                  value={room}
-                  onChange={(e) => setRoom(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-4 w-full py-2 mb-4"
-                />
-
-                {userName && (
-                  <div className="bg-blue-50 p-3 rounded-lg mb-4">
-                    <p className="text-blue-800">
-                      Joining meeting hosted by: <strong>{userName}</strong>
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex space-x-4">
-                <button
-                  onClick={() => {
-                    setIsHost(true);
-                    joinRoom();
-                  }}
-                  className="bg-blue-500 text-white rounded-lg py-2 px-6 hover:bg-blue-600 focus:outline-none"
-                >
-                  <FaPhoneAlt className="inline-block mr-2" />
-                  Start New Meeting
-                </button>
-
-                <button
-                  onClick={() => joinRoom(true)}
-                  disabled={!room || !name}
-                  className={`bg-green-500 text-white rounded-lg py-2 px-6 hover:bg-green-600 focus:outline-none ${
-                    !room || !name ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-                >
-                  <FaPhoneAlt className="inline-block mr-2" />
-                  Join Meeting
-                </button>
-              </div>
-            </>
-          )}
+      <div className="rounded-lg border bg-white shadow-sm w-full">
+        <div className="flex flex-col space-y-1.5 p-6">
+          <h3 className="text-2xl font-semibold leading-none tracking-tight">
+            Seismic Video Call
+          </h3>
+          <p className="text-sm text-gray-500">
+            Connect with patients through secure video consultations
+          </p>
         </div>
 
+        <div className="p-6 pt-0">
+          <div className="space-y-4">
+            <div className="inline-flex h-10 items-center justify-center rounded-md bg-gray-100 p-1 text-gray-500 mb-4">
+              <button
+                onClick={() => setActiveTab("upcoming")}
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${
+                  activeTab === "upcoming"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "hover:text-gray-900"
+                }`}
+              >
+                Upcoming Calls
+              </button>
+              <button
+                onClick={() => setActiveTab("join")}
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${
+                  activeTab === "join"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "hover:text-gray-900"
+                }`}
+              >
+                Join by ID
+              </button>
+              <button
+                onClick={() => setActiveTab("history")}
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${
+                  activeTab === "history"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "hover:text-gray-900"
+                }`}
+              >
+                Call History
+              </button>
+            </div>
+
+            {activeTab === "upcoming" && (
+              <div className="space-y-4">
+                <div className="grid gap-2">
+                  <label
+                    htmlFor="appointment"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Select an appointment
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={appointmentId}
+                      onChange={(e) => setAppointmentId(e.target.value)}
+                      className="flex h-10 w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="">Select an appointment</option>
+                      {isLoadingUpcoming ? (
+                        <option value="loading" disabled>
+                          Loading appointments...
+                        </option>
+                      ) : upcomingAppointments.length > 0 ? (
+                        upcomingAppointments.map((appointment) => (
+                          <option
+                            key={appointment.appointmentId}
+                            value={appointment.appointmentId}
+                          >
+                            {appointment.patientName} - {appointment.date}{" "}
+                            {appointment.time}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="no-appointments" disabled>
+                          No upcoming video calls
+                        </option>
+                      )}
+                    </select>
+                  </div>
+                </div>
+
+                {appointmentId && (
+                  <div className="mt-4">
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">
+                      Appointment Type
+                    </label>
+                    <div className="flex space-x-4">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          id="online"
+                          name="appointmentType"
+                          value="online"
+                          checked={appointmentType === "online"}
+                          onChange={() => setAppointmentType("online")}
+                          className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label
+                          htmlFor="online"
+                          className="text-sm font-medium text-gray-700 cursor-pointer"
+                        >
+                          Online
+                        </label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          id="in-person"
+                          name="appointmentType"
+                          value="in-person"
+                          checked={appointmentType === "in-person"}
+                          onChange={() => setAppointmentType("in-person")}
+                          className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label
+                          htmlFor="in-person"
+                          className="text-sm font-medium text-gray-700 cursor-pointer"
+                        >
+                          In-Person
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {appointmentId && selectedAppointment && patient && (
+                  <div className="bg-gray-50 p-4 rounded-md mt-4">
+                    <h3 className="font-medium mb-2">Appointment Details</h3>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-gray-500">Patient:</span>
+                        <span className="ml-2 font-medium">
+                          {patient.firstName} {patient.lastName}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Appointment ID:</span>
+                        <span className="ml-2 font-medium">
+                          {selectedAppointment.appointmentId}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Date & Time:</span>
+                        <span className="ml-2 font-medium">
+                          {selectedAppointment.date} at{" "}
+                          {selectedAppointment.time}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Reason:</span>
+                        <span className="ml-2 font-medium">
+                          {selectedAppointment.reason || "Not specified"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="w-full mb-6">
+                  <div className="flex flex-row justify-between w-full gap-4">
+                    <label className="block text-gray-700 mb-2 flex-1">
+                      Your Name
+                      <input
+                        type="text"
+                        placeholder="Enter your name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-4 w-full py-2 mb-4"
+                      />
+                    </label>
+                    <label className="block text-gray-700 mb-2 flex-1">
+                      {isHost ? "Meeting ID" : "Meeting ID (from invite link)"}
+                      <input
+                        placeholder="Meeting ID"
+                        value={room}
+                        onChange={(e) => setRoom(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-4 w-full py-2 mb-4"
+                      />
+                    </label>
+                  </div>
+                  {userName && (
+                    <div className="bg-blue-50 p-3 rounded-lg mb-4">
+                      <p className="text-blue-800">
+                        Joining meeting hosted by: <strong>{userName}</strong>
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end space-x-2 mt-4">
+                  <button
+                    onClick={() => {
+                      setIsHost(true);
+                      joinRoom();
+                    }}
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white h-10 px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mr-2 h-4 w-4"
+                    >
+                      <path d="M22 8a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2Z"></path>
+                      <path d="m22 8-10 7-10-7"></path>
+                    </svg>
+                    Start Video Call
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "join" && (
+              <div className="space-y-4">
+                <div className="w-full mb-6">
+                  <div className="flex flex-row justify-between w-full gap-4">
+                    <label className="block text-gray-700 mb-2 flex-1">
+                      Your Name
+                      <input
+                        type="text"
+                        placeholder="Enter your name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-4 w-full py-2 mb-4"
+                      />
+                    </label>
+                    <label className="block text-gray-700 mb-2 flex-1">
+                      {isHost ? "Meeting ID" : "Meeting ID (from invite link)"}
+                      <input
+                        placeholder="Meeting ID"
+                        value={room}
+                        onChange={(e) => setRoom(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-4 w-full py-2 mb-4"
+                      />
+                    </label>
+                  </div>
+                  {userName && (
+                    <div className="bg-blue-50 p-3 rounded-lg mb-4">
+                      <p className="text-blue-800">
+                        Joining meeting hosted by: <strong>{userName}</strong>
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => joinRoom(true)}
+                    disabled={!room || !name}
+                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white h-10 px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed${
+                      !room || !name ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    Join Call
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "history" && (
+              <div className="space-y-4">
+                <div className="text-center py-8 text-gray-500">
+                  <h3 className="text-lg font-medium mb-2">Call History</h3>
+                  <p>Your recent video call history will appear here.</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
         {showShareLink && (
           <div className="mt-6 p-4 bg-gray-100 rounded-lg">
             <h3 className="font-medium text-gray-800 mb-2">
@@ -450,12 +697,37 @@ const VideoCallPage = () => {
             </p>
           </div>
         )}
+      </div>
+      <div className="rounded-lg border bg-white shadow-sm w-full mt-6">
+        <div className="bg-blue-600 p-4">
+          <h2 className="text-2xl font-semibold text-white mb-2">
+            Call with {userName}
+          </h2>
+        </div>
+        {/* <div className="flex flex-col items-center">
+          <h1 className="text-2xl font-bold text-gray-800 mb-6">
+            {isHost ? "Host Meeting" : "Join Meeting"}
+          </h1>
+        </div> */}
 
         <div
           ref={divRef}
-          className="flex justify-center space-x-4 my-6 video-container"
+          className="flex justify-center p-6 video-container gap-4"
         >
-          <div className="relative w-64 h-48 bg-gray-200 rounded-lg overflow-hidden">
+          {/* {callAccepted && !callEnded && ( */}
+          <div className="relative h-80 bg-gray-200 rounded-lg overflow-hidden flex-2">
+            <video
+              playsInline
+              ref={userVideo}
+              autoPlay
+              className="w-full h-full object-cover"
+            />
+            <p className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
+              {userName || "Participant"}
+            </p>
+          </div>
+          {/* )} */}
+          <div className="relative h-80 bg-gray-200 rounded-lg overflow-hidden flex-1">
             <video
               playsInline
               muted
@@ -467,19 +739,6 @@ const VideoCallPage = () => {
               {name || "You"}
             </p>
           </div>
-          {callAccepted && !callEnded && (
-            <div className="relative w-64 h-48 bg-gray-200 rounded-lg overflow-hidden">
-              <video
-                playsInline
-                ref={userVideo}
-                autoPlay
-                className="w-full h-full object-cover"
-              />
-              <p className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
-                {userName || "Participant"}
-              </p>
-            </div>
-          )}
         </div>
 
         {callAccepted && !callEnded && (
