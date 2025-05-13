@@ -8,7 +8,10 @@ import {
 } from "react-icons/fa";
 import html2canvas from "html2canvas";
 
-const socket = io("http://localhost:8080");
+const BACKEND_LINK = "https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net"
+// const BACKEND_LINK = "http://localhost:8080"
+
+const socket = io(BACKEND_LINK);
 const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
 const VideoCallPage = () => {
@@ -26,12 +29,15 @@ const VideoCallPage = () => {
   const userVideo = useRef(null);
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
+  const chunkIndexRef = useRef(0);
 
   const [activeTab, setActiveTab] = useState("upcoming");
   const [appointmentId, setAppointmentId] = useState("");
   const [appointmentType, setAppointmentType] = useState("online");
   const isLoadingUpcoming = useState(false)[0];
-
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(false);
+ 
   // Mock data - replace with your actual data
   const upcomingAppointments = [
     {
@@ -55,9 +61,9 @@ const VideoCallPage = () => {
     null;
   const patient = selectedAppointment
     ? {
-        firstName: selectedAppointment.patientName.split(" ")[0],
-        lastName: selectedAppointment.patientName.split(" ")[1],
-      }
+      firstName: selectedAppointment.patientName.split(" ")[0],
+      lastName: selectedAppointment.patientName.split(" ")[1],
+    }
     : null;
 
   // Initialize and handle URL parameters
@@ -232,6 +238,24 @@ const VideoCallPage = () => {
     window.location.reload();
   };
 
+  const toggleMute = () => {
+    if (!localStreamRef.current) return;
+    const audioTrack = localStreamRef.current.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+      setIsAudioMuted(!audioTrack.enabled);
+    }
+  };
+
+  const toggleVideo = () => {
+    if (!localStreamRef.current) return;
+    const videoTrack = localStreamRef.current.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      setIsVideoOff(!videoTrack.enabled);
+    }
+  };
+
   const divRef = useRef(null);
   const [recording, setRecording] = useState(false);
   const videoBlob = useState(null)[0];
@@ -336,7 +360,7 @@ const VideoCallPage = () => {
         }
       };
 
-      recorder.current.start(3000); // Collect 3-second chunks
+      recorder.current.start(5000); // Collect 30-second chunks
       setRecording(true);
     } catch (error) {
       console.error("Recording start failed:", error);
@@ -353,8 +377,9 @@ const VideoCallPage = () => {
     try {
       const formData = new FormData();
       formData.append("chunk", chunkToUpload);
+      const index = chunkIndexRef.current++;
 
-      await fetch(`https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net/upload-chunk/${me}/${Date.now()}`, {
+      await fetch(`${BACKEND_LINK}/upload-chunk/${me}/${index}`, {
         method: "POST",
         body: formData,
       });
@@ -412,31 +437,28 @@ const VideoCallPage = () => {
             <div className="inline-flex h-10 items-center justify-center rounded-md bg-gray-100 p-1 text-gray-500 mb-4">
               <button
                 onClick={() => setActiveTab("upcoming")}
-                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${
-                  activeTab === "upcoming"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "hover:text-gray-900"
-                }`}
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${activeTab === "upcoming"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "hover:text-gray-900"
+                  }`}
               >
                 Upcoming Calls
               </button>
               <button
                 onClick={() => setActiveTab("join")}
-                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${
-                  activeTab === "join"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "hover:text-gray-900"
-                }`}
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${activeTab === "join"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "hover:text-gray-900"
+                  }`}
               >
                 Join by ID
               </button>
               <button
                 onClick={() => setActiveTab("history")}
-                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${
-                  activeTab === "history"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "hover:text-gray-900"
-                }`}
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${activeTab === "history"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "hover:text-gray-900"
+                  }`}
               >
                 Call History
               </button>
@@ -653,9 +675,8 @@ const VideoCallPage = () => {
                   <button
                     onClick={() => joinRoom(true)}
                     disabled={!room || !name}
-                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white h-10 px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed${
-                      !room || !name ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
+                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white h-10 px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed${!room || !name ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
                   >
                     Join Call
                   </button>
@@ -738,6 +759,21 @@ const VideoCallPage = () => {
             <p className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded">
               {name || "You"}
             </p>
+            <button
+              onClick={toggleMute}
+              className={`px-4 py-2 rounded-lg mr-2 ${isAudioMuted ? "bg-yellow-500 hover:bg-yellow-600" : "bg-blue-500 hover:bg-blue-600"
+                } text-white`}
+            >
+              {isAudioMuted ? "Unmute" : "Mute"}
+            </button>
+
+            <button
+              onClick={toggleVideo}
+              className={`px-4 py-2 rounded-lg mr-2 ${isVideoOff ? "bg-yellow-500 hover:bg-yellow-600" : "bg-blue-500 hover:bg-blue-600"
+                } text-white`}
+            >
+              {isVideoOff ? "Turn On Video" : "Turn Off Video"}
+            </button>
           </div>
         </div>
 
@@ -767,8 +803,24 @@ const VideoCallPage = () => {
               <FaPhoneSlash className="inline-block mr-2" />
               End Call
             </button>
+            <button
+              onClick={toggleMute}
+              className={`px-4 py-2 rounded-lg mr-2 ${isAudioMuted ? "bg-yellow-500 hover:bg-yellow-600" : "bg-blue-500 hover:bg-blue-600"
+                } text-white`}
+            >
+              {isAudioMuted ? "Unmute" : "Mute"}
+            </button>
+
+            <button
+              onClick={toggleVideo}
+              className={`px-4 py-2 rounded-lg mr-2 ${isVideoOff ? "bg-yellow-500 hover:bg-yellow-600" : "bg-blue-500 hover:bg-blue-600"
+                } text-white`}
+            >
+              {isVideoOff ? "Turn On Video" : "Turn Off Video"}
+            </button>
           </div>
         )}
+
 
         {videoBlob && (
           <div className="flex flex-col items-center mt-6">
