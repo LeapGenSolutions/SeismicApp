@@ -5,13 +5,20 @@ import App from "./App";
 // import reportWebVitals from './reportWebVitals';
 import process from "process";
 import { Buffer } from "buffer";
+import { PublicClientApplication } from "@azure/msal-browser";
+import { msalConfig } from './authConfig';
+import { MsalProvider } from "@azure/msal-react";
+
 window.process = process;
 window.Buffer = window.Buffer || Buffer;
+const msalInstance = new PublicClientApplication(msalConfig);
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <App />
+    <MsalProvider instance={msalInstance}>
+      <App />
+    </MsalProvider>
   </React.StrictMode>
 );
 

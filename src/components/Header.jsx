@@ -8,9 +8,6 @@ const Header = () => {
         <a href="/" className="hover:underline">
           Help
         </a>
-        {/* <a href="/video-call" className="hover:underline">
-          Video Call
-        </a> */}
       </nav>
     </header>
   );

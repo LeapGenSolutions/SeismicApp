@@ -1,4 +1,3 @@
-
 import { Bell, Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -11,37 +10,44 @@ const Header = () => {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
+  const queryParams = new URLSearchParams(window.location.search);
+  const role = queryParams.get("role");
+
   return (
     <header className="bg-white border-b border-neutral-200 shadow-sm">
       <div className="px-6 py-3 flex items-center justify-between">
         <div className="flex items-center">
-          <h1 className="text-xl font-semibold text-neutral-800">Healthcare Dashboard</h1>
-          <div className="hidden md:flex items-center ml-6 space-x-4">
-            <div
-              className="text-sm text-primary-500 font-medium cursor-pointer"
-              onClick={() => window.location.href = '/'}
-            >
-              Overview
+          <h1 className="text-xl font-semibold text-neutral-800">
+            Healthcare Dashboard
+          </h1>
+          {role !== "patient" && (
+            <div className="hidden md:flex items-center ml-6 space-x-4">
+              <div
+                className="text-sm text-primary-500 font-medium cursor-pointer"
+                onClick={() => (window.location.href = "/")}
+              >
+                Overview
+              </div>
+              <div
+                className="text-sm text-neutral-500 hover:text-neutral-800 cursor-pointer"
+                onClick={() => (window.location.href = "/appointments")}
+              >
+                Appointments
+              </div>
+              <div
+                className="text-sm text-neutral-500 hover:text-neutral-800 cursor-pointer"
+                onClick={() => (window.location.href = "/patients")}
+              >
+                Patients
+              </div>
+              <div
+                className="text-sm text-neutral-500 hover:text-neutral-800 cursor-pointer"
+                onClick={() => (window.location.href = "/reports")}
+              >
+                Reports
+              </div>
             </div>
-            <div
-              className="text-sm text-neutral-500 hover:text-neutral-800 cursor-pointer"
-              onClick={() => window.location.href = '/appointments'}
-            >
-              Appointments
-            </div>
-            <div
-              className="text-sm text-neutral-500 hover:text-neutral-800 cursor-pointer"
-              onClick={() => window.location.href = '/patients'}
-            >
-              Patients
-            </div>
-            <div
-              className="text-sm text-neutral-500 hover:text-neutral-800 cursor-pointer"
-              onClick={() => window.location.href = '/reports'}
-            >
-              Reports
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="flex items-center space-x-4">
@@ -70,12 +76,16 @@ const Header = () => {
                 />
               ) : (
                 <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white font-medium text-sm">
-                  {user?.fullName?.charAt(0) || 'U'}
+                  {user?.fullName?.charAt(0) || "U"}
                 </div>
               )}
               <div className="ml-2">
-                <p className="text-sm font-medium text-neutral-800">{user?.fullName || 'Loading...'}</p>
-                <p className="text-xs text-neutral-500">{user?.specialty || user?.role || 'Staff'}</p>
+                <p className="text-sm font-medium text-neutral-800">
+                  {user?.fullName || "Loading..."}
+                </p>
+                <p className="text-xs text-neutral-500">
+                  {user?.specialty || user?.role || "Staff"}
+                </p>
               </div>
             </div>
           )}
