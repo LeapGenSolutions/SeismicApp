@@ -8,6 +8,9 @@ import {
 import html2canvas from 'html2canvas';
 import { FaPhoneSlash, FaStop, FaVideo } from 'react-icons/fa';
 
+const BACKEND_LINK = "https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net"
+// const BACKEND_LINK = "http://localhost:8080";
+
 const getFormattedDate = () => {
   const now = new Date();
   return `${String(now.getMonth() + 1).padStart(2, '0')}${String(
@@ -82,7 +85,7 @@ const StreamVideoUI = () => {
         formData.append('chunk', blob, `recording-${index}.webm`);
 
         try {
-          await fetch(`http://localhost:8080/upload-chunk/Guest-${DATETIME}/${index}`, {
+          await fetch(`${BACKEND_LINK}/upload-chunk/Guest-${DATETIME}/${index}`, {
             method: 'POST',
             body: formData,
           });
