@@ -23,6 +23,7 @@ function VideoUi({
   waitingForHost,
   role,
   userName,
+  onEndCall
 }) {
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
@@ -34,7 +35,11 @@ function VideoUi({
   const leaveCall = () => {
     removeMyStream();
     socket.disconnect();
-    window.location.reload();
+    if (onEndCall) { //Anusha
+      onEndCall(); // 🔥 trigger parent logic
+    } else {
+      window.location.reload(); // fallback
+    }
   };
 
   const toggleMute = () => {

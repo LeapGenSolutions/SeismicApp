@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 import VideoUi from "./VideoUi";
 import { useToast } from "../hooks/use-toast";
+import PostCallDocumentation from "../Pages/PostCallDocumentation";//Anusha
 
 const BACKEND_LINK = "https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net"
 // const BACKEND_LINK = "http://localhost:8080";
@@ -14,6 +15,7 @@ const VideoCore = () => {
   const nickname = queryParams.get("name");
   const hasInitialized = useRef(false);
   const { toast } = useToast();
+  const [showPostCallPanel, setShowPostCallPanel] = useState(false);//Anusha
   const [waitingForHost, setWaitingForHost] = useState(
     role === "patient" ? true : false
   );
@@ -299,6 +301,7 @@ const VideoCore = () => {
       )}
 
       {/* Video containers */}
+{!showPostCallPanel && (
       <VideoUi
         myStream={myStream}
         socket={socket}
@@ -309,7 +312,18 @@ const VideoCore = () => {
         waitingForHost={waitingForHost}
         role={role}
         userName={otherUserNickname}
+        onEndCall={() => setShowPostCallPanel(true)}//Anusha
       />
+)} 
+{showPostCallPanel && (
+    <PostCallDocumentation
+      patient={{ firstName: nickname || "User", lastName: "" }}
+      selectedAppointment={{ reason: "Telehealth Visit" }}
+      recordingTime={300}
+      formatRecordingTime={(s) => `${Math.floor(s / 60)}:${s % 60}`}
+      onSave={() => setShowPostCallPanel(false)}
+    />
+  )}
     </>
   );
 };
