@@ -14,9 +14,10 @@ import NotFound from "./Pages/not-found";
 import VideoRecorder from "./Pages/VideoRecorder";
 import { AuthenticatedTemplate, UnauthenticatedTemplate, useIsAuthenticated, useMsal } from "@azure/msal-react";
 import { SignInButton } from "./components/SignInButton";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { loginRequest } from "./authConfig";
-import StreamVideoCore from "./components/StreamVideoCore";
+// import StreamVideoCore from "./components/StreamVideoCore";
+import StreamVideoCoreV2 from "./components/StreamVideoCoreV2";
 
 function Router() {
   const queryParams = new URLSearchParams(window.location.search);
@@ -36,7 +37,8 @@ function Router() {
             <Route path="/reports" component={Reports} />
             <Route path="/settings" component={Settings} />
             {/* <Route path="/meeting-room" component={VideoCore} /> */}
-            <Route path="/meeting-room" component={StreamVideoCore} />
+            {/* <Route path="/meeting-room" component={StreamVideoCore} /> */}
+            <Route path="/meeting-room" component={StreamVideoCoreV2} />
             <Route component={NotFound} />
           </Switch>
         </main>
