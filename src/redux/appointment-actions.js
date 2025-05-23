@@ -12,8 +12,17 @@ export const fetchAppointmentDetails = () => {
             }
 
             const data = await response.json();
-
-            return data;
+            const appts = data.map((appt) => {
+                const date = appt.id
+                const thatDaysAppts = appt.data.map((apptTemp) => {
+                    return {
+                        ...apptTemp,
+                        date
+                    }
+                })
+                return thatDaysAppts
+            })
+            return appts.flat();
         }
 
         try {
