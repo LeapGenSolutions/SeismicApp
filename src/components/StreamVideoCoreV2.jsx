@@ -16,6 +16,7 @@ import '@stream-io/video-react-sdk/dist/css/styles.css';
 import { useRef, useState } from 'react';
 
 import html2canvas from "html2canvas";
+import { navigate } from "wouter/use-browser-location";
 
 const apiKey = 'mmhfdzb5evj2';
 const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL0Jlbl9Ta3l3YWxrZXIiLCJ1c2VyX2lkIjoiQmVuX1NreXdhbGtlciIsInZhbGlkaXR5X2luX3NlY29uZHMiOjYwNDgwMCwiaWF0IjoxNzQ3ODY0ODY3LCJleHAiOjE3NDg0Njk2Njd9.EIcmcoGIrrb21i_M70DE5nvoc7IEMYqXh3gOSWidaHM';
@@ -58,7 +59,6 @@ export default function StreamVideoCoreV2() {
 export const MyUILayout = () => {
   const { useCallCallingState } = useCallStateHooks();
   const callingState = useCallCallingState();
-
   const divRef = useRef(null);
   const canvasRef = useRef(null);
   const [recording, setRecording] = useState(false);
@@ -153,6 +153,12 @@ export const MyUILayout = () => {
 
   }
 
+  const handleCancel = () => {
+    // Optional: stop recording or cleanup
+    stopRecording();
+    navigate("/post-call"); // ✅ Redirect to PostCallDocumentation
+  };
+
   if (callingState !== CallingState.JOINED) {
     console.log("Joining");
 
@@ -172,7 +178,9 @@ export const MyUILayout = () => {
         <div onClick={handleRecordingClick}>
           <RecordCallButton />
         </div>
+        <div onClick={handleCancel}>
         <CancelCallButton />
+        </div>
       </div>
     </StreamTheme>
   );
