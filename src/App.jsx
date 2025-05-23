@@ -48,11 +48,11 @@ function Router() {
   );
 }
 
-function App() {
+function Main() {
   const isAuthenticated = useIsAuthenticated();
   const { instance, accounts } = useMsal();
   const [hasRole, setHasRole] = useState(false)
-  
+
   function requestProfileData() {
     // Silently acquires an access token which is then attached to a request for MS Graph data
     instance
@@ -69,27 +69,37 @@ function App() {
   }
 
   useEffect(() => {
-    requestProfileData()
+    if (isAuthenticated) {
+      requestProfileData()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated])
+  return (
+    <>
+      {!hasRole ? <AuthenticatedTemplate>
+        <QueryClientProvider client={queryClient}>
+          <Router />
+          <Toaster />
+        </QueryClientProvider>
+      </AuthenticatedTemplate> :
+        <AuthenticatedTemplate>
+          Sign is successful but you dont previlaged role to view this app. Try contacting your admin
+        </AuthenticatedTemplate>
+      }
+      <UnauthenticatedTemplate>
+        <h5 className="card-title">Please sign-in to see your profile information.</h5>
+        <SignInButton />
+      </UnauthenticatedTemplate>
+    </>
+  )
+}
+
+function App() {
 
   return (
     <Provider store={store}>
       <div className="App">
-        {!hasRole ? <AuthenticatedTemplate>
-          <QueryClientProvider client={queryClient}>
-            <Router />
-            <Toaster />
-          </QueryClientProvider>
-        </AuthenticatedTemplate> :
-          <AuthenticatedTemplate>
-            Sign is successful but you dont previlaged role to view this app. Try contacting your admin
-          </AuthenticatedTemplate>
-        }
-        <UnauthenticatedTemplate>
-          <h5 className="card-title">Please sign-in to see your profile information.</h5>
-          <SignInButton />
-        </UnauthenticatedTemplate>
+        <Main />
       </div>
     </Provider>
   );

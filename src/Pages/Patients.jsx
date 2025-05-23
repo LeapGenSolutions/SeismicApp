@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -27,12 +26,19 @@ import {
 } from "lucide-react";
 import AdvancedSearch from "../components/search/AdvancedSearch";
 import { format } from "date-fns";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchPatientsDetails } from "../redux/patient-actions";
 
 function Patients() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+  const dispatch = useDispatch()
+  const patients = useSelector((state)=>state.patients.patients)
 
-  const { data: patients } = useQuery(["/api/patients"]);
+  useEffect(()=>{
+    dispatch(fetchPatientsDetails())
+  },[dispatch])
+  
 
   return (
     <div className="space-y-6">
@@ -85,7 +91,7 @@ function Patients() {
               {patients?.map((patient) => (
                 <TableRow key={patient.id}>
                   <TableCell>
-                    {patient.firstName} {patient.lastName}
+                    {patient.first_name} {patient.last_name}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
