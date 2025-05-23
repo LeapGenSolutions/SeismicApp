@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
-import { io } from "socket.io-client";
 import { FaVideo, FaCopy } from "react-icons/fa";
 import { navigate } from "wouter/use-browser-location";
 
-const BACKEND_LINK = "https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net"
+// const BACKEND_LINK = "https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net"
 // const BACKEND_LINK = "http://localhost:8080";
 
-const socket = io(BACKEND_LINK);
+// const socket = io(BACKEND_LINK);
 
 const VideoCallPage = () => {
   const [userName, setUserName] = useState("");
@@ -104,31 +103,29 @@ const VideoCallPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const nickname = "Guest";
-
   const queryParams = new URLSearchParams(window.location.search);
   const role = queryParams.get("role") || "doctor";
 
-  const createRoom = (roomId) => {
-    if (!roomId) return alert("Enter a room ID");
-    socket.emit("create-room", { roomId, appointmentDetails: {} });
+  // const createRoom = (roomId) => {
+  //   if (!roomId) return alert("Enter a room ID");
+  //   socket.emit("create-room", { roomId, appointmentDetails: {} });
 
-    if (!roomId || !nickname) {
-      console.log("Both Room ID and Nickname are required.");
-      return;
-    }
+  //   if (!roomId || !nickname) {
+  //     console.log("Both Room ID and Nickname are required.");
+  //     return;
+  //   }
 
-    socket.emit("createRoom", { roomId, nickname, role });
+  //   socket.emit("createRoom", { roomId, nickname, role });
 
-    socket.once("roomCreated", (data) => {
-      console.log("");
-      console.log("Room created:", data.roomId);
-    });
+  //   socket.once("roomCreated", (data) => {
+  //     console.log("");
+  //     console.log("Room created:", data.roomId);
+  //   });
 
-    socket.once("roomExists", () => {
-      console.log("Room already exists. Please choose another Room ID.");
-    });
-  };
+  //   socket.once("roomExists", () => {
+  //     console.log("Room already exists. Please choose another Room ID.");
+  //   });
+  // };
 
   const handleAppointmentSelect = (selectedAppointmentId) => {
     const appointment = upcomingAppointments.find(
@@ -150,7 +147,7 @@ const VideoCallPage = () => {
     }
     generateJoinLink(selectedAppointmentId);
 
-    createRoom(selectedAppointmentId);
+    // createRoom(selectedAppointmentId);
   };
 
   const generateJoinLink = (room) => {

@@ -14,10 +14,13 @@ import NotFound from "./Pages/not-found";
 import VideoRecorder from "./Pages/VideoRecorder";
 import { AuthenticatedTemplate, UnauthenticatedTemplate, useIsAuthenticated, useMsal } from "@azure/msal-react";
 import { SignInButton } from "./components/SignInButton";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { loginRequest } from "./authConfig";
 // import StreamVideoCore from "./components/StreamVideoCore";
 import StreamVideoCoreV2 from "./components/StreamVideoCoreV2";
+import { Provider } from "react-redux";
+import { store } from "./redux/store";
+
 
 function Router() {
   const queryParams = new URLSearchParams(window.location.search);
@@ -36,8 +39,6 @@ function Router() {
             <Route path="/patients" component={Patients} />
             <Route path="/reports" component={Reports} />
             <Route path="/settings" component={Settings} />
-            {/* <Route path="/meeting-room" component={VideoCore} /> */}
-            {/* <Route path="/meeting-room" component={StreamVideoCore} /> */}
             <Route path="/meeting-room" component={StreamVideoCoreV2} />
             <Route component={NotFound} />
           </Switch>
@@ -51,6 +52,7 @@ function App() {
   const isAuthenticated = useIsAuthenticated();
   const { instance, accounts } = useMsal();
   const [hasRole, setHasRole] = useState(false)
+  
   function requestProfileData() {
     // Silently acquires an access token which is then attached to a request for MS Graph data
     instance
@@ -65,27 +67,31 @@ function App() {
         }
       });
   }
+
   useEffect(() => {
     requestProfileData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated])
+
   return (
-    <div className="App">
-      {!hasRole ? <AuthenticatedTemplate>
-        <QueryClientProvider client={queryClient}>
-          <Router />
-          <Toaster />
-        </QueryClientProvider>
-      </AuthenticatedTemplate> :
-        <AuthenticatedTemplate>
-          Sign is successful but you dont previlaged role to view this app. Try contacting your admin
-        </AuthenticatedTemplate>
-      }
-      <UnauthenticatedTemplate>
-        <h5 className="card-title">Please sign-in to see your profile information.</h5>
-        <SignInButton />
-      </UnauthenticatedTemplate>
-    </div>
+    <Provider store={store}>
+      <div className="App">
+        {!hasRole ? <AuthenticatedTemplate>
+          <QueryClientProvider client={queryClient}>
+            <Router />
+            <Toaster />
+          </QueryClientProvider>
+        </AuthenticatedTemplate> :
+          <AuthenticatedTemplate>
+            Sign is successful but you dont previlaged role to view this app. Try contacting your admin
+          </AuthenticatedTemplate>
+        }
+        <UnauthenticatedTemplate>
+          <h5 className="card-title">Please sign-in to see your profile information.</h5>
+          <SignInButton />
+        </UnauthenticatedTemplate>
+      </div>
+    </Provider>
   );
 }
 
