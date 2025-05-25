@@ -1,9 +1,20 @@
 
 import { Link, useLocation } from "wouter";
 import { LogOut, AlertCircle, Calendar, Video, Users, FileText, Settings, LayoutDashboard } from "lucide-react";
+import { useMsal } from "@azure/msal-react";
 
 const Sidebar = () => {
   const [location] = useLocation();
+  const { instance, accounts } = useMsal()
+
+  const handleLogout = () => {
+    instance.logoutRedirect({
+      account: accounts[0],
+      postLogoutRedirectUri: "/"
+    })
+
+  }
+
 
   const isActive = (path) => {
     if (path === '/' && location === '/') return true;
@@ -17,7 +28,7 @@ const Sidebar = () => {
         <AlertCircle className="w-8 h-8 mr-2" />
         <h1 className="text-xl font-semibold">Seismic Connect</h1>
       </div>
-      
+
       <nav className="flex-1 overflow-y-auto py-4">
         <div className="px-4 mb-3 text-neutral-400 text-xs font-semibold uppercase tracking-wider">
           Main
@@ -46,7 +57,7 @@ const Sidebar = () => {
             Patients
           </div>
         </Link>
-        
+
         <div className="px-4 mt-6 mb-3 text-neutral-400 text-xs font-semibold uppercase tracking-wider">
           Administration
         </div>
@@ -63,9 +74,9 @@ const Sidebar = () => {
           </div>
         </Link>
       </nav>
-      
+
       <div className="p-4 border-t border-neutral-700">
-        <button className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-neutral-700 rounded hover:bg-neutral-600">
+        <button onClick={handleLogout} className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-neutral-700 rounded hover:bg-neutral-600">
           <LogOut className="w-4 h-4 mr-2" />
           Logout
         </button>
