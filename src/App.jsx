@@ -63,8 +63,7 @@ function Main() {
         account: accounts[0],
       })
       .then((response) => {
-        console.log(response.idTokenClaims);
-        if (response.idTokenClaims.roles && "SeismicDoctors" in response.idTokenClaims.roles) {
+        if (response.idTokenClaims.roles && response.idTokenClaims.roles.includes("SeismicDoctors")) {
           setHasRole(true)
         }
       });
@@ -78,7 +77,7 @@ function Main() {
   }, [isAuthenticated])
   return (
     <>
-      {!hasRole ? <AuthenticatedTemplate>
+      {hasRole ? <AuthenticatedTemplate>
         <QueryClientProvider client={queryClient}>
           <Router />
           <Toaster />
