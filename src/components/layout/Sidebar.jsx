@@ -1,14 +1,32 @@
 
 import { Link, useLocation } from "wouter";
 import { LogOut, AlertCircle, Calendar, Video, Users, FileText, Settings, LayoutDashboard } from "lucide-react";
+//import { navigate } from "wouter/use-hash-location";
+import { useMsal } from "@azure/msal-react";
+
 
 const Sidebar = () => {
   const [location] = useLocation();
+
+  const { instance } = useMsal();
 
   const isActive = (path) => {
     if (path === '/' && location === '/') return true;
     if (path !== '/' && location.startsWith(path)) return true;
     return false;
+  };
+
+  const handleLogout = () => {
+    const isGuest = localStorage.getItem("isGuest") === "true";
+
+    if (isGuest) {
+      localStorage.removeItem("isGuest");
+      window.location.href = "/login"; // ✅ for guest reset
+    } else {
+      instance.logoutRedirect({
+        postLogoutRedirectUri: `${window.location.origin}/login`,
+      });
+    }
   };
 
   return (
@@ -65,7 +83,10 @@ const Sidebar = () => {
       </nav>
       
       <div className="p-4 border-t border-neutral-700">
-        <button className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-neutral-700 rounded hover:bg-neutral-600">
+        <button
+          onClick={handleLogout}
+          className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-neutral-700 rounded hover:bg-neutral-600"
+        >
           <LogOut className="w-4 h-4 mr-2" />
           Logout
         </button>

@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Router as WouterRouter, Switch, Route, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "./components/ui/toaster";
 import PostCallDocumentation from "./Pages/PostCallDocumentation";
@@ -19,11 +19,20 @@ import { loginRequest } from "./authConfig";
 import StreamVideoCoreV2 from "./components/StreamVideoCoreV2";
 import { Provider } from "react-redux";
 import { store } from "./redux/store";
+import Login from "./Pages/Login";
+import PatientJoinPage from "./components/PatientJoinPage";
 
+// Move this OUTSIDE Main() so it's not re-created every render
+const queryClient = new QueryClient();
 
 function Router() {
   const queryParams = new URLSearchParams(window.location.search);
   const role = queryParams.get("role");
+
+  const [location] = useLocation(); // <== Add this
+  const isLoginPage = location === "/login"; // <== Add this
+
+  if (isLoginPage) return <Login />; // <== Add this block
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -32,7 +41,7 @@ function Router() {
         <Header />
         <main className="flex-1 overflow-y-auto bg-neutral-50 p-6">
           <Switch>
-            <Route path="/" component={Dashboard} />
+            <Route path="/dashboard" component={Dashboard} />
             <Route path="/appointments" component={Appointments} />
             <Route path="/video-call" component={VideoRecorder} />
             <Route path="/patients" component={Patients} />
@@ -40,6 +49,8 @@ function Router() {
             <Route path="/settings" component={Settings} />
             <Route path="/meeting-room" component={StreamVideoCoreV2} />
             <Route path="/post-call" component={PostCallDocumentation} />
+            <Route path="/logout" component={LogoutRedirect} />
+            <Route path="/join-as-patient/:meetingId" component={PatientJoinPage} />
             <Route component={NotFound} />
           </Switch>
         </main>
@@ -49,54 +60,85 @@ function Router() {
 }
 
 function Main() {
+  const [location, setLocation] = useLocation();
+  const isLoginPage = location === "/login";
+
   const isAuthenticated = useIsAuthenticated();
   const { instance, accounts } = useMsal();
-  const [hasRole, setHasRole] = useState(false)
-
-  const queryClient = new QueryClient();
-
-  function requestProfileData() {
-    // Silently acquires an access token which is then attached to a request for MS Graph data
-    instance
-      .acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      })
-      .then((response) => {
-        console.log(response.idTokenClaims);
-        if (response.idTokenClaims.roles && "SeismicDoctors" in response.idTokenClaims.roles) {
-          setHasRole(true)
-        }
-      });
-  }
+  const [hasRole, setHasRole] = useState(false);
+  const isGuest = localStorage.getItem("isGuest") === "true";
 
   useEffect(() => {
     if (isAuthenticated) {
-      requestProfileData()
+      instance
+        .acquireTokenSilent({
+          ...loginRequest,
+          account: accounts[0],
+        })
+        .then((response) => {
+          if (
+            response.idTokenClaims.roles &&
+            response.idTokenClaims.roles.includes("SeismicDoctors")
+          ) {
+            setHasRole(true);
+          }
+        });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated])
-  return (
-    <>
-      {!hasRole ? <AuthenticatedTemplate>
-        <QueryClientProvider client={queryClient}>
-          <Router />
-          <Toaster />
-        </QueryClientProvider>
-      </AuthenticatedTemplate> :
-        <AuthenticatedTemplate>
-          Sign is successful but you dont previlaged role to view this app. Try contacting your admin
-        </AuthenticatedTemplate>
+  }, [isAuthenticated, instance, accounts]);
+
+  // ✅ Redirect to login if not authenticated and not a guest
+  useEffect(() => {
+    if (location === "/" && !isLoginPage) {
+      if (!isGuest && !isAuthenticated) {
+        setLocation("/login");
+      } else if (isGuest || hasRole) {
+        setLocation("/dashboard");
       }
-      <UnauthenticatedTemplate>
-        <h5 className="card-title">Please sign-in to see your profile information.</h5>
-        <SignInButton />
-      </UnauthenticatedTemplate>
-    </>
-  )
+    }
+  }, [location, isLoginPage, isGuest, isAuthenticated, hasRole, setLocation]);
+
+  if (isLoginPage) return null;
+
+  if (isGuest || hasRole) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Router />
+        <Toaster />
+      </QueryClientProvider>
+    );
+  }
+
+  if (isAuthenticated && !hasRole) {
+    return (
+      <AuthenticatedTemplate>
+        Sign-in successful, but you don't have the privileged role. Contact admin.
+      </AuthenticatedTemplate>
+    );
+  }
+
+  return (
+    <UnauthenticatedTemplate>
+      <h5 className="card-title">Please sign in to see your profile information.</h5>
+      <SignInButton />
+    </UnauthenticatedTemplate>
+  );
 }
 
 function App() {
+  return (
+    <WouterRouter> {/* ✅ Correct usage */}
+      <AppWithRouting />
+    </WouterRouter>
+  );
+}
+
+function AppWithRouting() {
+  const [location] = useLocation();
+  const isLoginPage = location === "/login";
+
+  if (isLoginPage) {
+    return <Login />;
+  }
 
   return (
     <Provider store={store}>
@@ -105,6 +147,20 @@ function App() {
       </div>
     </Provider>
   );
+}
+
+
+function LogoutRedirect() {
+  const { instance } = useMsal();
+
+  useEffect(() => {
+    localStorage.removeItem("isGuest");
+    instance.logoutRedirect({
+      postLogoutRedirectUri: `${window.location.origin}/login`,
+    });
+  }, [instance]);
+
+  return null; 
 }
 
 export default App;
