@@ -12,13 +12,13 @@ import Settings from "./Pages/Settings";
 import NotFound from "./Pages/not-found";
 import VideoRecorder from "./Pages/VideoRecorder";
 import { AuthenticatedTemplate, UnauthenticatedTemplate, useIsAuthenticated, useMsal } from "@azure/msal-react";
-import { SignInButton } from "./components/SignInButton";
 import { useEffect, useState } from "react";
 import { loginRequest } from "./authConfig";
 // import StreamVideoCore from "./components/StreamVideoCore";
 import StreamVideoCoreV2 from "./components/StreamVideoCoreV2";
 import { Provider } from "react-redux";
 import { store } from "./redux/store";
+import AuthPage from "./Pages/AuthPage";
 
 
 function Router() {
@@ -88,8 +88,8 @@ function Main() {
         </AuthenticatedTemplate>
       }
       <UnauthenticatedTemplate>
-        <h5 className="card-title">Please sign-in to see your profile information.</h5>
-        <SignInButton />
+        {/* <SignInButton /> */}
+        <AuthPage />
       </UnauthenticatedTemplate>
     </>
   )
