@@ -14,11 +14,11 @@ import VideoRecorder from "./Pages/VideoRecorder";
 import { AuthenticatedTemplate, UnauthenticatedTemplate, useIsAuthenticated, useMsal } from "@azure/msal-react";
 import { useEffect, useState } from "react";
 import { loginRequest } from "./authConfig";
-// import StreamVideoCore from "./components/StreamVideoCore";
-import StreamVideoCoreV2 from "./components/StreamVideoCoreV2";
-import { Provider } from "react-redux";
+import { Provider, useDispatch } from "react-redux";
 import { store } from "./redux/store";
 import AuthPage from "./Pages/AuthPage";
+import StreamVideoCoreV3 from "./Pages/StreamVideoCoreV3";
+import setMyDetails from "./redux/me-actions";
 
 
 function Router() {
@@ -38,7 +38,7 @@ function Router() {
             <Route path="/patients" component={Patients} />
             <Route path="/reports" component={Reports} />
             <Route path="/settings" component={Settings} />
-            <Route path="/meeting-room" component={StreamVideoCoreV2} />
+            <Route path="/meeting-room/:roomId" component={StreamVideoCoreV3} />
             <Route path="/post-call" component={PostCallDocumentation} />
             <Route component={NotFound} />
           </Switch>
@@ -52,6 +52,7 @@ function Main() {
   const isAuthenticated = useIsAuthenticated();
   const { instance, accounts } = useMsal();
   const [hasRole, setHasRole] = useState(false)
+  const dispatch = useDispatch()
 
   const queryClient = new QueryClient();
 
@@ -63,6 +64,7 @@ function Main() {
         account: accounts[0],
       })
       .then((response) => {
+        dispatch(setMyDetails(response.idTokenClaims))
         if (response.idTokenClaims.roles && response.idTokenClaims.roles.includes("SeismicDoctors")) {
           setHasRole(true)
         }
@@ -88,7 +90,6 @@ function Main() {
         </AuthenticatedTemplate>
       }
       <UnauthenticatedTemplate>
-        {/* <SignInButton /> */}
         <AuthPage />
       </UnauthenticatedTemplate>
     </>
