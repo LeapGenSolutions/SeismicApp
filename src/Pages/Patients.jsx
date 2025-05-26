@@ -28,17 +28,18 @@ import AdvancedSearch from "../components/search/AdvancedSearch";
 import { format } from "date-fns";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchPatientsDetails } from "../redux/patient-actions";
+import { Link } from "wouter";
+import { navigate } from "wouter/use-browser-location";
 
 function Patients() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
-  const dispatch = useDispatch()
-  const patients = useSelector((state)=>state.patients.patients)
+  const dispatch = useDispatch();
+  const patients = useSelector((state) => state.patients.patients);
 
-  useEffect(()=>{
-    dispatch(fetchPatientsDetails())
-  },[dispatch])
-  
+  useEffect(() => {
+    dispatch(fetchPatientsDetails());
+  }, [dispatch]);
 
   return (
     <div className="space-y-6">
@@ -129,17 +130,18 @@ function Patients() {
                       <Button variant="ghost" size="icon">
                         <FileText className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="icon">
-                        <ExternalLink className="w-4 h-4" />
-                      </Button>
+                      <Link href={`/patients/${patient.id}`}>
+                        <Button onClick={()=>{navigate(`/patients/${patient.id}`)}} variant="ghost" size="icon">
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      </Link>
                     </div>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+        </CardContent>w      </Card>
     </div>
   );
 }
