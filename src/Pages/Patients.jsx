@@ -1,29 +1,10 @@
 import { useEffect, useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
+import { Card,CardContent,CardHeader,CardTitle}from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../components/ui/table";
+import {Table,TableBody,TableCell,TableHead, TableHeader,TableRow} from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
-import {
-  Plus,
-  Phone,
-  Mail,
-  Calendar,
-  ExternalLink,
-  FileText,
-} from "lucide-react";
+import {Plus,Phone,Mail,Calendar,ExternalLink,FileText} from "lucide-react";
 import AdvancedSearch from "../components/search/AdvancedSearch";
 import { format } from "date-fns";
 import { useDispatch, useSelector } from "react-redux";
@@ -130,8 +111,8 @@ function Patients() {
                       <Button variant="ghost" size="icon">
                         <FileText className="w-4 h-4" />
                       </Button>
-                      <Link href={`/patients/${patient.id}`}>
-                        <Button onClick={()=>{navigate(`/patients/${patient.id}`)}} variant="ghost" size="icon">
+                      <Link href={`/patientreports?id=${patient.id}`}>
+                        <Button onClick={()=>{navigate(`/patientreports?id=${patient.id}`)}} variant="ghost" size="icon">
                           <ExternalLink className="w-4 h-4" />
                         </Button>
                       </Link>
@@ -141,7 +122,8 @@ function Patients() {
               ))}
             </TableBody>
           </Table>
-        </CardContent>w      </Card>
+        </CardContent>      
+        </Card>
     </div>
   );
 }

@@ -37,7 +37,7 @@ function Router() {
             <Route path="/appointments" component={Appointments} />
             <Route path="/video-call" component={VideoRecorder} />
             <Route path="/patients" component={Patients} />
-            <Route path="/patients/:patientId" component={PatientReports} />
+            <Route path="/patientreports" component={PatientReports} />
             <Route path="/reports" component={Reports} />
             <Route path="/settings" component={Settings} />
             <Route path="/meeting-room/:roomId" component={StreamVideoCoreV3} />
