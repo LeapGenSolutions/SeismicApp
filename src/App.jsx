@@ -40,7 +40,7 @@ function Router() {
             <Route path="/patients/:patientId" component={PatientReports} />
             <Route path="/reports" component={Reports} />
             <Route path="/settings" component={Settings} />
-            <Route path="/meeting-room/:roomId" component={StreamVideoCoreV3} />
+            <Route path="/meeting-room/:callId" component={StreamVideoCoreV3} />
             <Route path="/post-call" component={PostCallDocumentation} />
             <Route component={NotFound} />
           </Switch>

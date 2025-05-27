@@ -1,14 +1,9 @@
 import { Bell, Search } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useSelector } from "react-redux";
 
 const Header = () => {
-  // In a real app, we would get this from auth context
-  const currentUserId = 1;
 
-  const { data: user, isLoading } = useQuery({
-    queryKey: [`/api/users/${currentUserId}`],
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
+  const user = useSelector((state)=>state.me.me)
 
   const queryParams = new URLSearchParams(window.location.search);
   const role = queryParams.get("role");
@@ -64,10 +59,7 @@ const Header = () => {
             <Bell className="w-5 h-5" />
           </button>
 
-          {isLoading ? (
-            <div className="h-8 w-8 rounded-full bg-neutral-200 animate-pulse"></div>
-          ) : (
-            <div className="flex items-center">
+          <div className="flex items-center">
               {user?.profileImage ? (
                 <img
                   src={user.profileImage}
@@ -76,19 +68,18 @@ const Header = () => {
                 />
               ) : (
                 <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white font-medium text-sm">
-                  {user?.fullName?.charAt(0) || "U"}
+                  {user?.given_name?.charAt(0) || "U"}
                 </div>
               )}
               <div className="ml-2">
                 <p className="text-sm font-medium text-neutral-800">
-                  {user?.fullName || "Loading..."}
+                  {user?.given_name || "Loading..."}
                 </p>
                 <p className="text-xs text-neutral-500">
                   {user?.specialty || user?.role || "Staff"}
                 </p>
               </div>
             </div>
-          )}
         </div>
       </div>
     </header>

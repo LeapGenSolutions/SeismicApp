@@ -5,6 +5,8 @@ import { useRef, useState } from 'react';
 
 import html2canvas from "html2canvas";
 import { BACKEND_URL } from "../../constants";
+import '@stream-io/video-react-sdk/dist/css/styles.css';
+
 
 
 const StreamVideoLayoutV3 = () => {
