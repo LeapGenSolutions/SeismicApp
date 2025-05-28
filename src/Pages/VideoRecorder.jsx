@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { FaVideo, FaCopy } from "react-icons/fa";
 import { navigate } from "wouter/use-browser-location";
+import { useSelector } from "react-redux";
+import { format, parse } from "date-fns";
+
 
 const VideoCallPage = () => {
-  const [userName, setUserName] = useState("");
+  // const [userName, setUserName] = useState("");
   const [room, setRoom] = useState("");
   const isHost = useState(true)[0];
   const [showShareLink, setShowShareLink] = useState(false);
@@ -13,66 +16,27 @@ const VideoCallPage = () => {
   const [appointmentId, setAppointmentId] = useState("");
   const [appointmentType, setAppointmentType] = useState("online");
   const isLoadingUpcoming = useState(false)[0];
+  const appointments = useSelector((state) => state.appointments.appointments)
+  const userName = useSelector((state) => state.me.me.given_name)
 
+  const today = format(new Date(), 'yyyy-MM-dd');
   // Mock data - replace with your actual data
-  const upcomingAppointments = [
-    {
-      appointmentId: "demo-appointment-1",
-      patientName: "John Doe",
-      date: "2025-04-30",
-      time: "10:00 AM",
-      reason: "Follow-up consultation",
-    },
-    {
-      appointmentId: "demo-appointment-2",
-      patientName: "Jane Smith",
-      date: "2025-04-30",
-      time: "2:30 PM",
-      reason: "Initial consultation",
-    },
-  ];
+  const upcomingAppointments = appointments.filter(
+    (appt) => appt.date === today && appt.status !== 'cancelled'
+  );
+
+  const sortedAppointments = [...upcomingAppointments]
+    .sort((a, b) =>
+      new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`)
+    );
 
   const selectedAppointment =
-    upcomingAppointments.find((app) => app.appointmentId === appointmentId) ||
+    sortedAppointments.find((app) => app.id === appointmentId) ||
     null;
-  const patient = selectedAppointment
-    ? {
-      firstName: selectedAppointment.patientName.split(" ")[0],
-      lastName: selectedAppointment.patientName.split(" ")[1],
-    }
-    : null;
 
   // Add these new states at the top of the component
   const [invalidMeetingId, setInvalidMeetingId] = useState(false);
-  const [meetingExpired, setMeetingExpired] = useState(false);
   const setAppointmentDetails = useState(null)[1];
-
-  // Add this helper function
-  const validateAppointmentTime = (appointment) => {
-    const appointmentDateTime = new Date(
-      `${appointment.date}T${appointment.time}`
-    );
-    const now = new Date();
-
-    const canJoinFrom = new Date(appointmentDateTime.getTime() - 15 * 60000);
-    const canJoinUntil = new Date(appointmentDateTime.getTime() + 60 * 60000);
-
-    if (now < canJoinFrom) {
-      alert(
-        "Meeting is not available yet. Please try again at the scheduled time."
-      );
-      setMeetingExpired(true);
-      return false;
-    }
-
-    if (now > canJoinUntil) {
-      alert("This meeting has expired. Please schedule a new appointment.");
-      setMeetingExpired(true);
-      return false;
-    }
-
-    return true;
-  };
 
   // Initialize and handle URL parameters
   useEffect(() => {
@@ -84,13 +48,12 @@ const VideoCallPage = () => {
       setRoom(roomParam);
       setActiveTab("join");
       // Find appointment details
-      const appointment = upcomingAppointments.find(
-        (app) => app.appointmentId === roomParam
+      const appointment = sortedAppointments.find(
+        (app) => app.id === roomParam
       );
 
       if (appointment) {
         setAppointmentDetails(appointment);
-        validateAppointmentTime(appointment);
       } else {
         setInvalidMeetingId(true);
       }
@@ -102,8 +65,8 @@ const VideoCallPage = () => {
   const role = queryParams.get("role") || "doctor"
 
   const handleAppointmentSelect = (selectedAppointmentId) => {
-    const appointment = upcomingAppointments.find(
-      (app) => app.appointmentId === selectedAppointmentId
+    const appointment = sortedAppointments.find(
+      (app) => app.id === selectedAppointmentId
     );
 
     if (!appointment) {
@@ -113,13 +76,8 @@ const VideoCallPage = () => {
 
     setAppointmentId(selectedAppointmentId);
     setRoom(selectedAppointmentId);
-    setUserName("Mike");
     setAppointmentDetails(appointment);
-
-    if (!validateAppointmentTime(appointment)) {
-      return;
-    }
-    generateJoinLink(selectedAppointmentId);
+    generateJoinLink(appointment.id);
   };
 
   const generateJoinLink = (room) => {
@@ -139,19 +97,48 @@ const VideoCallPage = () => {
 
   const joinAsParticipant = (room, name) => {
     navigate(
-      `/meeting-room?roomId=${encodeURIComponent(
+      `/meeting-room/${encodeURIComponent(
         room
-      )}&role=patient&name=${userName}`
+      )}?role=patient&name=${encodeURIComponent(userName)}`
     );
   };
 
   const joinAsDoctor = (room, name) => {
     navigate(
-      `/meeting-room?roomId=${encodeURIComponent(
+      `/meeting-room/${encodeURIComponent(
         room
-      )}&role=doctor&name=${userName}`
+      )}`
     );
   };
+
+  const SortedAppointmentsComponent = () => sortedAppointments.map((appointment) => {
+    const startTime = parse(appointment.time, "HH:mm", new Date());
+    const formattedStart = format(startTime, "h:mm a");
+    if (appointment.end_time && /^\d{2}:\d{2}$/.test(appointment.end_time)) {
+      try {
+        //const endTime = parse(appointment.end_time, "HH:mm", new Date());
+        //formattedEnd = format(endTime, "h:mm a");
+      } catch (err) {
+        console.warn("Invalid end_time format for:", appointment.end_time);
+      }
+    } else {
+      console.warn("Missing or malformed end_time for:", appointment);
+    }
+
+    const capitalizedStatus =
+      appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || "Unknown";
+
+    return (
+      <option
+        key={appointment.id}
+        value={appointment.id}
+      //disabled={!isInFuture(appointment)}
+      >
+        {appointment.full_name} – {formattedStart} ({capitalizedStatus})
+        {/*!isInFuture(appointment) ? " – Expired" : ""*/}
+      </option>
+    );
+  })
 
   return (
     <div className="bg-gray-50 flex flex-col items-center min-h-screen p-4">
@@ -223,16 +210,8 @@ const VideoCallPage = () => {
                         <option value="loading" disabled>
                           Loading appointments...
                         </option>
-                      ) : upcomingAppointments.length > 0 ? (
-                        upcomingAppointments.map((appointment) => (
-                          <option
-                            key={appointment.appointmentId}
-                            value={appointment.appointmentId}
-                          >
-                            {appointment.patientName} - {appointment.date}{" "}
-                            {appointment.time}
-                          </option>
-                        ))
+                      ) : sortedAppointments.length > 0 ? (
+                        <SortedAppointmentsComponent />
                       ) : (
                         <option value="no-appointments" disabled>
                           No upcoming video calls
@@ -286,20 +265,20 @@ const VideoCallPage = () => {
                   </div>
                 )}
 
-                {appointmentId && selectedAppointment && patient && (
+                {appointmentId && selectedAppointment && (
                   <div className="bg-gray-50 p-4 rounded-md mt-4">
                     <h3 className="font-medium mb-2">Appointment Details</h3>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
                         <span className="text-gray-500">Patient:</span>
                         <span className="ml-2 font-medium">
-                          {patient.firstName} {patient.lastName}
+                          {selectedAppointment.full_name}
                         </span>
                       </div>
                       <div>
                         <span className="text-gray-500">Appointment ID:</span>
                         <span className="ml-2 font-medium">
-                          {selectedAppointment.appointmentId}
+                          {selectedAppointment.id}
                         </span>
                       </div>
                       <div>
@@ -326,7 +305,6 @@ const VideoCallPage = () => {
                         type="text"
                         placeholder="Enter your name"
                         value={userName}
-                        onChange={(e) => setUserName(e.target.value)}
                         className="border border-gray-300 rounded-lg px-4 w-full py-2 mb-4"
                       />
                     </label>
@@ -394,7 +372,6 @@ const VideoCallPage = () => {
                         type="text"
                         placeholder="Enter your name"
                         value={userName}
-                        onChange={(e) => setUserName(e.target.value)}
                         className="border border-gray-300 rounded-lg px-4 w-full py-2 mb-4"
                       />
                     </label>
@@ -436,14 +413,8 @@ const VideoCallPage = () => {
             <p>Invalid meeting ID. Please check your meeting link.</p>
           </div>
         )}
-
-        {meetingExpired && (
-          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
-            <p>This meeting is not available at this time.</p>
-          </div>
-        )}
       </div>
-    </div>
+    </div >
   );
 };
 
