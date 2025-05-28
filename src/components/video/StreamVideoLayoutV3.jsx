@@ -69,7 +69,7 @@ const StreamVideoLayoutV3 = () => {
                 mediaRecorderRef.current.stop();
                 startMediaRecorder(combinedStream);
             }
-        }, 5000);
+        }, 60000);
 
         setRecording(true);
     };
