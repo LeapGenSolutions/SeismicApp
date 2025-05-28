@@ -40,16 +40,42 @@ const LazySection = ({ title, appointmentId, fetchFn }) => {
   );
 };
 
+const StaticClusterSection = ({ content }) => {
+  const [open, setOpen] = useState(false);
+
+  const toggle = (e) => {
+    e.stopPropagation();
+    setOpen((prev) => !prev);
+  };
+
+  return (
+    <div className="border rounded-lg bg-white shadow transition-all duration-300 w-full">
+      <button
+        onClick={toggle}
+        className="w-full px-4 py-2 flex justify-between items-center text-left text-base font-semibold bg-gray-100 rounded-t"
+      >
+        <span>Clusters</span>
+        {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+      </button>
+      {open && (
+        <div className="px-4 py-3 text-sm text-gray-800 whitespace-pre-wrap">
+          {content}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const PatientReports = () => {
-  const patients = useSelector((state) => state.patients.patients)
-  const appointments = useSelector((state) => state.appointments.appointments)
+  const patients = useSelector((state) => state.patients.patients);
+  const appointments = useSelector((state) => state.appointments.appointments);
 
   const [transcripts, setTranscripts] = useState({});
   const [summaries, setSummaries] = useState({});
   const [soapNotes, setSoapNotes] = useState({});
   const [billingCodes, setBillingCodes] = useState({});
 
-  const { patientId } = useParams()
+  const { patientId } = useParams();
 
   const patient = patients.find((p) => p.id === patientId);
   if (!patient) {
@@ -57,9 +83,14 @@ const PatientReports = () => {
     navigate("/patients");
     return;
   }
-  const filteredAppointments = appointments.filter(
-    (a) => patient.full_name === a.full_name
-  );
+
+  const filteredAppointments = appointments
+    .filter((a) => patient.full_name === a.full_name)
+    .sort(
+      (a, b) =>
+        new Date(b.timestamp || b.date || b.created_at) -
+        new Date(a.timestamp || a.date || a.created_at)
+    );
 
   const buildUrl = (base, doctorId, apptId) => {
     const suffixMap = {
@@ -137,35 +168,53 @@ const PatientReports = () => {
     }
   };
 
+  const [firstName, lastName] = patient.full_name?.split(" ") || ["", ""];
+  const maskedSSN = patient.ssn ? `XXX-XX-${patient.ssn.slice(-4)}` : "Not Available";
+
   return (
     <div className="p-6 w-full">
       <h1 className="text-3xl font-bold mb-4 text-gray-800 text-left">Patient Reports</h1>
 
-      {patient && (
-        <p className="text-lg text-gray-600 mb-6">
-          Showing records for:{" "}
-          <span className="font-semibold">{patient.full_name}</span>
+      {/* Patient Info Summary Card */}
+      <div className="bg-white border border-gray-300 rounded-xl shadow p-6 mb-6 w-full">
+        <h2 className="text-2xl font-semibold mb-4 text-gray-700">Patient Info</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-gray-800">
+          <p><strong>First Name:</strong> {firstName}</p>
+          <p><strong>Last Name:</strong> {lastName}</p>
+          <p><strong>SSN:</strong> {maskedSSN}</p>
+          <p><strong>Full Name:</strong> {patient.full_name}</p>
+        </div>
+      </div>
+
+      {/* Summary of Summaries Card */}
+      <div className="bg-white border border-gray-300 rounded-xl shadow p-6 mb-6 w-full">
+        <h2 className="text-2xl font-semibold mb-4 text-gray-700">Summary of Summaries</h2>
+        <p className="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">
+          This is the overall summary compiled from all past appointments. It includes key highlights, recurring medical concerns, and treatment progression for {patient.full_name}.
+          {"\n\n"}Please consult individual appointment summaries for full details.
         </p>
-      )}
+      </div>
 
       {filteredAppointments.length === 0 && (
         <p className="text-red-500 text-sm mb-6">
-          No appointments found for patient ID "{patientId}"
+          No appointments found for patient ID 
         </p>
       )}
 
       {filteredAppointments.map((appointment) => {
         const appointmentId = appointment.id;
+        const appointmentTime = new Date(
+          appointment.timestamp || appointment.date || appointment.created_at
+        ).toLocaleString();
 
         return (
           <div
             key={appointmentId}
             className="bg-white border rounded-xl shadow-lg p-6 space-y-4 w-full mb-8"
           >
-            <div
-              className="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-left cursor-pointer">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-left cursor-pointer">
               <p className="text-xl font-semibold text-gray-700">
-                Appointment ID: {appointmentId}
+                Appointment: {appointmentTime}
               </p>
             </div>
 
@@ -174,6 +223,7 @@ const PatientReports = () => {
                 <strong>Patient:</strong> {patient.full_name}
               </p>
             </div>
+
             <LazySection
               title="Full Transcript"
               appointmentId={appointmentId}
@@ -193,6 +243,9 @@ const PatientReports = () => {
               title="Billing Codes"
               appointmentId={appointmentId}
               fetchFn={fetchBilling}
+            />
+            <StaticClusterSection
+              content="Cluster Category: General | Severity: Medium | Tags: Neurology, Follow-Up"
             />
           </div>
         );

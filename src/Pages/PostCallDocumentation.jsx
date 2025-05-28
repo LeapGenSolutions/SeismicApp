@@ -11,6 +11,7 @@ import Summary from "../components/post-call/Summary";
 import Soap from "../components/post-call/Soap";
 import Billing from "../components/post-call/Billing";
 import Reccomendations from "../components/post-call/Reccomendations";
+import Clusters from "../components/post-call/Clusters";
 
 
 
@@ -26,7 +27,7 @@ const PostCallDocumentation = ({
       </CardHeader>
       <CardContent>
         <div className="flex space-x-2 mb-6 justify-center">
-          {['summary', 'transcript', 'soap', 'recommendations', 'billing'].map(tab => (
+          {['summary', 'transcript', 'soap', 'recommendations', 'billing', 'clusters'].map(tab => (
             <button
               key={tab}
               className={`px-4 py-2 rounded font-medium ${docTab === tab ? 'bg-blue-600 text-white' : 'bg-white text-neutral-800 border border-b-0'} transition`}
@@ -53,6 +54,9 @@ const PostCallDocumentation = ({
         )}
         {docTab === 'billing' && (
           <Billing />
+        )}
+        {docTab ==='clusters' &&(
+          <Clusters/>
         )}
 
         <div className="flex justify-end mt-8">
