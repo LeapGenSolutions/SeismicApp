@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -18,6 +18,10 @@ const PostCallDocumentation = ({
   onSave,
 }) => {
   const [docTab, setDocTab] = useState("summary");
+
+  useEffect(() => {
+          document.title = "PostCallDocumentation - Seismic Connect";
+  }, []);
 
   return (
     <Card className="mt-8">

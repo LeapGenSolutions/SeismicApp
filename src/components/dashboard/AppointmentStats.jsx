@@ -1,15 +1,37 @@
+import { useDispatch, useSelector } from "react-redux";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Progress } from "../ui/progress";
-import { useQuery } from "@tanstack/react-query";
+// import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { useEffect, useState } from "react";
+import { fetchAppointmentDetails } from "../../redux/appointment-actions";
 
-const AppointmentStats = ({ date = format(new Date(), "yyyy-MM-dd") }) => {
+const AppointmentStats = ({ date = format(new Date(), "yyyy-MM-dd")}) => {
   const formattedDate = format(new Date(date), "MMMM d, yyyy");
-
-  const { data: stats, isLoading } = useQuery({
-    queryKey: [`/api/stats/appointments/${date}`],
+  const applications = useSelector((state) => state.appointments.appointments);
+  const dispatch = useDispatch();
+  const [ isLoading, setIsLoading ] = useState(true);
+  const [stats, setStats] = useState({
+    totalAppointments: 0,
+    inPersonAppointments: 0,
+    virtualAppointments: 0,
   });
 
+  useEffect(() => {
+    dispatch(fetchAppointmentDetails());
+  }, [dispatch])
+
+   useEffect(() => {
+        const todayAppointments = applications.filter((app) => app.date === date);
+        setStats({
+            totalAppointments: todayAppointments.length,
+            inPersonAppointments: todayAppointments.filter(app => app.type === "in-person").length,
+            virtualAppointments: todayAppointments.filter(app => app.type === "virtual").length,
+        });
+        setIsLoading(false);
+    }, [applications, date]);
+
+    
   if (isLoading) {
     return (
       <Card>

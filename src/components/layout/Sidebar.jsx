@@ -1,7 +1,8 @@
 
 import { Link, useLocation } from "wouter";
-import { LogOut, AlertCircle, Calendar, Video, Users, FileText, Settings, LayoutDashboard } from "lucide-react";
+import { LogOut, Calendar, Video, Users, FileText, Settings, LayoutDashboard } from "lucide-react";
 import { useMsal } from "@azure/msal-react";
+import Logo from "../../assets/Logo";
 
 const Sidebar = () => {
   const [location] = useLocation();
@@ -25,7 +26,7 @@ const Sidebar = () => {
   return (
     <div className="w-64 bg-neutral-800 text-white h-screen flex flex-col shadow-lg flex-shrink-0">
       <div className="p-4 border-b border-neutral-700 flex items-center">
-        <AlertCircle className="w-8 h-8 mr-2" />
+        <Logo size="small"/>
         <h1 className="text-xl font-semibold">Seismic Connect</h1>
       </div>
 
