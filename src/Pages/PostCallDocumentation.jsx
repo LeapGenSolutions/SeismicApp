@@ -11,6 +11,7 @@ import Summary from "../components/post-call/Summary";
 import Soap from "../components/post-call/Soap";
 import Billing from "../components/post-call/Billing";
 import Reccomendations from "../components/post-call/Reccomendations";
+import { useParams } from "wouter";
 
 
 
@@ -18,9 +19,10 @@ const PostCallDocumentation = ({
   onSave,
 }) => {
   const [docTab, setDocTab] = useState("summary");
+  const { callId } = useParams()
 
   useEffect(() => {
-          document.title = "PostCallDocumentation - Seismic Connect";
+    document.title = "PostCallDocumentation - Seismic Connect";
   }, []);
 
   return (
@@ -42,7 +44,7 @@ const PostCallDocumentation = ({
         </div>
 
         {docTab === 'summary' && (
-          <Summary />
+          <Summary appointmentId={callId}/>
         )}
 
         {docTab === 'transcript' && (

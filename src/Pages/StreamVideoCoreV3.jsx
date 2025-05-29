@@ -257,7 +257,7 @@ const StreamVideoCoreV3 = () => {
             {!loading && showCall && client && call && (
                 <StreamVideo client={client}>
                     <StreamCall call={call}>
-                        <StreamVideoLayoutV3 />
+                        <StreamVideoLayoutV3 callId={callId} />
                     </StreamCall>
                 </StreamVideo>
             )}

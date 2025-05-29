@@ -6,7 +6,6 @@ import { format, parse } from "date-fns";
 
 
 const VideoCallPage = () => {
-  // const [userName, setUserName] = useState("");
   const [room, setRoom] = useState("");
   const isHost = useState(true)[0];
   const [showShareLink, setShowShareLink] = useState(false);

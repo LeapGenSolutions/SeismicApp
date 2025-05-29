@@ -2,27 +2,17 @@ import { useQuery } from "@tanstack/react-query";
 import { FileText } from "lucide-react"
 import { fetchSummaryByAppointment } from "../../api/summary";
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 
-const Summary = ({
-    propFormatRecordingTime,
-    propRecordingTime
-}) => {
+const Summary = ({appointmentId}) => {
 
     const patient = {}
     const selectedAppointment = {}
-    const recordingTime = propRecordingTime || 0;
-
-    const formatRecordingTime =
-        propFormatRecordingTime ||
-        ((s) => {
-            const min = Math.floor(s / 60).toString().padStart(2, "0");
-            const sec = (s % 60).toString().padStart(2, "0");
-            return `${min}:${sec}`;
-        });
+    const username = useSelector((state)=>state.me.me.name)
 
     const { data, isLoading, error } = useQuery({
         queryKey: "summary",
-        queryFn: () => fetchSummaryByAppointment('test_test1_summary', 'test')
+        queryFn: () => fetchSummaryByAppointment(`${username}_${appointmentId}_summary`, username)
     })
 
     const [summary, setSummary] = useState("")
@@ -45,7 +35,6 @@ const Summary = ({
             <div className="text-sm text-neutral-700">
                 <p className="mb-2"><span className="font-bold">Patient:</span> {patient?.firstName} {patient?.lastName}</p>
                 <p className="mb-2"><span className="font-bold">Date & Time:</span> {new Date().toLocaleString()}</p>
-                <p className="mb-2"><span className="font-bold">Duration:</span> {formatRecordingTime(recordingTime)}</p>
                 <p className="mb-2"><span className="font-bold">Reason for Visit:</span> {selectedAppointment?.reason}</p>
                 <p className="mb-2"><span className="font-bold">Summary from AI:<br /></span> {summary}</p>
             </div>

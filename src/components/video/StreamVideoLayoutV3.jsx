@@ -6,10 +6,11 @@ import { useRef, useState } from 'react';
 import html2canvas from "html2canvas";
 import { BACKEND_URL } from "../../constants";
 import '@stream-io/video-react-sdk/dist/css/styles.css';
+import { useSelector } from "react-redux";
 
 
 
-const StreamVideoLayoutV3 = () => {
+const StreamVideoLayoutV3 = ({callId}) => {
     const {
         useCallCallingState,
         useParticipants,
@@ -26,16 +27,7 @@ const StreamVideoLayoutV3 = () => {
     const canvasDrawIntervalRef = useRef(null);
     const streamRef = useRef(null);
     const chunkIndex = useRef(0);
-
-    const getFormattedDate = () => {
-        const now = new Date();
-        return `${String(now.getMonth() + 1).padStart(2, '0')}${String(
-            now.getDate()
-        ).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(
-            now.getMinutes()
-        ).padStart(2, '0')}`;
-    };
-    const DATETIME = getFormattedDate();
+    const username = useSelector((state)=>state.me.me.name)
 
     const startRecording = async () => {
         if (!divRef.current || !canvasRef.current) return;
@@ -69,7 +61,7 @@ const StreamVideoLayoutV3 = () => {
                 mediaRecorderRef.current.stop();
                 startMediaRecorder(combinedStream);
             }
-        }, 60000);
+        }, 5000);
 
         setRecording(true);
     };
@@ -85,8 +77,9 @@ const StreamVideoLayoutV3 = () => {
                 const index = chunkIndex.current++;
                 formData.append('chunk', blob, `recording-${index}.webm`);
 
+
                 try {
-                    await fetch(`${BACKEND_URL}/upload-chunk/Guest-${DATETIME}/${index}`, {
+                    await fetch(`${BACKEND_URL}/upload-chunk/${callId}/${index}?username=${username}`, {
                         method: 'POST',
                         body: formData,
                     });
@@ -116,15 +109,14 @@ const StreamVideoLayoutV3 = () => {
             await startRecording();
         }
         else {
-            stopRecording()
+            await stopRecording()
         }
 
     }
 
-    const handleCancel = () => {
-        // Optional: stop recording or cleanup
-        stopRecording();
-        navigate("/post-call"); // ✅ Redirect to PostCallDocumentation
+    const handleCancel = async () => {
+        await stopRecording();
+        navigate(`/post-call/${callId}`);
     };
 
     if (callingState !== CallingState.JOINED) {
@@ -135,7 +127,6 @@ const StreamVideoLayoutV3 = () => {
             <canvas ref={canvasRef} style={{ display: 'none' }} />
             <div ref={divRef}>
                 <SideBySideLayout participants={Participants} />
-                {/* {localParticipant && <ParticipantView participant={localParticipant} />} */}
             </div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '10px' }}>
                 <ToggleAudioPreviewButton />

@@ -41,7 +41,7 @@ function Router() {
             <Route path="/reports" component={Reports} />
             <Route path="/settings" component={Settings} />
             <Route path="/meeting-room/:callId" component={StreamVideoCoreV3} />
-            <Route path="/post-call" component={PostCallDocumentation} />
+            <Route path="/post-call/:callId" component={PostCallDocumentation} />
             <Route component={NotFound} />
           </Switch>
         </main>

@@ -1,7 +1,9 @@
+import { BACKEND_URL } from "../constants";
+
 const getUserToken = async (userId) => {
   try {
     const response = await fetch(
-      'https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net/get-token', 
+      `${BACKEND_URL}/get-token`, 
       {
         method:"POST",
         body: JSON.stringify({ "userId": userId }),
