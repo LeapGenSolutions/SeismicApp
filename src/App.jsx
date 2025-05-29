@@ -16,11 +16,11 @@ import { AuthenticatedTemplate, UnauthenticatedTemplate, useIsAuthenticated, use
 import { useEffect, useState } from "react";
 import { loginRequest } from "./authConfig";
 import { Provider, useDispatch } from "react-redux";
-import { store } from "./redux/store";
+import {store} from './redux/store';
 import AuthPage from "./Pages/AuthPage";
 import StreamVideoCoreV3 from "./Pages/StreamVideoCoreV3";
 import setMyDetails from "./redux/me-actions";
-
+import { fetchAppointmentDetails } from "./redux/appointment-actions"; // corrected import name
 
 function Router() {
   const queryParams = new URLSearchParams(window.location.search);
@@ -53,53 +53,54 @@ function Router() {
 function Main() {
   const isAuthenticated = useIsAuthenticated();
   const { instance, accounts } = useMsal();
-  const [hasRole, setHasRole] = useState(false)
-  const dispatch = useDispatch()
-
+  const [hasRole, setHasRole] = useState(false);
+  const dispatch = useDispatch();
   const queryClient = new QueryClient();
 
   function requestProfileData() {
-    // Silently acquires an access token which is then attached to a request for MS Graph data
     instance
       .acquireTokenSilent({
         ...loginRequest,
         account: accounts[0],
       })
       .then((response) => {
-        dispatch(setMyDetails(response.idTokenClaims))
-        if (response.idTokenClaims.roles && response.idTokenClaims.roles.includes("SeismicDoctors")) {
-          setHasRole(true)
+        dispatch(setMyDetails(response.idTokenClaims));
+        if (response.idTokenClaims.roles?.includes("SeismicDoctors")) {
+          setHasRole(true);
+          dispatch(fetchAppointmentDetails()); // dispatch fetchAppointments after role check
         }
       });
   }
 
   useEffect(() => {
     if (isAuthenticated) {
-      requestProfileData()
+      requestProfileData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated])
+  }, [isAuthenticated]);
+
   return (
     <>
-      {hasRole ? <AuthenticatedTemplate>
-        <QueryClientProvider client={queryClient}>
-          <Router />
-          <Toaster />
-        </QueryClientProvider>
-      </AuthenticatedTemplate> :
+      {hasRole ? (
         <AuthenticatedTemplate>
-          Sign is successful but you dont previlaged role to view this app. Try contacting your admin
+          <QueryClientProvider client={queryClient}>
+            <Router />
+            <Toaster />
+          </QueryClientProvider>
         </AuthenticatedTemplate>
-      }
+      ) : (
+        <AuthenticatedTemplate>
+          Sign is successful but you dont have privileged role to view this app. Try contacting your admin.
+        </AuthenticatedTemplate>
+      )}
       <UnauthenticatedTemplate>
         <AuthPage />
       </UnauthenticatedTemplate>
     </>
-  )
+  );
 }
 
 function App() {
-
   return (
     <Provider store={store}>
       <div className="App">

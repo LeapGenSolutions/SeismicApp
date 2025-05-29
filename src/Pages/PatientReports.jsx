@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { navigate } from "wouter/use-browser-location";
+import { useState, useMemo, useEffect } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { useParams } from "wouter";
+import { fetchSummaryOfSummaries } from "../redux/summary-slice";
 
 const LazySection = ({ title, appointmentId, fetchFn }) => {
   const [open, setOpen] = useState(false);
@@ -40,57 +40,46 @@ const LazySection = ({ title, appointmentId, fetchFn }) => {
   );
 };
 
-const StaticClusterSection = ({ content }) => {
-  const [open, setOpen] = useState(false);
-
-  const toggle = (e) => {
-    e.stopPropagation();
-    setOpen((prev) => !prev);
-  };
-
-  return (
-    <div className="border rounded-lg bg-white shadow transition-all duration-300 w-full">
-      <button
-        onClick={toggle}
-        className="w-full px-4 py-2 flex justify-between items-center text-left text-base font-semibold bg-gray-100 rounded-t"
-      >
-        <span>Clusters</span>
-        {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-      </button>
-      {open && (
-        <div className="px-4 py-3 text-sm text-gray-800 whitespace-pre-wrap">
-          {content}
-        </div>
-      )}
-    </div>
-  );
-};
-
 const PatientReports = () => {
+  const { patientId } = useParams();
+  const dispatch = useDispatch();
+
   const patients = useSelector((state) => state.patients.patients);
   const appointments = useSelector((state) => state.appointments.appointments);
+  const patient = patients.find((p) => p.id === patientId);
+
+  const filteredAppointments = useMemo(() => {
+    return appointments
+      .filter((a) => patient?.full_name === a.full_name)
+      .sort(
+        (a, b) =>
+          new Date(b.timestamp || b.date || b.created_at) -
+          new Date(a.timestamp || a.date || a.created_at)
+      );
+  }, [appointments, patient?.full_name]);
+
+  const doctorEmail = useMemo(() => {
+    return filteredAppointments[0]?.doctor_email || null;
+  }, [filteredAppointments]);
+
+  const summaryKey = `${doctorEmail}-${patient?.id}`;
+
+  const summaryOfSummaries = useSelector(
+    (state) => state.summaries.summaryOfSummariesCache[summaryKey]
+  );
+
+  useEffect(() => {
+    if (doctorEmail && patient?.id && !summaryOfSummaries) {
+      dispatch(fetchSummaryOfSummaries({ doctorEmail, patientId: patient.id }));
+    }
+  }, [dispatch, doctorEmail, patient?.id, summaryOfSummaries]);
 
   const [transcripts, setTranscripts] = useState({});
   const [summaries, setSummaries] = useState({});
   const [soapNotes, setSoapNotes] = useState({});
   const [billingCodes, setBillingCodes] = useState({});
 
-  const { patientId } = useParams();
-
-  const patient = patients.find((p) => p.id === patientId);
-  if (!patient) {
-    console.warn("Patient not found. Redirecting...");
-    navigate("/patients");
-    return;
-  }
-
-  const filteredAppointments = appointments
-    .filter((a) => patient.full_name === a.full_name)
-    .sort(
-      (a, b) =>
-        new Date(b.timestamp || b.date || b.created_at) -
-        new Date(a.timestamp || a.date || a.created_at)
-    );
+  if (!patient) return null;
 
   const buildUrl = (base, doctorId, apptId) => {
     const suffixMap = {
@@ -110,7 +99,9 @@ const PatientReports = () => {
     if (transcripts[appointmentId]) return transcripts[appointmentId];
 
     try {
-      const res = await fetch(buildUrl("transcript", a.doctor_id, a.id));
+      const url=buildUrl("transcript", a.doctor_id, a.id)
+      console.log(url)
+      const res = await fetch(url);
       const json = await res.json();
       const content = json.data?.full_conversation || "No transcript available";
       setTranscripts((prev) => ({ ...prev, [appointmentId]: content }));
@@ -183,6 +174,7 @@ const PatientReports = () => {
           <p><strong>Last Name:</strong> {lastName}</p>
           <p><strong>SSN:</strong> {maskedSSN}</p>
           <p><strong>Full Name:</strong> {patient.full_name}</p>
+          <p><strong>Total Appointments:</strong> {filteredAppointments.length}</p>
         </div>
       </div>
 
@@ -190,14 +182,13 @@ const PatientReports = () => {
       <div className="bg-white border border-gray-300 rounded-xl shadow p-6 mb-6 w-full">
         <h2 className="text-2xl font-semibold mb-4 text-gray-700">Summary of Summaries</h2>
         <p className="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">
-          This is the overall summary compiled from all past appointments. It includes key highlights, recurring medical concerns, and treatment progression for {patient.full_name}.
-          {"\n\n"}Please consult individual appointment summaries for full details.
+          {summaryOfSummaries}
         </p>
       </div>
 
       {filteredAppointments.length === 0 && (
         <p className="text-red-500 text-sm mb-6">
-          No appointments found for patient ID 
+          No appointments found for patient ID
         </p>
       )}
 
@@ -209,18 +200,12 @@ const PatientReports = () => {
 
         return (
           <div
-            key={appointmentId}
+            key={appointmentId + Math.random()}
             className="bg-white border rounded-xl shadow-lg p-6 space-y-4 w-full mb-8"
           >
             <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-left cursor-pointer">
               <p className="text-xl font-semibold text-gray-700">
                 Appointment: {appointmentTime}
-              </p>
-            </div>
-
-            <div className="text-sm text-gray-600">
-              <p>
-                <strong>Patient:</strong> {patient.full_name}
               </p>
             </div>
 
@@ -244,8 +229,10 @@ const PatientReports = () => {
               appointmentId={appointmentId}
               fetchFn={fetchBilling}
             />
-            <StaticClusterSection
-              content="Cluster Category: General | Severity: Medium | Tags: Neurology, Follow-Up"
+            <LazySection
+              title="Clusters"
+              appointmentId={appointmentId}
+              fetchFn={async () => "Cluster Category: General | Severity: Medium | Tags: Neurology, Follow-Up"}
             />
           </div>
         );
