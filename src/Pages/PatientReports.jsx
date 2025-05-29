@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { navigate } from "wouter/use-browser-location";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useSelector } from "react-redux";
@@ -8,6 +8,10 @@ const LazySection = ({ title, appointmentId, fetchFn }) => {
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    document.title = "PatientReports - Seismic Connect";
+  }, []);
 
   const toggle = async (e) => {
     e.stopPropagation();

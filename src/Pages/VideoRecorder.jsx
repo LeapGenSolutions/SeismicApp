@@ -20,6 +20,10 @@ const VideoCallPage = () => {
   const userName = useSelector((state) => state.me.me.given_name)
 
   const today = format(new Date(), 'yyyy-MM-dd');
+  useEffect(() => {
+          document.title = "VideoCall - Seismic Connect";
+  }, []);
+
   // Mock data - replace with your actual data
   const upcomingAppointments = appointments.filter(
     (appt) => appt.date === today && appt.status !== 'cancelled'

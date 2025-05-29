@@ -1,5 +1,5 @@
 import { useMsal } from "@azure/msal-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { navigate } from "wouter/use-browser-location";
 import { loginRequest } from "../authConfig";
 import Logo from "../assets/Logo";
@@ -10,6 +10,10 @@ const AuthPage = () => {
     const [isGuestLoading, setIsGuestLoading] = useState(false);
 
     const { instance, accounts } = useMsal();
+
+    useEffect(() => {
+        document.title = "SignUp - Seismic Connect";
+      }, []);
 
     function requestProfileData() {
         // Silently acquires an access token which is then attached to a request for MS Graph data

@@ -4,7 +4,7 @@ import AppointmentStats from "../components/dashboard/AppointmentStats";
 import AppointmentStatus from "../components/dashboard/AppointmentStatus";
 import ProviderWorkload from "../components/dashboard/ProviderWorkload";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
-import { useDispatch } from "react-redux";
+import { useDispatch} from "react-redux";
 
 function Dashboard() {
   const dispatch = useDispatch()
