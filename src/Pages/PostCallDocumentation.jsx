@@ -48,17 +48,17 @@ const PostCallDocumentation = ({
         )}
 
         {docTab === 'transcript' && (
-          <Transcript />
+          <Transcript appointmentId={callId}/>
         )}
         {docTab === 'soap' && (
-          <Soap />
+          <Soap appointmentId={callId}/>
         )}
 
         {docTab === 'recommendations' && (
-          <Reccomendations />
+          <Reccomendations appointmentId={callId}/>
         )}
         {docTab === 'billing' && (
-          <Billing />
+          <Billing appointmentId={callId}/>
         )}
 
         <div className="flex justify-end mt-8">

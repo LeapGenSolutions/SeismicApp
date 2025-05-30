@@ -46,6 +46,11 @@ const AppointmentCalendar = () => {
         navigate(`/meeting-room/${selectedAppointment.id}`)
     }
 
+    const handlePostCallClick = () =>{
+        setSelectedAppointment(null)
+        navigate(`/post-call/${selectedAppointment.id}`)
+    }
+
     return (
         <div style={{ height: '600px', margin: '20px' }}>
             <Calendar
@@ -80,6 +85,12 @@ const AppointmentCalendar = () => {
                                 className="bg-red-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
                             >
                                 Join
+                            </button>
+                            <button
+                                onClick={handlePostCallClick}
+                                className="bg-red-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"
+                            >
+                                Post Call Documentation
                             </button>
                             <button
                                 onClick={() => setSelectedAppointment(null)}

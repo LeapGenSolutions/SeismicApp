@@ -2,12 +2,15 @@ import { Copy, Download } from "lucide-react"
 import { Button } from "../ui/button"
 import { fetchTranscriptByAppointment } from "../../api/transcript";
 import { useQuery } from "@tanstack/react-query";
+import { useSelector } from "react-redux";
 
-const Transcript = () => {
+const Transcript = ({ appointmentId }) => {
+
+    const username = useSelector((state) => state.me.me.name)
 
     const { data, isLoading, error } = useQuery({
         queryKey: 'transcript',
-        queryFn: () => fetchTranscriptByAppointment('test_test1_transcription', 'test')
+        queryFn: () => fetchTranscriptByAppointment(`${username}_${appointmentId}_transcription`, username)
     });
 
     let full_conversation = ""
@@ -23,7 +26,7 @@ const Transcript = () => {
         })
     }
 
-    if(error){
+    if (error) {
         return <div>Error while fetching the Transcripts....!!</div>
     }
 

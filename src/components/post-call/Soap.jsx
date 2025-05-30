@@ -4,12 +4,15 @@ import { Button } from "../ui/button"
 import { Textarea } from "../ui/textarea"
 import { useQuery } from "@tanstack/react-query";
 import { fetchSoapNotes } from "../../api/soap";
+import { useSelector } from "react-redux";
 
-const Soap = () => {
+const Soap = ({ appointmentId }) => {
     const [soapNotes, setSoapNotes] = useState({ Subjective: "", Objective: "", Assessment: "", Plan: "" });
+    const username = useSelector((state)=>state.me.me.name)
+    
     const { data, isLoading, error } = useQuery({
         queryKey: "soap-notes",
-        queryFn: () => fetchSoapNotes('test_test1_soap', 'test')
+        queryFn: () => fetchSoapNotes(`${username}_${appointmentId}_soap`, username)
     })
 
     useEffect(() => {
