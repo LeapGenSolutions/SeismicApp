@@ -6,7 +6,7 @@ export const msalConfig = {
         clientId: "529bcde4-d3c1-4896-9277-b7d72ec4f57b",
         authority: "https://login.microsoftonline.com/b3e3a3db-e3db-4f76-9a7c-5bca46062c8c",
         redirectUri: "https://victorious-mushroom-08b7e7d0f.4.azurestaticapps.net/"
-        // redirectUri: "http://localhost:3000/"
+        //redirectUri: "http://localhost:3000/"
     },
     cache: {
         cacheLocation: "sessionStorage", // This configures where your cache will be stored
