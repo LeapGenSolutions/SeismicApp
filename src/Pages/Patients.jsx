@@ -141,7 +141,7 @@ function Patients() {
               ))}
             </TableBody>
           </Table>
-        </CardContent>w      </Card>
+        </CardContent>      </Card>
     </div>
   );
 }

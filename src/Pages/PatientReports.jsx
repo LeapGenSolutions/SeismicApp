@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { useParams } from "wouter";
-import { fetchSummaryOfSummaries } from "../redux/summary-slice";
+import { fetchsummaryofsummaries } from "../api/summaryofsummaries"; // Adjust path if needed
 
 const LazySection = ({ title, appointmentId, fetchFn }) => {
   const [open, setOpen] = useState(false);
@@ -42,8 +42,6 @@ const LazySection = ({ title, appointmentId, fetchFn }) => {
 
 const PatientReports = () => {
   const { patientId } = useParams();
-  const dispatch = useDispatch();
-
   const patients = useSelector((state) => state.patients.patients);
   const appointments = useSelector((state) => state.appointments.appointments);
   const patient = patients.find((p) => p.id === patientId);
@@ -62,22 +60,38 @@ const PatientReports = () => {
     return filteredAppointments[0]?.doctor_email || null;
   }, [filteredAppointments]);
 
-  const summaryKey = `${doctorEmail}-${patient?.id}`;
-
-  const summaryOfSummaries = useSelector(
-    (state) => state.summaries.summaryOfSummariesCache[summaryKey]
-  );
+  const [summaryOfSummaries, setSummaryOfSummaries] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState(null);
 
   useEffect(() => {
-    if (doctorEmail && patient?.id && !summaryOfSummaries) {
-      dispatch(fetchSummaryOfSummaries({ doctorEmail, patientId: patient.id }));
-    }
-  }, [dispatch, doctorEmail, patient?.id, summaryOfSummaries]);
+    const fetchSummary = async () => {
+      if (!doctorEmail || !patient?.id) return;
+      setSummaryLoading(true);
+      try {
+        const data = await fetchsummaryofsummaries(doctorEmail, patient.id);
+        setSummaryOfSummaries(data?.combined_summary || "No summary found");
+      } catch (err) {
+        setSummaryError("Failed to fetch summary of summaries");
+      } finally {
+        setSummaryLoading(false);
+      }
+    };
+    fetchSummary();
+  }, [doctorEmail, patient?.id]);
 
   const [transcripts, setTranscripts] = useState({});
   const [summaries, setSummaries] = useState({});
   const [soapNotes, setSoapNotes] = useState({});
   const [billingCodes, setBillingCodes] = useState({});
+  const [openCards, setOpenCards] = useState({}); // ✅ to manage expanded cards
+
+  const toggleCard = (appointmentId) => {
+    setOpenCards((prev) => ({
+      ...prev,
+      [appointmentId]: !prev[appointmentId],
+    }));
+  };
 
   if (!patient) return null;
 
@@ -89,7 +103,6 @@ const PatientReports = () => {
       billing: "billing",
     };
     const suffix = suffixMap[base] || base;
-
     return `https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net/api/${base}/${doctorId}_${apptId}_${suffix}?userID=${doctorId}`;
   };
 
@@ -99,9 +112,7 @@ const PatientReports = () => {
     if (transcripts[appointmentId]) return transcripts[appointmentId];
 
     try {
-      const url=buildUrl("transcript", a.doctor_id, a.id)
-      console.log(url)
-      const res = await fetch(url);
+      const res = await fetch(buildUrl("transcript", a.doctor_id, a.id));
       const json = await res.json();
       const content = json.data?.full_conversation || "No transcript available";
       setTranscripts((prev) => ({ ...prev, [appointmentId]: content }));
@@ -181,9 +192,15 @@ const PatientReports = () => {
       {/* Summary of Summaries Card */}
       <div className="bg-white border border-gray-300 rounded-xl shadow p-6 mb-6 w-full">
         <h2 className="text-2xl font-semibold mb-4 text-gray-700">Summary of Summaries</h2>
-        <p className="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">
-          {summaryOfSummaries}
-        </p>
+        {summaryLoading ? (
+          <p className="text-sm text-gray-500">Loading...</p>
+        ) : summaryError ? (
+          <p className="text-sm text-red-500">{summaryError}</p>
+        ) : (
+          <p className="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">
+            {summaryOfSummaries}
+          </p>
+        )}
       </div>
 
       {filteredAppointments.length === 0 && (
@@ -192,48 +209,59 @@ const PatientReports = () => {
         </p>
       )}
 
+      {/* Appointment Cards */}
       {filteredAppointments.map((appointment) => {
         const appointmentId = appointment.id;
         const appointmentTime = new Date(
           appointment.timestamp || appointment.date || appointment.created_at
         ).toLocaleString();
 
+        const isOpen = openCards[appointmentId] || false;
+
         return (
           <div
-            key={appointmentId + Math.random()}
-            className="bg-white border rounded-xl shadow-lg p-6 space-y-4 w-full mb-8"
+            key={appointmentId}
+            className="bg-white border rounded-xl shadow-lg w-full mb-8"
           >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-left cursor-pointer">
-              <p className="text-xl font-semibold text-gray-700">
-                Appointment: {appointmentTime}
-              </p>
-            </div>
+            <button
+              onClick={() => toggleCard(appointmentId)}
+              className="w-full text-left px-6 py-4 flex justify-between items-center bg-gray-100 rounded-t font-medium text-lg"
+            >
+              <span>Appointment: {appointmentTime}</span>
+              {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </button>
 
-            <LazySection
-              title="Full Transcript"
-              appointmentId={appointmentId}
-              fetchFn={fetchTranscript}
-            />
-            <LazySection
-              title="Summary"
-              appointmentId={appointmentId}
-              fetchFn={fetchSummary}
-            />
-            <LazySection
-              title="SOAP Notes"
-              appointmentId={appointmentId}
-              fetchFn={fetchSOAP}
-            />
-            <LazySection
-              title="Billing Codes"
-              appointmentId={appointmentId}
-              fetchFn={fetchBilling}
-            />
-            <LazySection
-              title="Clusters"
-              appointmentId={appointmentId}
-              fetchFn={async () => "Cluster Category: General | Severity: Medium | Tags: Neurology, Follow-Up"}
-            />
+            {isOpen && (
+              <div className="p-6 space-y-4">
+                <LazySection
+                  title="Full Transcript"
+                  appointmentId={appointmentId}
+                  fetchFn={fetchTranscript}
+                />
+                <LazySection
+                  title="Summary"
+                  appointmentId={appointmentId}
+                  fetchFn={fetchSummary}
+                />
+                <LazySection
+                  title="SOAP Notes"
+                  appointmentId={appointmentId}
+                  fetchFn={fetchSOAP}
+                />
+                <LazySection
+                  title="Billing Codes"
+                  appointmentId={appointmentId}
+                  fetchFn={fetchBilling}
+                />
+                <LazySection
+                  title="Clusters"
+                  appointmentId={appointmentId}
+                  fetchFn={async () =>
+                    "Cluster Category: General | Severity: Medium | Tags: Neurology, Follow-Up"
+                  }
+                />
+              </div>
+            )}
           </div>
         );
       })}
