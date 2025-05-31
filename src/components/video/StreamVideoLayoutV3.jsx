@@ -7,10 +7,11 @@ import html2canvas from "html2canvas";
 import { BACKEND_URL } from "../../constants";
 import '@stream-io/video-react-sdk/dist/css/styles.css';
 import { useSelector } from "react-redux";
+import sendMessageToQueue from "../../api/SendMessageToQueue";
 
 
 
-const StreamVideoLayoutV3 = ({callId}) => {
+const StreamVideoLayoutV3 = ({ callId }) => {
     const {
         useCallCallingState,
         useParticipants,
@@ -27,7 +28,7 @@ const StreamVideoLayoutV3 = ({callId}) => {
     const canvasDrawIntervalRef = useRef(null);
     const streamRef = useRef(null);
     const chunkIndex = useRef(0);
-    const username = useSelector((state)=>state.me.me.name)
+    const username = useSelector((state) => state.me.me.name)
 
     const startRecording = async () => {
         if (!divRef.current || !canvasRef.current) return;
@@ -116,6 +117,7 @@ const StreamVideoLayoutV3 = ({callId}) => {
 
     const handleCancel = async () => {
         await stopRecording();
+        await sendMessageToQueue(callId, username)
         navigate(`/post-call/${callId}`);
     };
 
