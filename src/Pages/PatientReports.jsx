@@ -69,9 +69,10 @@ const PatientReports = () => {
   const [openCards, setOpenCards] = useState({});
   const [summaryOfSummariesData, setSummaryOfSummariesData] = useState(null)
 
-  // useEffect(()=>{
-  //   summaryOfSummaries()
-  // },[])
+  useEffect(()=>{
+    summaryOfSummaries()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[])
 
   const toggleCard = (appointmentId) => {
     setOpenCards((prev) => ({
