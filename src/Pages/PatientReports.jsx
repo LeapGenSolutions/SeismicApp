@@ -1,8 +1,9 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useSelector } from "react-redux";
+import { navigate } from "wouter/use-browser-location";
 import { useParams } from "wouter";
-import { fetchsummaryofsummaries } from "../api/summaryofsummaries"; // Adjust path if needed
+import { useSummaryOfSummaries } from "../api/summaryofsummaries"; //Added by anusha
 
 const LazySection = ({ title, appointmentId, fetchFn }) => {
   const [open, setOpen] = useState(false);
@@ -60,31 +61,18 @@ const PatientReports = () => {
     return filteredAppointments[0]?.doctor_email || null;
   }, [filteredAppointments]);
 
-  const [summaryOfSummaries, setSummaryOfSummaries] = useState(null);
-  const [summaryLoading, setSummaryLoading] = useState(false);
-  const [summaryError, setSummaryError] = useState(null);
-
-  useEffect(() => {
-    const fetchSummary = async () => {
-      if (!doctorEmail || !patient?.id) return;
-      setSummaryLoading(true);
-      try {
-        const data = await fetchsummaryofsummaries(doctorEmail, patient.id);
-        setSummaryOfSummaries(data?.combined_summary || "No summary found");
-      } catch (err) {
-        setSummaryError("Failed to fetch summary of summaries");
-      } finally {
-        setSummaryLoading(false);
-      }
-    };
-    fetchSummary();
-  }, [doctorEmail, patient?.id]);
+  const {
+    summary: summaryOfSummaries,
+    loading: summaryLoading,
+    error: summaryError,
+  } = useSummaryOfSummaries(doctorEmail, patient?.id);//use this for api call
 
   const [transcripts, setTranscripts] = useState({});
   const [summaries, setSummaries] = useState({});
   const [soapNotes, setSoapNotes] = useState({});
   const [billingCodes, setBillingCodes] = useState({});
-  const [openCards, setOpenCards] = useState({}); // ✅ to manage expanded cards
+  const [clusters, setClusters] = useState({}); //Added by anusha
+  const [openCards, setOpenCards] = useState({});
 
   const toggleCard = (appointmentId) => {
     setOpenCards((prev) => ({
@@ -93,7 +81,11 @@ const PatientReports = () => {
     }));
   };
 
-  if (!patient) return null;
+  if (!patient) {
+    console.warn("Patient not found. Redirecting...");
+    navigate("/patients");
+    return;
+  }
 
   const buildUrl = (base, doctorId, apptId) => {
     const suffixMap = {
@@ -101,6 +93,7 @@ const PatientReports = () => {
       summary: "summary",
       soap: "soap",
       billing: "billing",
+      clusters: "clusters" //Added by anusha
     };
     const suffix = suffixMap[base] || base;
     return `https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net/api/${base}/${doctorId}_${apptId}_${suffix}?userID=${doctorId}`;
@@ -169,7 +162,23 @@ const PatientReports = () => {
       return "Failed to load billing codes";
     }
   };
-
+  const fetchClusters = async (appointmentId) => {
+    const a = filteredAppointments.find((x) => x.id === appointmentId);
+    if (!a) return "Appointment not found";
+    if (clusters[appointmentId]) return clusters[appointmentId];
+  
+    try {
+      const url = buildUrl("clusters", a.doctor_id, a.id); // just like billing (Add by anusha)
+      const res = await fetch(url);
+      const json = await res.json();
+      const content = json.data?.cluster_summary || "No cluster info available";
+      setClusters((prev) => ({ ...prev, [appointmentId]: content }));
+      return content;
+    } catch {
+      return "Failed to load cluster data";
+    }
+  };
+  
   const [firstName, lastName] = patient.full_name?.split(" ") || ["", ""];
   const maskedSSN = patient.ssn ? `XXX-XX-${patient.ssn.slice(-4)}` : "Not Available";
 
@@ -204,12 +213,9 @@ const PatientReports = () => {
       </div>
 
       {filteredAppointments.length === 0 && (
-        <p className="text-red-500 text-sm mb-6">
-          No appointments found for patient ID
-        </p>
+        <p className="text-red-500 text-sm mb-6">No appointments found for patient ID</p>
       )}
 
-      {/* Appointment Cards */}
       {filteredAppointments.map((appointment) => {
         const appointmentId = appointment.id;
         const appointmentTime = new Date(
@@ -256,9 +262,7 @@ const PatientReports = () => {
                 <LazySection
                   title="Clusters"
                   appointmentId={appointmentId}
-                  fetchFn={async () =>
-                    "Cluster Category: General | Severity: Medium | Tags: Neurology, Follow-Up"
-                  }
+                  fetchFn={fetchClusters} //Added by anusha
                 />
               </div>
             )}

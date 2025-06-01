@@ -1,4 +1,4 @@
-import { BACKEND_URL } from "../constants";
+import { BACKEND_URL } from "../constants"; //Added by anusha
 
 export const fetchBillingByAppointment = async (apptId, userID) => {
   const response = await fetch(`${BACKEND_URL}api/billing/${apptId}?userID=${userID}`);

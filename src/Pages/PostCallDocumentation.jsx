@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
+import {Card,CardContent,CardHeader,CardTitle} from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import Transcript from "../components/post-call/Transcript";
 import Summary from "../components/post-call/Summary";
@@ -12,8 +7,6 @@ import Soap from "../components/post-call/Soap";
 import Billing from "../components/post-call/Billing";
 import Reccomendations from "../components/post-call/Reccomendations";
 import Clusters from "../components/post-call/Clusters";
-
-
 
 const PostCallDocumentation = ({
   onSave,
@@ -55,9 +48,9 @@ const PostCallDocumentation = ({
         {docTab === 'billing' && (
           <Billing />
         )}
-        {docTab ==='clusters' &&(
+        {docTab ==='clusters' &&( //Added by anusha
           <Clusters/>
-        )}
+        )}  
 
         <div className="flex justify-end mt-8">
           <Button

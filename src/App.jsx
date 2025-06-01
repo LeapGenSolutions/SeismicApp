@@ -20,7 +20,6 @@ import {store} from './redux/store';
 import AuthPage from "./Pages/AuthPage";
 import StreamVideoCoreV3 from "./Pages/StreamVideoCoreV3";
 import setMyDetails from "./redux/me-actions";
-//import { fetchAppointmentDetails } from "./redux/appointment-actions"; // corrected import name
 
 function Router() {
   const queryParams = new URLSearchParams(window.location.search);
@@ -67,7 +66,6 @@ function Main() {
         dispatch(setMyDetails(response.idTokenClaims));
         if (response.idTokenClaims.roles?.includes("SeismicDoctors")) {
           setHasRole(true);
-          //dispatch(fetchAppointmentDetails()); // dispatch fetchAppointments after role check
         }
       });
   }
