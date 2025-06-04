@@ -1,48 +1,63 @@
 import React from "react";
-import { Label } from "../ui/label";
-import { Textarea } from "../ui/textarea";
-import { Button } from "../ui/button";
+
+//  Original clustered data (not deeply nested, still simple)
+const clusteredData = [
+  {
+    topic: "Introduction and reason for visit",
+    soap_section: "S",
+    lines: [
+      "Doctor: Hi, Mr. Jones. How are you?",
+      "Patient: I'm good, Doctor Smith. Nice to see you.",
+      "Doctor: Nice to see you again. What brings you back?",
+      "Patient: Well, my back's been hurting again."
+    ]
+  },
+  {
+    topic: "History of recurring back pain",
+    soap_section: "S",
+    lines: [
+      "Doctor: I see. I've seen you a number of times for this, haven't I?",
+      "Patient: Yeah, well, ever since I got hurt on the job three years ago..."
+    ]
+  },
+  {
+    topic: "Physical therapy adherence and challenges",
+    soap_section: "S",
+    lines: [
+      "Doctor: Unfortunately, that can happen...",
+      "Patient: Which—the pills?",
+      "Doctor: Actually, I was talking about the physical therapy...",
+      "Patient: See, yeah, once my back started feeling better...",
+      "Doctor: Why was that?",
+      "Patient: It was starting to become kind of a hassle..."
+    ]
+  },
+  // Add more topics
+];
 
 const Clusters = () => {
-  const clusterData = {
-    Category: "General",
-    Severity: "Medium",
-    Tags: "Neurology, Follow-Up",
-    Notes: "Patient falls under general neurology care cluster. Regular follow-up needed every 3 months.",
-  };
-
   return (
-    <div>
-      <h3 className="font-medium text-lg mb-4">Cluster Information</h3>
-      {Object.entries(clusterData).map(([field, value]) => (
-        <div key={field} className="mb-4">
-          <Label>{field}</Label>
-          <Textarea
-            className="mt-1"
-            value={value}
-            readOnly
-          />
+    <div className="p-6 space-y-6">
+      <h1 className="text-xl font-bold">Clusters Information</h1>
+
+      {clusteredData.map((item, index) => (
+        <div
+          key={index}
+          className="p-4 border border-gray-300 rounded-xl shadow-sm bg-white"
+        >
+          <h2 className="text-lg font-bold mb-1">Topic: {item.topic}</h2>
+          <p className="text-sm text-gray-600 mb-2">
+            SOAP Section: {item.soap_section}
+          </p>
+          <ul className="list-disc ml-6 space-y-1">
+            {item.lines.map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
         </div>
       ))}
-
-      <div className="flex justify-between mt-4">
-        <Button variant="outline" disabled>
-          Preview
-        </Button>
-        <div className="flex justify-between mt-4">
-       <Button variant="outline" aria-disabled="true" className="cursor-not-allowed opacity-100 text-black border-gray-300">
-        Send to Patient
-       </Button>
-       <Button
-       aria-disabled="true"
-       className="bg-blue-600 text-white hover:bg-blue-600 cursor-not-allowed opacity-100"
-       >
-       Save to Chart
-       </Button>
-        </div>
-      </div>
     </div>
   );
 };
 
-export default Clusters;
+export default Clusters
