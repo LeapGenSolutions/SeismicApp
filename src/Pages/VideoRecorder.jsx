@@ -3,6 +3,7 @@ import { FaVideo, FaCopy } from "react-icons/fa";
 import { navigate } from "wouter/use-browser-location";
 import { useSelector } from "react-redux";
 import { format, parse } from "date-fns";
+import { DOCTOR_PORTAL_URL } from "../constants";
 
 
 const VideoCallPage = () => {
@@ -80,14 +81,11 @@ const VideoCallPage = () => {
     setAppointmentId(selectedAppointmentId);
     setRoom(selectedAppointmentId);
     setAppointmentDetails(appointment);
-    generateJoinLink(appointment.id);
+    generateJoinLink(selectedAppointmentId);
   };
 
-  const generateJoinLink = (room) => {
-    const currentUrl = window.location.href.split("?")[0];
-    const link = `${currentUrl}?room=${encodeURIComponent(
-      room
-    )}&role=patient&name=${userName}`;
+  const generateJoinLink = (selectedAppointmentId) => {
+    const link = `${DOCTOR_PORTAL_URL}${selectedAppointmentId}`;
     setJoinLink(link);
     setShowShareLink(true);
     return link;
