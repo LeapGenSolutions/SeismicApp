@@ -1,32 +1,17 @@
-import React, { useState } from "react";
-import { Label } from "../ui/label";
-import { Textarea } from "../ui/textarea";
-import { Button } from "../ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { fetchRecommendationByAppointment } from "../../api/recommendations";
+import ReactMarkdown from 'react-markdown';
+import { useSelector } from "react-redux";
 
-const Reccomendations = () => {
-    const [recommendations, setRecommendations] = useState({ Diagnosis: "", Medications: "", Lifestyle: "", Followup: "", CallSummary: "" });
-      
+const Reccomendations = ({ appointmentId }) => {
+    const username = useSelector((state) => state.me.me.name)
+    const { data: reccomendations } = useQuery({
+        queryKey: "recommendations",
+        queryFn: () => fetchRecommendationByAppointment(`${username}_${appointmentId}_recommendations`, username)
+    })
     return (
         <div>
-            <h3 className="font-medium text-lg mb-4">Patient Recommendations</h3>
-            {Object.entries(recommendations).map(([field, value]) => (
-                <div key={field} className="mb-4">
-                    <Label>{field.replace(/([A-Z])/g, ' $1')}</Label>
-                    <Textarea
-                        className="mt-1"
-                        placeholder={`Enter ${field.toLowerCase()}...`}
-                        value={value}
-                        onChange={e => setRecommendations({ ...recommendations, [field]: e.target.value })}
-                    />
-                </div>
-            ))}
-            <div className="flex justify-between mt-4">
-                <Button variant="outline">Preview</Button>
-                <div className="space-x-2">
-                    <Button variant="outline">Send to Patient</Button>
-                    <Button className="bg-blue-600 hover:bg-blue-700">Save to Chart</Button>
-                </div>
-            </div>
+            <ReactMarkdown>{reccomendations && reccomendations.data.recommendations.replaceAll("# ","#") }</ReactMarkdown>
         </div>
     )
 }
