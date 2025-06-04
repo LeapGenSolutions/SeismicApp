@@ -6,12 +6,12 @@ import ReactMarkdown from 'react-markdown';
 
 
 const Billing = ({ appointmentId }) => {
-    const username = useSelector((state)=>state.me.me.name)
-    const { data} = useQuery({
-        queryKey: "billing-codes",
-        queryFn: () => fetchBillingByAppointment(`${username}_${appointmentId}_billing`, username)
-    })
-    return (
+  const username = useSelector((state) => state.me.me.name)
+  const { data } = useQuery({
+    queryKey: "billing-codes",
+    queryFn: () => fetchBillingByAppointment(`${username}_${appointmentId}_billing`, username)
+  })
+  return (
     <div className="prose max-w-none">
       <ReactMarkdown>{data && data.data.billing_codes}</ReactMarkdown>
     </div>
