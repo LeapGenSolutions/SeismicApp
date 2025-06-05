@@ -10,7 +10,7 @@ import { useParams } from 'wouter';
 import { useSelector } from 'react-redux';
 
 const StreamVideoCoreV3 = () => {
-    const apiKey = 'jzjtebythm5q';
+    const apiKey = '72499ykcfb3z';
     const state = useSelector((state) => state.me.me)
     const userId = state.aud;
     const { callId } = useParams();
