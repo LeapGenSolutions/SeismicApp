@@ -5,9 +5,9 @@ import {
 } from '@stream-io/video-react-sdk';
 import { useEffect, useState } from 'react';
 import getUserToken from '../api/UserToken';
-import StreamVideoLayoutV3 from '../components/video/StreamVideoLayoutV3';
 import { useParams } from 'wouter';
 import { useSelector } from 'react-redux';
+import StreamVideoLayoutV4 from '../components/video/StreamVideoLayoutV4';
 
 const StreamVideoCoreV3 = () => {
     const apiKey = '72499ykcfb3z';
@@ -257,7 +257,7 @@ const StreamVideoCoreV3 = () => {
             {!loading && showCall && client && call && (
                 <StreamVideo client={client}>
                     <StreamCall call={call}>
-                        <StreamVideoLayoutV3 callId={callId} />
+                        <StreamVideoLayoutV4 callId={callId} />
                     </StreamCall>
                 </StreamVideo>
             )}
