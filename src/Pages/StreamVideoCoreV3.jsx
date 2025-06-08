@@ -74,13 +74,22 @@ const StreamVideoCoreV3 = () => {
             const videoClient = new StreamVideoClient({
                 apiKey,
                 user: { id: userId, name: userName },
-                token,
+                token
             });
 
             const videoCall = videoClient.call('default', callId);
 
             if (role === 'doctor') {
-                await videoCall.join({ create: true });
+                await videoCall.join({ data: { 
+                    settings_override: { 
+                        recording: { 
+                            quality: "360p",
+                            mode:"available",
+                        }
+                    } 
+                },
+                create: true
+            });
 
                 videoCall.on('custom', (event) => {
                     if (event.custom?.type === 'join-request') {
