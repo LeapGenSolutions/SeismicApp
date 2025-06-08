@@ -1,10 +1,19 @@
-import { useEffect } from "react";
+import { useEffect} from "react";
 import AppointmentCalendar from "../components/appointments/AppointmentCalendar";
+import { useDispatch } from "react-redux";
+import { fetchAppointmentDetails } from "../redux/appointment-actions";
 
 function Appointments() {
   useEffect(() => {
     document.title = "Appointments - Seismic Connect";
   }, []);
+
+  const dispatch = useDispatch();
+  
+
+  useEffect(() => {
+    dispatch(fetchAppointmentDetails())
+  }, [dispatch]);
 
   return (
     <div className="space-y-6">
