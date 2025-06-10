@@ -4,15 +4,18 @@ import AppointmentStats from "../components/dashboard/AppointmentStats";
 import AppointmentStatus from "../components/dashboard/AppointmentStatus";
 import ProviderWorkload from "../components/dashboard/ProviderWorkload";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
-import { useDispatch} from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 function Dashboard() {
   const dispatch = useDispatch()
-  // const appointments = useSelector((state) => state.appointments.appointments)
+  const myEmail = useSelector((state) => state.me.me.email)
+  const appointments = useSelector((state) => state.appointments.appointments)
 
   useEffect(() => {
-    dispatch(fetchAppointmentDetails())
-  }, [dispatch])  
+    if (appointments?.length === 0 && myEmail) {
+      dispatch(fetchAppointmentDetails(myEmail));
+    }
+  }, [dispatch, appointments, myEmail])
 
   useEffect(() => {
     document.title = "Dashboard - Seismic Connect";

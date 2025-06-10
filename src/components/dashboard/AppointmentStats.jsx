@@ -6,32 +6,36 @@ import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import { fetchAppointmentDetails } from "../../redux/appointment-actions";
 
-const AppointmentStats = ({ date = format(new Date(), "yyyy-MM-dd")}) => {
+const AppointmentStats = ({ date = format(new Date(), "yyyy-MM-dd") }) => {
   const formattedDate = format(new Date(date), "MMMM d, yyyy");
   const applications = useSelector((state) => state.appointments.appointments);
   const dispatch = useDispatch();
-  const [ isLoading, setIsLoading ] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({
     totalAppointments: 0,
     inPersonAppointments: 0,
     virtualAppointments: 0,
   });
+  const myEmail = useSelector((state) => state.me.me.email)
+  const appointments = useSelector((state) => state.appointments.appointments)
 
   useEffect(() => {
-    dispatch(fetchAppointmentDetails());
-  }, [dispatch])
+    if (appointments?.length === 0 && myEmail) {
+      dispatch(fetchAppointmentDetails(myEmail));
+    }
+  }, [dispatch, appointments, myEmail])
 
-   useEffect(() => {
-        const todayAppointments = applications.filter((app) => app.date === date);
-        setStats({
-            totalAppointments: todayAppointments.length,
-            inPersonAppointments: todayAppointments.filter(app => app.type === "in-person").length,
-            virtualAppointments: todayAppointments.filter(app => app.type === "virtual").length,
-        });
-        setIsLoading(false);
-    }, [applications, date]);
+  useEffect(() => {
+    const todayAppointments = applications.filter((app) => app.date === date);
+    setStats({
+      totalAppointments: todayAppointments.length,
+      inPersonAppointments: todayAppointments.filter(app => app.type === "in-person").length,
+      virtualAppointments: todayAppointments.filter(app => app.type === "virtual").length,
+    });
+    setIsLoading(false);
+  }, [applications, date]);
 
-    
+
   if (isLoading) {
     return (
       <Card>

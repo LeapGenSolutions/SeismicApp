@@ -1,10 +1,11 @@
+import { BACKEND_URL } from "../constants";
 import { appointmentActions } from "./appointment-slice";
 
-export const fetchAppointmentDetails = () => {
+export const fetchAppointmentDetails = (email) => {
     return async (dispatch) => {
         const fetchAppointments = async () => {
             const response = await fetch(
-                'https://seismic-backend-04272025-bjbxatgnadguabg9.centralus-01.azurewebsites.net/api/appointments'
+                `${BACKEND_URL}api/appointments/${email}`
             );
 
             if (!response.ok) {
