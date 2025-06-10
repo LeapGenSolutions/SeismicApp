@@ -57,7 +57,7 @@ const PostCallDocumentation = ({
           <Billing appointmentId={callId} />
         )}
         {docTab === 'clusters' && (
-          <Clusters />
+          <Clusters appointmentId={callId} />
         )}
 
         <div className="flex justify-end mt-8">

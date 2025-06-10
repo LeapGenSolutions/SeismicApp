@@ -1,41 +1,23 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query"
+import { fetchClustersByAppointment } from "../../api/clusters";
+import { useSelector } from "react-redux";
 
 //  Original clustered data (not deeply nested, still simple)
-const clusteredData = [
-  {
-    topic: "Introduction and reason for visit",
-    soap_section: "S",
-    lines: [
-      "Doctor: Hi, Mr. Jones. How are you?",
-      "Patient: I'm good, Doctor Smith. Nice to see you.",
-      "Doctor: Nice to see you again. What brings you back?",
-      "Patient: Well, my back's been hurting again."
-    ]
-  },
-  {
-    topic: "History of recurring back pain",
-    soap_section: "S",
-    lines: [
-      "Doctor: I see. I've seen you a number of times for this, haven't I?",
-      "Patient: Yeah, well, ever since I got hurt on the job three years ago..."
-    ]
-  },
-  {
-    topic: "Physical therapy adherence and challenges",
-    soap_section: "S",
-    lines: [
-      "Doctor: Unfortunately, that can happen...",
-      "Patient: Which—the pills?",
-      "Doctor: Actually, I was talking about the physical therapy...",
-      "Patient: See, yeah, once my back started feeling better...",
-      "Doctor: Why was that?",
-      "Patient: It was starting to become kind of a hassle..."
-    ]
-  },
-  // Add more topics
-];
 
-const Clusters = () => {
+
+const Clusters = ({appointmentId}) => {
+  const username = useSelector((state) => state.me.me.name);
+  const { data } = useQuery({
+    queryKey: "clusters",
+    queryFn: ()=>fetchClustersByAppointment(`${username}_${appointmentId}_clusters`, username),
+  })
+  const [clusteredData, setClusterData] = useState([])
+  useEffect(()=>{
+    if(data?.data?.clustered_output){
+      setClusterData(data.data.clustered_output)
+    }
+  },[data])
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-xl font-bold">Clusters Information</h1>
