@@ -7,7 +7,7 @@ import { useSelector } from "react-redux";
 
 
 const Clusters = ({appointmentId}) => {
-  const username = useSelector((state) => state.me.me.name);
+  const username = useSelector((state) => state.me.me.email);
   const { data } = useQuery({
     queryKey: "clusters",
     queryFn: ()=>fetchClustersByAppointment(`${username}_${appointmentId}_clusters`, username),

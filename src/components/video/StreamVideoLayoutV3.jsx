@@ -28,7 +28,7 @@ const StreamVideoLayoutV3 = ({ callId }) => {
     const canvasDrawIntervalRef = useRef(null);
     const streamRef = useRef(null);
     const chunkIndex = useRef(0);
-    const username = useSelector((state) => state.me.me.name)
+    const username = useSelector((state) => state.me.me.email)
 
     const startRecording = async () => {
         if (!divRef.current || !canvasRef.current) return;

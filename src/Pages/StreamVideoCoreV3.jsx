@@ -11,11 +11,12 @@ import StreamVideoLayoutV4 from '../components/video/StreamVideoLayoutV4';
 
 const StreamVideoCoreV3 = () => {
     const apiKey = '72499ykcfb3z';
-    const state = useSelector((state) => state.me.me)
-    const userId = state.aud;
+    const me = useSelector((state) => state.me.me)
+    const userId = me.aud;
     const { callId } = useParams();
     const role = 'doctor'
-    const userName = state.given_name + " " + state.family_name
+    const userName = me.given_name + " " + me.family_name
+    const myEmail = me.email
 
 
     const [client, setClient] = useState(null);
@@ -73,7 +74,7 @@ const StreamVideoCoreV3 = () => {
 
             const videoClient = new StreamVideoClient({
                 apiKey,
-                user: { id: userId, name: userName },
+                user: { id: userId, name: myEmail },
                 token
             });
 

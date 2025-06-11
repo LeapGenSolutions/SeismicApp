@@ -18,7 +18,7 @@ const StreamVideoLayoutV4 = ({ callId }) => {
 
     const callingState = useCallCallingState();
     const Participants = useParticipants();
-    const username = useSelector((state) => state.me.me.name);
+    const username = useSelector((state) => state.me.me.email);
 
     const intervalRef = useRef(null);
     const cyclingRef = useRef(false); // flag to prevent multiple intervals
