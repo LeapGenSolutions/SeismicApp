@@ -73,8 +73,8 @@ const StreamVideoLayoutV4 = ({ callId }) => {
 
     const handleCancel = async () => {
         if (intervalRef.current) clearInterval(intervalRef.current);
-        await call.stopRecording();
-        await sendMessageToQueue(callId, username);
+        if(isCallRecordingInProgress) await call.stopRecording();
+        sendMessageToQueue(callId, username);
         navigate(`/post-call/${callId}`);
     };
 
