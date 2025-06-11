@@ -8,7 +8,7 @@ const Summary = ({appointmentId}) => {
 
     const patient = {}
     const selectedAppointment = {}
-    const username = useSelector((state)=>state.me.me.name)
+    const username = useSelector((state)=>state.me.me.email)
 
     const { data, isLoading, error } = useQuery({
         queryKey: "summary",

@@ -8,7 +8,7 @@ import { useSelector } from "react-redux";
 
 const Soap = ({ appointmentId }) => {
     const [soapNotes, setSoapNotes] = useState({ Subjective: "", Objective: "", Assessment: "", Plan: "" });
-    const username = useSelector((state)=>state.me.me.name)
+    const username = useSelector((state)=>state.me.me.email)
     
     const { data, isLoading, error } = useQuery({
         queryKey: "soap-notes",

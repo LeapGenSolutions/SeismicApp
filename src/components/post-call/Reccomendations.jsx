@@ -5,7 +5,7 @@ import { useSelector } from "react-redux";
 import { useEffect, useState } from "react";
 
 const Reccomendations = ({ appointmentId }) => {
-  const username = useSelector((state) => state.me.me.name);
+  const username = useSelector((state) => state.me.me.email);
   const { data: reccomendations , isLoading} = useQuery({
     queryKey: "recommendations",
     queryFn: () =>

@@ -6,7 +6,7 @@ import { useSelector } from "react-redux";
 
 const Transcript = ({ appointmentId }) => {
 
-    const username = useSelector((state) => state.me.me.name)
+    const username = useSelector((state) => state.me.me.email)
 
     const { data, isLoading, error } = useQuery({
         queryKey: 'transcript',

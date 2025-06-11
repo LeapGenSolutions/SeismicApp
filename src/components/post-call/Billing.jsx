@@ -6,7 +6,7 @@ import { BACKEND_URL } from "../../constants";
 import ReactMarkdown from 'react-markdown';
 
 const Billing = ({ appointmentId }) => {
-  const username = useSelector((state) => state.me.me.name);
+  const username = useSelector((state) => state.me.me.email);
   const queryKey = ["billing-codes", appointmentId];
 
   const { data, isLoading } = useQuery({
