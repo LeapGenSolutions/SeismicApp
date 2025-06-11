@@ -1,46 +1,36 @@
-import { fetchBillingByAppointment } from "../../api/billingcodes";
+import { fetchBillingByAppointment, updateBillingByAppointment } from "../../api/billingcodes";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { useState, useEffect } from "react";
-import { BACKEND_URL } from "../../constants";
-import ReactMarkdown from 'react-markdown';
+
+import ReactMarkdown from "react-markdown";
+
 
 const Billing = ({ appointmentId }) => {
   const username = useSelector((state) => state.me.me.name);
-  const queryKey = ["billing-codes", appointmentId];
 
-  const { data, isLoading } = useQuery({
-    queryKey,
-    queryFn: () => fetchBillingByAppointment(`${username}_${appointmentId}_billing`, username),
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["billing-codes", appointmentId, username], // MUST be an array
+    queryFn: () =>
+      fetchBillingByAppointment(appointmentId, username),
   });
 
+  const [isEditing, setIsEditing] = useState(false);
   const [billingCodes, setBillingCodes] = useState("");
-  const [originalCodes, setOriginalCodes] = useState("");
 
   useEffect(() => {
     if (data?.data?.billing_codes) {
       setBillingCodes(data.data.billing_codes);
-      setOriginalCodes(data.data.billing_codes); // Track original to detect changes
     }
   }, [data]);
 
   const mutation = useMutation({
-    mutationFn: async (newCodes) => {
-      const response = await fetch(`${BACKEND_URL}api/billing/${appointmentId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userID: username,
-          billing_codes: newCodes,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to save billing codes");
-      }
-      return response.json();
-    },
+    mutationFn: (updatedCodes) =>
+      updateBillingByAppointment(appointmentId, username, updatedCodes),
     onSuccess: () => {
-      setOriginalCodes(billingCodes); // Update original to match new value
+      refetch();
+      setIsEditing(false);
       alert("Billing codes saved successfully.");
     },
     onError: () => {
@@ -48,32 +38,65 @@ const Billing = ({ appointmentId }) => {
     },
   });
 
-  const handleSave = () => {
-    if (billingCodes !== originalCodes) {
-      mutation.mutate(billingCodes);
-    }
+  const handleEditClick = () => {
+    setIsEditing(true);
   };
+
+  const handleSave = () => {
+    if (!billingCodes || billingCodes.trim() === "") {
+      alert("Billing code cannot be empty.");
+      return;
+    }
+
+    mutation.mutate(billingCodes);
+  };
+
+  if (isLoading) return <p>Loading billing codes...</p>;
 
   return (
     <div className="space-y-4">
-      <div>
-        <ReactMarkdown>{originalCodes}</ReactMarkdown>
-      </div>
-      <label className="block text-sm font-medium text-gray-700">Billing Codes</label>
-      <textarea
-        className="w-full border border-gray-300 rounded p-2"
-        rows={6}
-        value={billingCodes}
-        onChange={(e) => setBillingCodes(e.target.value)}
-        placeholder="Enter billing codes (e.g., CPT: 99213, ICD-10: E11.9)"
-      />
-      <button
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        onClick={handleSave}
-        disabled={mutation.isLoading || isLoading || billingCodes === originalCodes}
-      >
-        {mutation.isLoading ? "Saving..." : "Save Billing Codes"}
-      </button>
+      {!isEditing && (
+        <>
+          <ReactMarkdown>{billingCodes}</ReactMarkdown>
+          <button
+            onClick={handleEditClick}
+            className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
+          >
+            Edit
+          </button>
+        </>
+      )}
+
+      {isEditing && (
+        <>
+          <label className="block text-sm font-medium text-gray-700">Edit Billing Codes</label>
+          <textarea
+            className="w-full border border-gray-300 rounded p-2"
+            rows={6}
+            value={billingCodes}
+            onChange={(e) => setBillingCodes(e.target.value)}
+            placeholder="Enter billing codes (e.g., CPT: 99213, ICD-10: E11.9)"
+          />
+          <div className="flex gap-4 mt-2">
+            <button
+              onClick={handleSave}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+              disabled={mutation.isLoading}
+            >
+              {mutation.isLoading ? "Saving..." : "Save"}
+            </button>
+            <button
+              onClick={() => {
+                setIsEditing(false);
+                setBillingCodes(data?.data?.billing_codes || ""); // reset to backend value
+              }}
+              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+            >
+              Cancel
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };
