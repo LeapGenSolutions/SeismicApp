@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { FaVideo, FaCopy } from "react-icons/fa";
 import { navigate } from "wouter/use-browser-location";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { format, parse } from "date-fns";
 import { DOCTOR_PORTAL_URL } from "../constants";
+import { fetchAppointmentDetails } from "../redux/appointment-actions";
 
 
 const VideoCallPage = () => {
@@ -16,13 +17,22 @@ const VideoCallPage = () => {
   const [appointmentId, setAppointmentId] = useState("");
   const [appointmentType, setAppointmentType] = useState("online");
   const isLoadingUpcoming = useState(false)[0];
-  const appointments = useSelector((state) => state.appointments.appointments)
-  const userName = useSelector((state) => state.me.me.given_name)
+  const dispatch = useDispatch();
+  const userName = useSelector((state) => state.me.me.given_name);
+  const userEmail = useSelector((state) => state.me.me.email);
+  const appointments = useSelector((state) => state.appointments.appointments);
 
   const today = format(new Date(), 'yyyy-MM-dd');
   useEffect(() => {
           document.title = "VideoCall - Seismic Connect";
   }, []);
+
+  useEffect(() => {
+    if(appointments.length === 0 && userEmail){
+      dispatch(fetchAppointmentDetails(userEmail))
+    }
+  }, [dispatch, userEmail, appointments])
+  
 
   // Mock data - replace with your actual data
   const upcomingAppointments = appointments.filter(
@@ -306,6 +316,7 @@ const VideoCallPage = () => {
                         type="text"
                         placeholder="Enter your name"
                         value={userName}
+                        readOnly
                         className="border border-gray-300 rounded-lg px-4 w-full py-2 mb-4"
                       />
                     </label>
