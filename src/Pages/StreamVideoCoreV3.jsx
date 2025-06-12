@@ -8,6 +8,7 @@ import getUserToken from '../api/UserToken';
 import { useParams } from 'wouter';
 import { useSelector } from 'react-redux';
 import StreamVideoLayoutV4 from '../components/video/StreamVideoLayoutV4';
+import { insertCallHistory } from '../api/callHistory';
 
 const StreamVideoCoreV3 = () => {
     const apiKey = '72499ykcfb3z';
@@ -80,17 +81,27 @@ const StreamVideoCoreV3 = () => {
 
             const videoCall = videoClient.call('default', callId);
 
+            videoCall.on("call.session_participant_joined", () => {
+                console.log("Session started");
+                try {
+                    insertCallHistory(callId, myEmail)
+                } catch (error) {
+                    console.log("New call History not inserted. Call history and id might exist");
+                }
+            })
+
             if (role === 'doctor') {
-                await videoCall.join({ data: { 
-                    settings_override: { 
-                        recording: { 
-                            quality: "360p",
-                            mode:"available",
+                await videoCall.join({
+                    data: {
+                        settings_override: {
+                            recording: {
+                                quality: "360p",
+                                mode: "available",
+                            }
                         }
-                    } 
-                },
-                create: true
-            });
+                    },
+                    create: true
+                });
 
                 videoCall.on('custom', (event) => {
                     if (event.custom?.type === 'join-request') {
