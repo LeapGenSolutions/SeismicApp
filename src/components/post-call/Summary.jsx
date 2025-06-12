@@ -6,9 +6,9 @@ import { useSelector } from "react-redux";
 
 const Summary = ({appointmentId}) => {
 
-    const patient = {}
-    const selectedAppointment = {}
+    const [selectedAppointment, setSelectedAppointment] = useState({})
     const username = useSelector((state)=>state.me.me.email)
+    const appointments = useSelector((state) => state.appointments.appointments)
 
     const { data, isLoading, error } = useQuery({
         queryKey: "summary",
@@ -23,6 +23,10 @@ const Summary = ({appointmentId}) => {
         }
     }, [data, isLoading])
 
+    useEffect(() =>{
+        setSelectedAppointment(appointments.find((appt) => appt.id === appointmentId) || {})
+    }, [appointments, appointmentId])
+
     if(error){
         return <div>Unable to fetch Summary....!!</div>
     }
@@ -33,7 +37,7 @@ const Summary = ({appointmentId}) => {
                 <FileText className="w-5 h-5 mr-2" /> Call Summary
             </h3>
             <div className="text-sm text-neutral-700">
-                <p className="mb-2"><span className="font-bold">Patient:</span> {patient?.firstName} {patient?.lastName}</p>
+                <p className="mb-2"><span className="font-bold">Patient:</span> {selectedAppointment?.full_name}</p>
                 <p className="mb-2"><span className="font-bold">Date & Time:</span> {new Date().toLocaleString()}</p>
                 <p className="mb-2"><span className="font-bold">Reason for Visit:</span> {selectedAppointment?.reason}</p>
                 <p className="mb-2"><span className="font-bold">Summary from AI:<br /></span> {summary}</p>
