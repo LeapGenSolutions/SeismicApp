@@ -9,9 +9,10 @@ import { useParams } from 'wouter';
 import { useSelector } from 'react-redux';
 import StreamVideoLayoutV4 from '../components/video/StreamVideoLayoutV4';
 import { insertCallHistory } from '../api/callHistory';
+import { STREAM_API_KEY } from '../constants';
 
 const StreamVideoCoreV3 = () => {
-    const apiKey = '72499ykcfb3z';
+    const apiKey = STREAM_API_KEY;
     const me = useSelector((state) => state.me.me)
     const userId = me.aud;
     const { callId } = useParams();

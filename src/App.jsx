@@ -12,6 +12,10 @@ import Reports from "./Pages/Reports";
 import Settings from "./Pages/Settings";
 import NotFound from "./Pages/not-found";
 import VideoRecorder from "./Pages/VideoRecorder";
+import AboutUs from "./Pages/AboutUs";
+import Connect from "./Pages/Connect";
+import ContactUs from "./Pages/ContactUs";
+import Documentation from "./Pages/Documentation";
 import { AuthenticatedTemplate, UnauthenticatedTemplate, useIsAuthenticated, useMsal } from "@azure/msal-react";
 import { useEffect, useState } from "react";
 import { loginRequest } from "./authConfig";
@@ -33,6 +37,13 @@ function Router() {
         <Header />
         <main className="flex-1 overflow-y-auto bg-neutral-50 p-6">
           <Switch>
+            {/* Public Routes */}
+            <Route path="/about" component={AboutUs} />
+            <Route path="/connect" component={Connect} />
+            <Route path="/contact" component={ContactUs} />
+            <Route path="/documentation" component={Documentation} />
+            
+            {/* Protected Routes */}
             <Route path="/" component={Dashboard} />
             <Route path="/appointments" component={Appointments} />
             <Route path="/video-call" component={VideoRecorder} />
