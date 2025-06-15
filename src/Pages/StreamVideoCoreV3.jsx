@@ -82,10 +82,14 @@ const StreamVideoCoreV3 = () => {
 
             const videoCall = videoClient.call('default', callId);
 
-            videoCall.on("call.session_participant_joined", () => {
-                console.log("Session started");
+            videoCall.on("call.session_participant_joined", (req) => {
+                console.log("Session started");                
                 try {
-                    insertCallHistory(callId, myEmail)
+                    insertCallHistory(req.session_id, {
+                        userID:myEmail,
+                        appointmentID: callId,
+                        startTime: req.created_at
+                    })
                 } catch (error) {
                     console.log("New call History not inserted. Call history and id might exist");
                 }
