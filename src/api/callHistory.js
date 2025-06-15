@@ -1,10 +1,10 @@
 import { BACKEND_URL } from "../constants";
 
-export const insertCallHistory = async (apptId, userID) => {
-    const response = await fetch(`${BACKEND_URL}/api/call-history/${apptId}`,
+export const insertCallHistory = async (sessionId, reqBody) => {
+    const response = await fetch(`${BACKEND_URL}/api/call-history/${sessionId}`,
         {
             method: "POST",
-            body: JSON.stringify({ userID }),
+            body: JSON.stringify(reqBody),
             headers: { 'Content-Type': 'application/json' },
         }
     );
