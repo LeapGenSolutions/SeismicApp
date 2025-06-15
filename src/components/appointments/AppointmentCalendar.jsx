@@ -1,4 +1,3 @@
-// src/components/AppointmentCalendar.js
 import React, { useEffect, useState } from "react";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -25,13 +24,14 @@ const AppointmentCalendar = () => {
   const appointments = useSelector((state) => state.appointments.appointments);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [joinLink, setJoinLink] = useState("");
+  const [isOnline, setIsOnline] = useState(true); // Added
 
   const events = appointments.map((appt) => {
-    const today = new Date(appt.date + " CST"); // Use actual date if available
+    const today = new Date(appt.date + " CST");
 
     const [hours, minutes] = appt.time.split(":");
     const start = new Date(today.setHours(+hours, +minutes, 0));
-    const end = new Date(start.getTime() + 30 * 60000); // 30 min slot
+    const end = new Date(start.getTime() + 30 * 60000);
 
     return {
       title: `${appt.full_name} (${appt.status})`,
@@ -41,7 +41,6 @@ const AppointmentCalendar = () => {
       ...appt,
     };
   });
-  console.log(selectedAppointment);
 
   const handleJoinClick = () => {
     setSelectedAppointment(null);
@@ -62,6 +61,7 @@ const AppointmentCalendar = () => {
     if (selectedAppointment) {
       const link = `${DOCTOR_PORTAL_URL}${selectedAppointment.id}`;
       setJoinLink(link);
+      setIsOnline(true); // Reset to Online every time modal opens
     }
   }, [selectedAppointment]);
 
@@ -76,8 +76,6 @@ const AppointmentCalendar = () => {
         endAccessor="end"
         style={{ height: 500 }}
         onSelectEvent={(event) => {
-          console.log(event);
-
           setSelectedAppointment(event);
         }}
       />
@@ -112,25 +110,51 @@ const AppointmentCalendar = () => {
                 <span className="font-semibold">Doctor:</span>{" "}
                 {selectedAppointment.doctor_name}
               </p>
-              <p>
-                <span className="font-semibold text-gray-700">
-                  Meeting Link:
-                </span>
-              </p>
-              <div className="flex w-full">
-                <input
-                  type="text"
-                  value={joinLink}
-                  readOnly
-                  className="flex-grow border border-gray-300 rounded-l-md px-4 py-2 focus:outline-none focus:ring-0"
-                />
-                <button
-                  onClick={copyToClipboard}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-r-md"
-                >
-                  <FaCopy className="inline-block mr-1" /> Copy
-                </button>
+
+              {/* Radio buttons */}
+              <div className="flex space-x-4 mt-2">
+                <label className="flex items-center space-x-1">
+                  <input
+                    type="radio"
+                    name="apptType"
+                    value="online"
+                    checked={isOnline}
+                    onChange={() => setIsOnline(true)}
+                  />
+                  <span>Online</span>
+                </label>
+                <label className="flex items-center space-x-1">
+                  <input
+                    type="radio"
+                    name="apptType"
+                    value="inperson"
+                    checked={!isOnline}
+                    onChange={() => setIsOnline(false)}
+                  />
+                  <span>In-Person</span>
+                </label>
               </div>
+
+              {/* Meeting Link visible only if Online is selected */}
+              {isOnline && (
+                <>
+                  <p className="pt-2 font-semibold text-gray-700">Meeting Link:</p>
+                  <div className="flex w-full">
+                    <input
+                      type="text"
+                      value={joinLink}
+                      readOnly
+                      className="flex-grow border border-gray-300 rounded-l-md px-4 py-2 focus:outline-none focus:ring-0"
+                    />
+                    <button
+                      onClick={copyToClipboard}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-r-md"
+                    >
+                      <FaCopy className="inline-block mr-1" /> Copy
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
             <div className="mt-6 text-right space-x-1">
               <button
@@ -158,5 +182,4 @@ const AppointmentCalendar = () => {
     </div>
   );
 };
-
-export default AppointmentCalendar;
+export default AppointmentCalendar
