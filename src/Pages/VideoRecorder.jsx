@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { format, parse } from "date-fns";
 import { DOCTOR_PORTAL_URL } from "../constants";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
-
+import CallHistory from "./CallHistory"
 
 const VideoCallPage = () => {
   const [room, setRoom] = useState("");
@@ -410,14 +410,11 @@ const VideoCallPage = () => {
               </div>
             )}
 
-            {activeTab === "history" && (
-              <div className="space-y-4">
-                <div className="text-center py-8 text-gray-500">
-                  <h3 className="text-lg font-medium mb-2">Call History</h3>
-                  <p>Your recent video call history will appear here.</p>
-                </div>
-              </div>
-            )}
+           {activeTab === "history" && (
+           <div className="space-y-4">
+          <CallHistory />
+         </div>
+          )}
           </div>
         </div>
         {invalidMeetingId && (
