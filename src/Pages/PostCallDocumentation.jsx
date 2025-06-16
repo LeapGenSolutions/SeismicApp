@@ -8,18 +8,41 @@ import Billing from "../components/post-call/Billing";
 import Reccomendations from "../components/post-call/Reccomendations";
 import { useParams } from "wouter";
 import Clusters from "../components/post-call/Clusters";
+import { navigate } from "wouter/use-browser-location";
 
 const PostCallDocumentation = ({
   onSave,
 }) => {
   const [docTab, setDocTab] = useState("summary");
   const { callId } = useParams()
+  const [prevPage, setPrevPage] = useState(null);
 
   useEffect(() => {
     document.title = "PostCallDocumentation - Seismic Connect";
+    const state = window.history.state;
+    if(state?.from){
+      setPrevPage(state.from);
+    }
   }, []);
+  
+  const handleback = () => {
+    if(window.history.length > 1) {
+      window.history.back();
+    }else{
+      navigate("/appointments");
+    }
+  }
 
   return (
+    <>
+    {prevPage !== "video-call" && <div className="mb-4">
+        <button
+          onClick={handleback}
+          className="text-sm text-blue-600 border border-blue-600 px-3 py-1 rounded hover:bg-blue-600 hover:text-white transition"
+        >
+          Back
+        </button>
+      </div>}
     <Card className="mt-8">
       <CardHeader>
         <CardTitle>Post-Call Documentation</CardTitle>
@@ -62,6 +85,7 @@ const PostCallDocumentation = ({
         </div>
       </CardContent>
     </Card>
+    </>
   );
 };
 
