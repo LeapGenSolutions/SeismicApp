@@ -4,7 +4,7 @@ import { navigate } from "wouter/use-browser-location";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useQuery } from "@tanstack/react-query";
-import { fetchCallHistory } from "../api/callHistory";
+import { fetchCallHistory, fetchDoctorsFromHistory } from "../api/callHistory";
 import { useSelector } from "react-redux";
 
 const generateMockDate = (offset = 0) => new Date(Date.now() + offset * 864e5).toISOString().split("T")[0];
@@ -16,13 +16,7 @@ const mockData = [
   { appointmentId: "apt_1003", doctorId: "deepika", doctorName: "Dr. Deepika", patient: "Sara Thomas", date: generateMockDate(0), time: "3:45 PM" }
 ];
 
-const allDoctors = [
-  { id: "anusha", name: "Anusha Yammada" },
-  { id: "ganga", name: "Ganga Raju" },
-  { id: "deepika", name: "Deepika" }
-];
-
-const getInitials = (name) => name.split(" ").map((n) => n[0]).join("").toUpperCase();
+const getInitials = (name) => [name.split(" ")[0][0], name.split(" ")[1][0]].join("").toUpperCase();
 
 const getDateRange = (preset) => {
   const today = new Date(), start = new Date(today), end = new Date(today);
@@ -75,6 +69,7 @@ function CallHistory() {
   const [activePreset, setActivePreset] = useState("today");
   const [patientSearch, setPatientSearch] = useState("");
   const [filteredData, setFilteredData] = useState([]);
+  const [allDoctors, setAllDoctors] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
   const [showPresetDropdown, setShowPresetDropdown] = useState(false);
@@ -86,6 +81,19 @@ function CallHistory() {
     queryKey: ["call-history"],
     queryFn: () => fetchCallHistory(myEmail)
   })
+  
+  const { data: doctorsCallHistoryData } = useQuery({
+    queryKey: ["doctors-call-history"],
+    queryFn: () => fetchDoctorsFromHistory()
+  })
+
+  useEffect(()=>{
+    if(doctorsCallHistoryData){
+      setAllDoctors(doctorsCallHistoryData)
+    }
+  },[doctorsCallHistoryData])
+
+
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -136,11 +144,11 @@ function CallHistory() {
               <div className="p-2 sticky top-0 bg-white z-10">
                 <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search doctor" className="w-full border rounded px-2 py-1 text-sm" />
               </div>
-              <div className="px-3 py-2 border-b text-sm hover:bg-gray-100 cursor-pointer" onClick={() => setSelectedDoctors(selectedDoctors.length === allDoctors.length ? [] : allDoctors.map((d) => d.id))}>
+              <div className="px-3 py-2 border-b text-sm hover:bg-gray-100 cursor-pointer" onClick={() => setSelectedDoctors(selectedDoctors.length === allDoctors.length ? [] : allDoctors.map((d) => d.userID))}>
                 {selectedDoctors.length === allDoctors.length ? "Unselect All" : "Select All"}
               </div>
-              {allDoctors.filter(doc => doc.name.toLowerCase().includes(searchTerm.toLowerCase())).map((doc) => {
-                const initials = getInitials(doc.name);
+              {allDoctors.filter(doc => doc.fullName.toLowerCase().includes(searchTerm.toLowerCase())).map((doc) => {
+                const initials = getInitials(doc.fullName);
                 const colorMap = {
                   "Anusha Yammada": "bg-purple-700",
                   "Ganga Raju": "bg-blue-700",
@@ -149,8 +157,8 @@ function CallHistory() {
                 return (
                   <label key={doc.id} className="flex items-center px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 transition">
                     <input type="checkbox" checked={selectedDoctors.includes(doc.id)} onChange={() => toggleDoctor(doc.id)} className="mr-3 accent-blue-600" />
-                    <span className={`w-6 h-6 flex items-center justify-center rounded-full text-white font-semibold text-xs mr-3 ${colorMap[doc.name] || "bg-gray-400"}`}>{initials}</span>
-                    <span className="text-gray-800">{doc.name}</span>
+                    <span className={`w-6 h-6 flex items-center justify-center rounded-full text-white font-semibold text-xs mr-3 ${colorMap[doc.fullName] || "bg-gray-400"}`}>{initials}</span>
+                    <span className="text-gray-800">{doc.fullName}</span>
                   </label>
                 );
               })}
