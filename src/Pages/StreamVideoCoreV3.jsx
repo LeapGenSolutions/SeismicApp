@@ -88,7 +88,8 @@ const StreamVideoCoreV3 = () => {
                     insertCallHistory(req.session_id, {
                         userID:myEmail,
                         appointmentID: callId,
-                        startTime: req.created_at
+                        startTime: req.created_at,
+                        fullName: userName
                     })
                 } catch (error) {
                     console.log("New call History not inserted. Call history and id might exist");
