@@ -15,7 +15,6 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
-import { Badge } from "../components/ui/badge";
 import {
   Plus,
   Phone,
@@ -34,8 +33,15 @@ import { navigate } from "wouter/use-browser-location";
 function Patients() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+  const [selectedDoctor, setSelectedDoctor] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
   const dispatch = useDispatch();
   const patients = useSelector((state) => state.patients.patients);
+  const appointments = useSelector((state) => state.appointments.appointments);
+  console.log("Appointments loaded from Redux:", appointments);
+  const [enrichedPatients, setEnrichedPatients] = useState([]);
   const [showPatients, setShowPatients] = useState([]);
 
   useEffect(() => {
@@ -43,98 +49,93 @@ function Patients() {
   }, [dispatch]);
 
   useEffect(() => {
-    setShowPatients(patients);
-  }, [patients]);
-
-  useEffect(() => {
     document.title = "Patients - Seismic Connect";
   }, []);
 
-  // Patient Search Logic
-  const handleSearchChange = (e) => {
-  const query = e.target.value;
-  setSearchQuery(query);
-  filterPatients(query);
-};
+  useEffect(() => {
+    if (!patients || !appointments) return;
 
+    const enriched = patients.map((patient) => {
+      const appts = appointments
+        .filter((appt) => appt.patient_id == patient.id)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      const latest = appts[0];
 
-  const filterPatients = (query) => {
-  if (query === "") {
-    setShowPatients(patients);
-    return;
-  }
-  const filteredPatients = patients.filter((p) => {
-    const fullName = `${p.first_name} ${p.last_name}`.toLowerCase();
-    return fullName.includes(query.toLowerCase());
-  });
-  setShowPatients(filteredPatients);
-};
+      return {
+        ...patient,
+        doctor_name: latest?.provider?.name || "", // adjust based on real data field
+        last_visit_date: latest?.date || "",
+      };
+    });
 
+    setEnrichedPatients(enriched);
+    setShowPatients(enriched);
+  }, [patients, appointments]);
 
-  const advancedSearchHandler = (query) => {
-    if (!query) { 
-      filterPatients();
-      return;
+  const applyAllFilters = (search = searchQuery) => {
+    let filtered = [...enrichedPatients];
+
+    if (search) {
+      filtered = filtered.filter((p) => {
+        const fullName = `${p.first_name} ${p.last_name}`.toLowerCase();
+        return fullName.includes(search.toLowerCase());
+      });
     }
-      setShowPatients(
-        patients.filter((p) => {
-          // currently, the dateOfBirth, insurance Provider, insurance id, phone number, email is will not filter and show no partients found
-          // because they are not provided in the patients object
-          const dob = query?.dateOfBirth
-            ? p?.date_of_birth
-              ? p?.date_of_birth ===
-                query.dateOfBirth
-              : false
-            : true;
-          const email = query?.email
-            ? p?.email
-              ? p?.email.includes(query?.email.toLowerCase())
-              : false
-            : true;
-          const insuranceId = query?.insuranceId
-            ? p.insurance_id
-              ? p?.insurance_id
-                  .toLowerCase()
-                  .includes(query?.insuranceId.toLowerCase())
-              : false
-            : true;
-          const insuranceProvider = query?.insuranceProvider
-            ? p?.insurance_provider
-              ? p?.insurance_provider
-                  .toLowerCase()
-                  .includes(query.insuranceProvider.toLowerCase())
-              : false
-            : true;
-          const phoneNumber = query.phoneNumber
-            ? p?.phone_number
-              ? p?.phone_number.includes(query.phoneNumber)
-              : false
-            : true;
-          const ssn = query.ssn
-            ? p?.ssn
-              ? p?.ssn.toLowerCase().includes(query.ssn.toLowerCase())
-              : false
-            : true;
 
-          return (
-            dob &&
-            email &&
-            insuranceId &&
-            insuranceProvider &&
-            phoneNumber &&
-            ssn
-          );
-        })
-      );
+    if (selectedDoctor) {
+      filtered = filtered.filter((p) => p.doctor_name === selectedDoctor);
+    }
+
+    if (startDate || endDate) {
+      filtered = filtered.filter((p) => {
+        if (!p.last_visit_date) return false;
+        const visitDate = new Date(p.last_visit_date);
+        const start = startDate ? new Date(startDate) : null;
+        const end = endDate ? new Date(endDate) : null;
+        return (!start || visitDate >= start) && (!end || visitDate <= end);
+      });
+    }
+
+    setShowPatients(filtered);
   };
 
+  const handleSearchChange = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    applyAllFilters(query);
+  };
+
+  const advancedSearchHandler = (query) => {
+    if (!query) {
+      applyAllFilters();
+      return;
+    }
+
+    const filtered = enrichedPatients.filter((p) => {
+      const dob = query?.dateOfBirth ? p?.date_of_birth === query.dateOfBirth : true;
+      const email = query?.email ? p?.email?.includes(query.email.toLowerCase()) : true;
+      const insuranceId = query?.insuranceId ? p?.insurance_id?.toLowerCase().includes(query.insuranceId.toLowerCase()) : true;
+      const insuranceProvider = query?.insuranceProvider ? p?.insurance_provider?.toLowerCase().includes(query.insuranceProvider.toLowerCase()) : true;
+      const phoneNumber = query.phoneNumber ? p?.phone_number?.includes(query.phoneNumber) : true;
+      const ssn = query.ssn ? p?.ssn?.toLowerCase().includes(query.ssn.toLowerCase()) : true;
+
+      return dob && email && insuranceId && insuranceProvider && phoneNumber && ssn;
+    });
+
+    setShowPatients(filtered);
+  };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    applyAllFilters();
+  }, [selectedDoctor, startDate, endDate]);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Patients</h1>
         <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Patient
+          <Plus className="w-4 h-4 mr-2" /> Add Patient
         </Button>
       </div>
 
@@ -165,6 +166,50 @@ function Patients() {
       </Card>
 
       <Card>
+        <CardHeader>
+          <CardTitle>Appointment Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Select Doctor
+              </label>
+              <select
+                className="w-full border rounded px-3 py-2"
+                value={selectedDoctor}
+                onChange={(e) => setSelectedDoctor(e.target.value)}
+              >
+                <option value="">All Doctors</option>
+                <option value="Dr. Madhu Chanthati">Dr. Madhu Chanthati</option>
+                <option value="Dr. Anurag Donapati">Dr. Anurag Donapati</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Start Date
+              </label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                End Date
+              </label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -173,7 +218,7 @@ function Patients() {
                 <TableHead>Contact</TableHead>
                 <TableHead>Insurance</TableHead>
                 <TableHead>Last Visit</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Doctor</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -187,7 +232,7 @@ function Patients() {
                   </TableCell>
                 </TableRow>
               ) : (
-                showPatients?.map((patient) => (
+                showPatients.map((patient) => (
                   <TableRow key={patient.id}>
                     <TableCell>
                       {patient.first_name} {patient.last_name}
@@ -211,21 +256,12 @@ function Patients() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
-                        {format(
-                          new Date(),
-                          "MMM dd, yyyy"
-                        )}
+                        {patient.last_visit_date
+                          ? format(new Date(patient.last_visit_date), "MMM dd, yyyy")
+                          : "N/A"}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          patient.insuranceVerified ? "success" : "warning"
-                        }
-                      >
-                        {patient.insuranceVerified ? "Verified" : "Pending"}
-                      </Badge>
-                    </TableCell>
+                    <TableCell>{patient.doctor_name || "N/A"}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button variant="ghost" size="icon">
@@ -233,9 +269,7 @@ function Patients() {
                         </Button>
                         <Link href={`/patients/${patient.id}`}>
                           <Button
-                            onClick={() => {
-                              navigate(`/patients/${patient.id}`);
-                            }}
+                            onClick={() => navigate(`/patients/${patient.id}`)}
                             variant="ghost"
                             size="icon"
                           >
