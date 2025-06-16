@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import AppointmentCalendar from "../components/appointments/AppointmentCalendar";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
+import { fetchAllDoctors } from "../api/doctors";
+import { setDoctorsList } from "../redux/doctor-slice";
 
 function Appointments() {
   useEffect(() => {
@@ -12,11 +14,25 @@ function Appointments() {
   const myEmail = useSelector((state) => state.me.me.email)
   const appointments = useSelector((state) => state.appointments.appointments)
 
+
   useEffect(() => {
     if (appointments?.length === 0 && myEmail) {
       dispatch(fetchAppointmentDetails(myEmail));
     }
   }, [dispatch, appointments, myEmail])
+
+  // Fetch doctor list and store in Redux
+  useEffect(() => {
+    const getDoctors = async () => {
+      try {
+        const allDoctors = await fetchAllDoctors();
+        dispatch(setDoctorsList(allDoctors));
+      } catch (error) {
+        console.error("Failed to fetch doctors:", error);
+      }
+    };
+    getDoctors();
+  }, [dispatch]);
 
   return (
     <div className="space-y-6">

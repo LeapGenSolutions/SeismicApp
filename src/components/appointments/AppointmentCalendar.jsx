@@ -2,12 +2,14 @@
 import React, { useEffect, useState } from "react";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import enUS from "date-fns/locale/en-US";
 import { navigate } from "wouter/use-browser-location";
 import { DOCTOR_PORTAL_URL } from "../../constants";
 import { FaCopy } from "react-icons/fa";
+import { fetchAppointmentsViaPost } from "../../redux/appointment-actions";
+import DoctorMultiSelect from "../DoctorMultiSelect";
 
 const locales = {
   "en-US": enUS,
@@ -20,6 +22,66 @@ const localizer = dateFnsLocalizer({
   getDay,
   locales,
 });
+
+const CustomToolbar = ({ label, onNavigate, onView }) => {
+  const dispatch = useDispatch();
+  const selectedDoctorEmails = useSelector(
+    (state) => state.doctors.selectedDoctors
+  );
+
+  useEffect(() => {
+    if (selectedDoctorEmails.length > 0) {
+      dispatch(fetchAppointmentsViaPost(selectedDoctorEmails));
+    }
+  }, [dispatch, selectedDoctorEmails]);
+
+  return (
+    <div className="flex justify-between items-center mb-4">
+      <div className="flex items-center gap-2 flex-1">
+        <button
+          onClick={() => onNavigate("TODAY")}
+          className="border px-2 py-1 rounded"
+        >
+          Today
+        </button>
+        <button
+          onClick={() => onNavigate("PREV")}
+          className="border px-2 py-1 rounded"
+        >
+          Back
+        </button>
+        <button
+          onClick={() => onNavigate("NEXT")}
+          className="border px-2 py-1 rounded"
+        >
+          Next
+        </button>
+        <span className="font-semibold text-center w-full">{label}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <DoctorMultiSelect className="w-[250px]" />
+        <button
+          onClick={() => onView("day")}
+          className="border px-2 py-1 rounded"
+        >
+          Day
+        </button>
+        <button
+          onClick={() => onView("week")}
+          className="border px-2 py-1 rounded"
+        >
+          Week
+        </button>
+        <button
+          onClick={() => onView("agenda")}
+          className="border px-2 py-1 rounded"
+        >
+          Agenda
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const AppointmentCalendar = () => {
   const appointments = useSelector((state) => state.appointments.appointments);
@@ -57,7 +119,7 @@ const AppointmentCalendar = () => {
     navigator.clipboard.writeText(joinLink);
     alert("Link copied to clipboard!");
   };
-
+  
   useEffect(() => {
     if (selectedAppointment) {
       const link = `${DOCTOR_PORTAL_URL}${selectedAppointment.id}`;
@@ -80,6 +142,7 @@ const AppointmentCalendar = () => {
 
           setSelectedAppointment(event);
         }}
+        components={{ toolbar: CustomToolbar }}
       />
       {selectedAppointment && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
