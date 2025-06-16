@@ -20,3 +20,11 @@ export const fetchCallHistory = async (email) => {
     }
     return response.json();
 };
+
+export const fetchDoctorsFromHistory = async () => {
+    const response = await fetch(`${BACKEND_URL}api/doctors/call-history`);
+    if (!response.ok) {
+        throw new Error("Failed to fetch Call History data");
+    }
+    return response.json();
+};
