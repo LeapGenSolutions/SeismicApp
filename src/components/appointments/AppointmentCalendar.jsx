@@ -44,7 +44,7 @@ const AppointmentCalendar = () => {
 
   const handleJoinClick = () => {
     setSelectedAppointment(null);
-    navigate(`/meeting-room/${selectedAppointment.id}`);
+    navigate(`/meeting-room/${selectedAppointment.id}?patient=${selectedAppointment.full_name}`);
   };
 
   const handlePostCallClick = () => {

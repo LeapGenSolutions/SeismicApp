@@ -118,7 +118,7 @@ const VideoCallPage = () => {
     navigate(
       `/meeting-room/${encodeURIComponent(
         room
-      )}`
+      )}?patient=${encodeURIComponent(selectedAppointment.full_name)}`
     );
   };
 

@@ -5,7 +5,7 @@ import {
 } from '@stream-io/video-react-sdk';
 import { useEffect, useState } from 'react';
 import getUserToken from '../api/UserToken';
-import { useParams } from 'wouter';
+import { useParams, useSearchParams } from 'wouter';
 import { useSelector } from 'react-redux';
 import StreamVideoLayoutV4 from '../components/video/StreamVideoLayoutV4';
 import { insertCallHistory } from '../api/callHistory';
@@ -16,6 +16,9 @@ const StreamVideoCoreV3 = () => {
     const me = useSelector((state) => state.me.me)
     const userId = me.aud;
     const { callId } = useParams();
+    const searchParams = useSearchParams()[0]
+    const patientName = searchParams.get("patient")
+
     const role = 'doctor'
     const userName = me.given_name + " " + me.family_name
     const myEmail = me.email
@@ -83,13 +86,14 @@ const StreamVideoCoreV3 = () => {
             const videoCall = videoClient.call('default', callId);
 
             videoCall.on("call.session_participant_joined", (req) => {
-                console.log("Session started");                
+                console.log("Session started");
                 try {
                     insertCallHistory(req.session_id, {
-                        userID:myEmail,
+                        userID: myEmail,
                         appointmentID: callId,
                         startTime: req.created_at,
-                        fullName: userName
+                        fullName: userName,
+                        patientName: patientName
                     })
                 } catch (error) {
                     console.log("New call History not inserted. Call history and id might exist");

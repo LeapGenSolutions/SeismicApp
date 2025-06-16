@@ -3,6 +3,9 @@ import { ChevronDown, ExternalLink } from "lucide-react";
 import { navigate } from "wouter/use-browser-location";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { useQuery } from "@tanstack/react-query";
+import { fetchCallHistory } from "../api/callHistory";
+import { useSelector } from "react-redux";
 
 const generateMockDate = (offset = 0) => new Date(Date.now() + offset * 864e5).toISOString().split("T")[0];
 const normalizeDate = (d) => new Date(new Date(d).toDateString());
@@ -51,12 +54,13 @@ const ExpandableRow = ({ entry }) => {
     <div className="px-4 py-3 bg-white border rounded-lg shadow-sm">
       <div className="flex justify-between items-center" onClick={() => setOpen(!open)}>
         <div className="flex flex-wrap gap-4 text-sm font-medium text-gray-700">
-          <span><strong>Patient Name:</strong> {entry.patient}</span>
-          <span><strong>Time:</strong> {entry.time}</span>
-          <span><strong>Dr Name:</strong> {entry.doctorName}</span>
+          <span><strong>Patient Name:</strong> {entry.patientName}</span>
+          <span><strong>Start Time:</strong> {entry?.startTime}</span>
+          <span><strong>End Time:</strong> {entry?.endTime}</span>
+          <span><strong>Dr Name:</strong> {entry.fullName}</span>
         </div>
         <div className="flex items-center gap-2 text-gray-500">
-          <button onClick={(e) => { e.stopPropagation(); navigate(`/post-call/${entry.appointmentId}`); }} title="Open Post-Call Documentation">
+          <button onClick={(e) => { e.stopPropagation(); navigate(`/post-call/${entry.appointmentID}`); }} title="Open Post-Call Documentation">
             <ExternalLink className="w-4 h-4 text-blue-600" />
           </button>
         </div>
@@ -76,9 +80,20 @@ function CallHistory() {
   const [showPresetDropdown, setShowPresetDropdown] = useState(false);
   const dropdownRef = useRef(null);
   const presetDropdownRef = useRef(null);
+  const myEmail = useSelector((state) => state.me.me.email)
+
+  const { data: callHistoryData } = useQuery({
+    queryKey: ["call-history"],
+    queryFn: () => fetchCallHistory(myEmail)
+  })
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => handleSubmit(), []);
+  useEffect(() => {
+    if (callHistoryData) {
+      setFilteredData(callHistoryData)
+    }
+  }, [callHistoryData])
+
   useEffect(() => {
     const handleClick = (e) => {
       if (!dropdownRef.current?.contains(e.target)) setShowDoctorDropdown(false);
