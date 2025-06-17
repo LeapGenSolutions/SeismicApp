@@ -61,10 +61,11 @@ const StreamVideoLayoutV4 = ({ callId }) => {
         if (isCallRecordingInProgress) await call.stopRecording();
       }),
     ];
-
+    let localIntervalRef=null
+    if (intervalRef.current) localIntervalRef = intervalRef.current;
     return () => {
       unsubscribers.forEach((unsub) => unsub());
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (localIntervalRef) clearInterval(localIntervalRef);
       cyclingRef.current = false;
     };
   }, [call, isCallRecordingInProgress]);
