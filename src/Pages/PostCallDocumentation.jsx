@@ -9,6 +9,7 @@ import Reccomendations from "../components/post-call/Reccomendations";
 import { useParams } from "wouter";
 import Clusters from "../components/post-call/Clusters";
 import { navigate } from "wouter/use-browser-location";
+import DoctorNotes from "../components/post-call/DoctorNotes";
 
 const PostCallDocumentation = ({
   onSave,
@@ -79,6 +80,9 @@ const PostCallDocumentation = ({
         )}
         {docTab === 'clusters' && (
           <Clusters appointmentId={callId} />
+        )}
+        {docTab === 'doctor Notes' && (
+          <DoctorNotes appointmentId={callId} />
         )}
 
         <div className="flex justify-end mt-8">
