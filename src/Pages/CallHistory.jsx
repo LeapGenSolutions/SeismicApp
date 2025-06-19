@@ -118,7 +118,7 @@ function CallHistory() {
     const filtered = mockData.filter((item) => {
       const date = normalizeDate(item.date);
       return (!selectedDoctors.length || selectedDoctors.includes(item.doctorId)) &&
-        (!patientSearch || item.patient.toLowerCase().includes(patientSearch.toLowerCase())) &&
+        (!patientSearch || item?.patient?.toLowerCase()?.includes(patientSearch?.toLowerCase?.())) &&
         (activePreset ? (date >= normalizeDate(rangeStart) && date <= normalizeDate(rangeEnd)) : (!dateFilter || date.getTime() === normalizeDate(dateFilter).getTime()));
     });
     setFilteredData(filtered);
@@ -147,7 +147,7 @@ function CallHistory() {
               <div className="px-3 py-2 border-b text-sm hover:bg-gray-100 cursor-pointer" onClick={() => setSelectedDoctors(selectedDoctors.length === allDoctors.length ? [] : allDoctors.map((d) => d.userID))}>
                 {selectedDoctors.length === allDoctors.length ? "Unselect All" : "Select All"}
               </div>
-              {allDoctors.filter(doc => doc.fullName.toLowerCase().includes(searchTerm.toLowerCase())).map((doc) => {
+              {allDoctors.filter(doc => doc?.fullName?.toLowerCase()?.includes(searchTerm?.toLowerCase?.())).map((doc) => {
                 const initials = getInitials(doc.fullName);
                 const colorMap = {
                   "Anusha Yammada": "bg-purple-700",
