@@ -1,14 +1,25 @@
-// src/components/post-call/loading-card.jsx
+// src/components/post-call/LoadingCard.jsx
+import { useEffect, useState } from "react";
 import { Stethoscope } from "lucide-react";
 
-const LoadingCard = ({ message }) => {
+const LoadingCard = ({
+  message,
+  fallbackMessage = "Vitals stable, insights loading… Might be a good time for a quick breather! Stretch, hydrate, and check back soon...",
+}) => {
+  const [showFallback, setShowFallback] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowFallback(true), 10 * 60 * 1000); // 10 minutes
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div className="flex flex-col items-center justify-center text-center p-6 text-blue-800">
       {/* Spinner ring with stethoscope inside */}
       <div className="relative w-16 h-16 mb-6">
         {/* Spinner ring */}
         <div className="absolute inset-0 rounded-full border-4 border-blue-300 border-t-transparent animate-spin" />
-
+        
         {/* Stethoscope icon */}
         <div className="flex items-center justify-center w-full h-full">
           <Stethoscope className="w-8 h-8 text-blue-600" />
@@ -40,7 +51,9 @@ const LoadingCard = ({ message }) => {
       </svg>
 
       {/* Message below */}
-      <p className="text-sm">{message}</p>
+      <p className="text-sm">
+        {showFallback ? fallbackMessage : message}
+      </p>
     </div>
   );
 };
