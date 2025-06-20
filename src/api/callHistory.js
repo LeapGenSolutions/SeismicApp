@@ -1,5 +1,4 @@
 import { BACKEND_URL } from "../constants";
-
 export const insertCallHistory = async (sessionId, reqBody) => {
     const response = await fetch(`${BACKEND_URL}/api/call-history/${sessionId}`,
         {
