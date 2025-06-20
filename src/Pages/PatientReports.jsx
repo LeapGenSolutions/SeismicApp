@@ -1,15 +1,34 @@
-import { useMemo } from "react";
-import { ExternalLink } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ExternalLink,
+} from "lucide-react";
 import { useSelector } from "react-redux";
 import { navigate } from "wouter/use-browser-location";
 import { useParams } from "wouter";
+import PatientInfoComponent from "../components/patients/PatientInfoComponent";
+import SummaryOfPatient from "../components/patients/SummaryOfPatient";
+import AppointmentModal from "../components/appointments/AppointmentModal";
+import { useQuery } from "@tanstack/react-query";
+import { fetchSummaryofSummaries } from "../api/summaryOfSummaries";
 
 const PatientReports = () => {
   const { patientId } = useParams();
   const patients = useSelector((state) => state.patients.patients);
   const appointments = useSelector((state) => state.appointments.appointments);
   const patient = patients.find((p) => p.id === patientId);
-  // const doctor = useSelector((state) => state.me.me);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [summaryOfSummariesData, setSummaryOfSummariesData] = useState(null);
+  
+  const {data:summaryData} = useQuery({
+    queryKey: ["summaryOfSummaries", patientId],
+    queryFn: () => fetchSummaryofSummaries(patientId)
+  });
+  
+  useEffect(() => {
+    if(summaryData) {
+      setSummaryOfSummariesData(summaryData);
+    }
+  }, [summaryData]);
 
   const filteredAppointments = useMemo(() => {
     return appointments
@@ -21,26 +40,30 @@ const PatientReports = () => {
       );
   }, [appointments, patient?.full_name]);
 
-  // const [summaryOfSummariesData, setSummaryOfSummariesData] = useState(null);
+  const now = new Date();
+  let nextAppointment = filteredAppointments
+    .filter((apt) => new Date(apt.date) > now)
+    .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
 
-  // useEffect(() => {
-  //   summaryOfSummaries();
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, []);
+  if (!nextAppointment && filteredAppointments.length > 0) {
+    nextAppointment = filteredAppointments[0];
+  }
 
-  // const summaryOfSummaries = async () => {
-  //   const data = await fetchSummaryofSummaries(doctor.email, patientId);
-  //   setSummaryOfSummariesData(data);
-  // };
+  const handleJoinCall = () => {
+    setSelectedAppointment(nextAppointment);
+  };
 
   if (!patient) {
-    console.warn("Patient not found. Redirecting...");
     navigate("/patients");
     return;
   }
 
   const [firstName, lastName] = patient.full_name?.split(" ") || ["", ""];
   const maskedSSN = patient.ssn ? `XXX-XX-${patient.ssn.slice(-4)}` : "Not Available";
+
+  const lastVisit = filteredAppointments.length > 0
+    ? new Date(filteredAppointments[0].date).toLocaleDateString()
+    : "Not Available";
 
   return (
     <div className="p-6 w-full">
@@ -56,24 +79,40 @@ const PatientReports = () => {
       <h1 className="text-3xl font-bold mb-4 text-gray-800 text-left">Patient Reports</h1>
 
       <div className="bg-white border border-gray-300 rounded-xl shadow p-6 mb-6 w-full">
-        <h2 className="text-2xl font-semibold mb-4 text-gray-700">Patient Info</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-gray-800">
-          <p><strong>First Name:</strong> {firstName}</p>
-          <p><strong>Last Name:</strong> {lastName}</p>
-          <p><strong>SSN:</strong> {maskedSSN}</p>
-          <p><strong>Full Name:</strong> {patient.full_name}</p>
-          <p><strong>Total Appointments:</strong> {filteredAppointments.length}</p>
-        </div>
+        <PatientInfoComponent
+          firstName={firstName}
+          lastName={lastName}
+          maskedSSN={maskedSSN}
+          patient={patient}
+          lastVisit={lastVisit}
+          filteredAppointments={filteredAppointments}
+        />
+        <SummaryOfPatient summaryDataProp={summaryOfSummariesData} />
       </div>
 
-      {/* {summaryOfSummariesData && (
+      {nextAppointment && (
         <div className="bg-white border border-gray-300 rounded-xl shadow p-6 mb-6 w-full">
-          <h2 className="text-2xl font-semibold mb-4 text-gray-700">Summary of Summaries</h2>
-          <p className="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">
-            {summaryOfSummariesData}
-          </p>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-semibold text-gray-800 border-b pb-2">Upcoming Appointment</h3>
+            <button
+              onClick={handleJoinCall}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition"
+            >
+              Join Call
+            </button>
+          </div>
+          <div className="text-sm text-gray-700 space-y-1">
+            <p><strong>Patient Name:</strong> {nextAppointment.full_name}</p>
+            <p><strong>Date:</strong> {new Date(nextAppointment.date).toLocaleDateString()} at {nextAppointment.time}</p>
+            <p><strong>Status:</strong> <span className="inline-block px-2 py-0.5 rounded-full border border-gray-300 text-gray-800 text-xs bg-gray-100">{nextAppointment.status ?? "N/A"}</span></p>
+          </div>
         </div>
-      )} */}
+      )}
+
+      <AppointmentModal
+        selectedAppointment={selectedAppointment}
+        setSelectedAppointment={setSelectedAppointment}
+      />
 
       {filteredAppointments.map((appointment) => {
         const appointmentId = appointment.id;
@@ -104,4 +143,4 @@ const PatientReports = () => {
   );
 };
 
-export default PatientReports
+export default PatientReports;
