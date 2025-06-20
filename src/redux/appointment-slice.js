@@ -3,6 +3,8 @@ import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
   appointments: [],
+  doctors: [],
+  selectedDoctors: [],
 };
 
 const appointmentSlice = createSlice({
@@ -12,6 +14,12 @@ const appointmentSlice = createSlice({
     setAppointments: (state, action) => {
       // Flatten and normalize if needed
       state.appointments = action.payload;
+    },
+    setDoctors: (state, action) => {
+      state.doctors = action.payload;
+    },
+    setSelectedDoctors: (state, action) => {
+      state.selectedDoctors = action.payload;
     },
     updateAppointmentStatus: (state, action) => {
       const { id, status } = action.payload;
