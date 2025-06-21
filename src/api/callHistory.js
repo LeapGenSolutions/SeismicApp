@@ -13,8 +13,11 @@ export const insertCallHistory = async (sessionId, reqBody) => {
     }
 };
 
-export const fetchCallHistory = async (email) => {
-    const response = await fetch(`${BACKEND_URL}api/call-history/${email}`);
+export const fetchCallHistory = async (emails) => {
+    if (!emails || emails.length === 0) {
+        return
+    }    
+    const response = await fetch(`${BACKEND_URL}api/call-history?userIDs=${emails.join(",")}`);
     if (!response.ok) {
         throw new Error("Failed to fetch Call History data");
     }

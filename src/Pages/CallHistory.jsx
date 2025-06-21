@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import {ChevronDown,ExternalLink, CalendarDays, Clock, User,} from "lucide-react";
+import { ChevronDown, ExternalLink, CalendarDays, Clock, User, } from "lucide-react";
 import { navigate } from "wouter/use-browser-location";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -71,9 +71,10 @@ function CallHistory() {
   const dropdownRef = useRef(null);
   const myEmail = useSelector((state) => state.me.me.email);
 
-  const { data: callHistoryData } = useQuery({
-    queryKey: ["call-history"],
-    queryFn: () => fetchCallHistory(myEmail),
+  const { data: callHistoryData, refetch } = useQuery({
+    queryKey: ["call-history", selectedDoctors],
+    queryFn: () => fetchCallHistory(selectedDoctors),
+    enabled: selectedDoctors.length > 0,
   });
 
   const { data: doctorsCallHistoryData } = useQuery({
@@ -88,31 +89,19 @@ function CallHistory() {
   }, [doctorsCallHistoryData]);
 
   useEffect(() => {
-    const handleClick = (e) => {
-      if (!dropdownRef.current?.contains(e.target)) setShowDoctorDropdown(false);
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+    setSelectedDoctors([myEmail]);
+  }, [myEmail]);
 
-  const getDropdownLabel = () =>
-    !selectedDoctors.length
-      ? "Dr Name"
-      : selectedDoctors.length === allDoctors.length
-      ? "All Doctors"
-      : `${selectedDoctors.length} selected`;
+  useEffect(() => {
+    if (selectedDoctors.length > 0) {
+      refetch();
+    }
+  }, [selectedDoctors, refetch]);
 
-  const toggleDoctor = (id) =>
-    setSelectedDoctors((prev) =>
-      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]
-    );
-
-  const handleSubmit = () => {
+  useEffect(() => {
     if (!callHistoryData) return;
-
     const filtered = callHistoryData.filter((item) => {
       if (!item.patientName || item.patientName.toLowerCase() === "unknown") return false;
-
       const date = normalizeDate(item.startTime);
       const doctorMatch =
         selectedDoctors.length === 0 || selectedDoctors.includes(item.userID);
@@ -124,9 +113,34 @@ function CallHistory() {
         (!endDate || date <= normalizeDate(endDate));
       return doctorMatch && patientMatch && dateMatch;
     });
-
     setFilteredData(filtered);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [callHistoryData]);
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (!dropdownRef.current?.contains(e.target)) setShowDoctorDropdown(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const getDropdownLabel = () =>
+    !selectedDoctors.length
+      ? "Dr Name"
+      : selectedDoctors.length === allDoctors.length
+        ? "All Doctors"
+        : `${selectedDoctors.length} selected`;
+
+  const toggleDoctor = (id) =>
+    setSelectedDoctors((prev) =>
+      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]
+    );
+
+  const handleSubmit = () => {
+    refetch();
+  }
+  
 
   return (
     <div className="space-y-6">
@@ -202,24 +216,24 @@ function CallHistory() {
             )}
           </div>
         </div>
-      {/* Date Range Picker */}
-          <div className="flex flex-col">
-            <label className="text-xs font-medium text-gray-600 mb-1"></label>
-            <DatePicker
-              selectsRange
-              startDate={startDate}
-              endDate={endDate}
-              onChange={(dates) => {
-                const [start, end] = dates;
-                setStartDate(start);
-                setEndDate(end);
-              }}
-              isClearable
-              placeholderText="Select date range"
-              className="h-10 border border-gray-300 rounded-md px-4 text-sm w-64"
-            />
-          </div>
-          <input value={patientSearch} onChange={(e) => setPatientSearch(e.target.value)} placeholder="Search patient name" className="h-10 border rounded-md px-4 text-sm w-64" />
+        {/* Date Range Picker */}
+        <div className="flex flex-col">
+          <label className="text-xs font-medium text-gray-600 mb-1"></label>
+          <DatePicker
+            selectsRange
+            startDate={startDate}
+            endDate={endDate}
+            onChange={(dates) => {
+              const [start, end] = dates;
+              setStartDate(start);
+              setEndDate(end);
+            }}
+            isClearable
+            placeholderText="Select date range"
+            className="h-10 border border-gray-300 rounded-md px-4 text-sm w-64"
+          />
+        </div>
+        <input value={patientSearch} onChange={(e) => setPatientSearch(e.target.value)} placeholder="Search patient name" className="h-10 border rounded-md px-4 text-sm w-64" />
         <div className="flex items-center gap-2">
           <button
             onClick={handleSubmit}
