@@ -5,6 +5,7 @@ import AppointmentStatus from "../components/dashboard/AppointmentStatus";
 import ProviderWorkload from "../components/dashboard/ProviderWorkload";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
 import { useDispatch, useSelector } from "react-redux";
+import ChatbotWindow from "../components/chatbot/ChatbotWindow";
 
 function Dashboard() {
   const dispatch = useDispatch()
@@ -29,6 +30,7 @@ function Dashboard() {
         <AppointmentStatus />
         <ProviderWorkload />
       </div>
+      <ChatbotWindow />
     </div>
   );
 }
