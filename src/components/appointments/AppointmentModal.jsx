@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { navigate } from "wouter/use-browser-location";
 import { DOCTOR_PORTAL_URL } from "../../constants";
 import { FaCopy } from "react-icons/fa";
+import { Link } from "wouter";
 
 const AppointmentModal = ({ selectedAppointment, setSelectedAppointment }) => {
     const [joinLink, setJoinLink] = useState("");
@@ -15,7 +16,7 @@ const AppointmentModal = ({ selectedAppointment, setSelectedAppointment }) => {
         }
     }, [selectedAppointment]);
     if (!selectedAppointment) return null;
-    
+
     const handleJoinClick = () => {
         setSelectedAppointment(null);
         navigate(`/meeting-room/${selectedAppointment.id}?patient=${selectedAppointment.full_name}`);
@@ -43,7 +44,13 @@ const AppointmentModal = ({ selectedAppointment, setSelectedAppointment }) => {
                 </p>
                 <p>
                     <span className="font-semibold">Patient:</span>{" "}
-                    {selectedAppointment.full_name}
+                    <Link
+                        to={`/patients/${selectedAppointment.patient_id}`}
+                        target="_blank"
+                        className="text-blue-600 hover:underline hover:text-blue-800 transition-colors"
+                    >
+                        {selectedAppointment.full_name}
+                    </Link>
                 </p>
                 <p>
                     <span className="font-semibold">Time:</span>{" "}
