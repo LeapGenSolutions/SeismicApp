@@ -5,4 +5,4 @@ export const SOS_URL = "https://seismicdockerbackend-test-e0ducsgtggh7ftat.centr
 export const STREAM_API_KEY = "72499ykcfb3z"
 // export const REDIRECT_URI = "http://localhost:3000/"
 export const REDIRECT_URI = "https://victorious-mushroom-08b7e7d0f.4.azurestaticapps.net/"
-// export const
+export const CHATBOT_URL = "https://chat-strlit-gva3h7ekahgdctgk.centralus-01.azurewebsites.net";
