@@ -7,7 +7,7 @@ const PatientInfoComponent = ({ firstName, lastName, maskedSSN, patient, lastVis
       <p className="flex items-center gap-2"><User className="w-4 h-4 text-gray-500" /><strong>First Name:</strong> {firstName}</p>
       <p className="flex items-center gap-2"><User className="w-4 h-4 text-gray-500" /><strong>Last Name:</strong> {lastName}</p>
       <p className="flex items-center gap-2"><Fingerprint className="w-4 h-4 text-gray-500" /><strong>SSN:</strong> {maskedSSN}</p>
-      <p className="flex items-center gap-2"><UserRound className="w-4 h-4 text-gray-500" /><strong>Full Name:</strong> {patient.full_name}</p>
+      <p className="flex items-center gap-2"><UserRound className="w-4 h-4 text-gray-500" /><strong>Full Name:</strong> {firstName+" "+lastName}</p>
       <p className="flex items-center gap-2"><Calendar className="w-4 h-4 text-gray-500" /><strong>Last Visit:</strong> {lastVisit}</p>
       <p className="flex items-center gap-2"><ClipboardList className="w-4 h-4 text-gray-500" /><strong>Total Appointments:</strong> {filteredAppointments.length}</p>
     </div>

@@ -15,30 +15,30 @@ const PatientReports = () => {
   const { patientId } = useParams();
   const patients = useSelector((state) => state.patients.patients);
   const appointments = useSelector((state) => state.appointments.appointments);
-  const patient = patients.find((p) => p.id === patientId);
+  const patient = patients.find((p) => String(p.patient_id) === patientId);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [summaryOfSummariesData, setSummaryOfSummariesData] = useState(null);
-  
-  const {data:summaryData} = useQuery({
+
+  const { data: summaryData } = useQuery({
     queryKey: ["summaryOfSummaries", patientId],
     queryFn: () => fetchSummaryofSummaries(patientId)
   });
-  
+
   useEffect(() => {
-    if(summaryData) {
+    if (summaryData) {
       setSummaryOfSummariesData(summaryData);
     }
   }, [summaryData]);
 
   const filteredAppointments = useMemo(() => {
     return appointments
-      .filter((a) => patient?.full_name === a.full_name)
+      .filter((a) => String(patient?.patient_id) === String(a.patient_id))
       .sort(
         (a, b) =>
           new Date(b.timestamp || b.date || b.created_at) -
           new Date(a.timestamp || a.date || a.created_at)
       );
-  }, [appointments, patient?.full_name]);
+  }, [appointments, patient?.patient_id]);
 
   const now = new Date();
   let nextAppointment = filteredAppointments
@@ -58,8 +58,10 @@ const PatientReports = () => {
     return;
   }
 
-  const [firstName, lastName] = patient.full_name?.split(" ") || ["", ""];
-  const maskedSSN = patient.ssn ? `XXX-XX-${patient.ssn.slice(-4)}` : "Not Available";
+  const [firstName, lastName] = [
+    patient?.firstname, patient?.lastname]
+    || ["", ""];
+  const maskedSSN = patient?.ssn ? `XXX-XX-${patient?.ssn.slice(-4)}` : "Not Available";
 
   const lastVisit = filteredAppointments.length > 0
     ? new Date(filteredAppointments[0].date).toLocaleDateString()
