@@ -38,12 +38,12 @@ const VideoCallPage = () => {
 
   // Mock data - replace with your actual data
   const upcomingAppointments = appointments.filter(
-    (appt) => appt.date === today && appt.status !== 'cancelled'
+    (appt) => appt.appointment_date === today && appt.status !== 'cancelled'
   );
 
   const sortedAppointments = [...upcomingAppointments]
     .sort((a, b) =>
-      new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`)
+      new Date(`${a.appointment_date}T${a.time}`) - new Date(`${b.appointment_date}T${b.time}`)
     );
 
   const selectedAppointment =
@@ -301,7 +301,7 @@ const VideoCallPage = () => {
                       <div>
                         <span className="text-gray-500">Date & Time:</span>
                         <span className="ml-2 font-medium">
-                          {selectedAppointment.date} at{" "}
+                          {selectedAppointment.appointment_date} at{" "}
                           {selectedAppointment.time}
                         </span>
                       </div>

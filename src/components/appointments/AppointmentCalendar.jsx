@@ -23,7 +23,7 @@ const AppointmentCalendar = () => {
   const appointments = useSelector((state) => state.appointments.appointments);
 
   const events = appointments.map((appt) => {
-    const today = new Date(appt.date + " CST");
+    const today = new Date(appt.appointment_date + " CST");
     const [hours, minutes] = appt.time.split(":");
     const start = new Date(today.setHours(+hours, +minutes, 0));
     const end = new Date(start.getTime() + 30 * 60000);
