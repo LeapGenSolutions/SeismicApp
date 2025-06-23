@@ -31,3 +31,18 @@ export const fetchDoctorsFromHistory = async () => {
     }
     return response.json();
 };
+
+export const fetchAppointmentsByDoctorEmails = async (emails) => {
+  if (!emails || emails.length === 0) return [];
+
+  try {
+    const response = await fetch(`${BACKEND_URL}api/appointments/${emails.join(",")}`);
+    if (!response.ok) throw new Error("Failed to fetch appointments");
+
+    const data = await response.json();
+    return data;
+  } catch (err) {
+    console.error("Error fetching appointments:", err);
+    return [];
+  }
+};
