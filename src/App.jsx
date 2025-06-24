@@ -24,6 +24,7 @@ import { store } from "./redux/store";
 import AuthPage from "./Pages/AuthPage";
 import StreamVideoCoreV3 from "./Pages/StreamVideoCoreV3";
 import setMyDetails from "./redux/me-actions";
+import TimelineDashboard from "./Pages/TimelineDashboard";
 
 
 function Router() {
@@ -42,8 +43,7 @@ function Router() {
             <Route path="/connect" component={Connect} />
             <Route path="/contact" component={ContactUs} />
             <Route path="/documentation" component={Documentation} />
-            
-            {/* Protected Routes */}
+            <Route path="/timeline" component={TimelineDashboard} />
             <Route path="/" component={Dashboard} />
             <Route path="/appointments" component={Appointments} />
             <Route path="/video-call" component={VideoRecorder} />

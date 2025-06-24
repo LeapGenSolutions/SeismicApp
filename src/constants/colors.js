@@ -4,6 +4,8 @@ export const bgColors = [
   "bg-indigo-600", "bg-teal-600", "bg-amber-600"
 ];
 
+export const APPOINTMENT_STATUS_COLORS = ["#22C55E", "#3B82F6", "#FACC15", "#EF4444"];
+
 export const getColorFromName = (name = "") => {
   const cleaned = name.trim().toLowerCase();
   let hash = 0;

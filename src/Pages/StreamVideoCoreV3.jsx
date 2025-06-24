@@ -89,7 +89,8 @@ const StreamVideoCoreV3 = () => {
             appointmentID: callId,
             startTime: req.created_at,
             fullName: userName,
-            patientName: patientName
+            patientName: patientName,
+            role: "doctor"
           });
         } catch (error) {
           console.log(
