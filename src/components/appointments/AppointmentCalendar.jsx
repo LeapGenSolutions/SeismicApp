@@ -27,7 +27,7 @@ const AppointmentCalendar = () => {
   const [isOnline, setIsOnline] = useState(true); // Added
 
   const events = appointments.map((appt) => {
-    const today = new Date(appt.date + " CST");
+    const today = new Date(appt.appointment_date + " CST");
 
     const [hours, minutes] = appt.time.split(":");
     const start = new Date(today.setHours(+hours, +minutes, 0));
