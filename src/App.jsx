@@ -43,7 +43,9 @@ function Router() {
             <Route path="/connect" component={Connect} />
             <Route path="/contact" component={ContactUs} />
             <Route path="/documentation" component={Documentation} />
+            {/* Timeline Route */}
             <Route path="/timeline" component={TimelineDashboard} />
+            {/* Protected Routes */}
             <Route path="/" component={Dashboard} />
             <Route path="/appointments" component={Appointments} />
             <Route path="/video-call" component={VideoRecorder} />
