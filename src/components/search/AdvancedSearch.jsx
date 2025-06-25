@@ -1,7 +1,7 @@
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 
-function AdvancedSearch({ filters, setFilters }) {
+function AdvancedSearch({ filters = {}, setFilters = () => {} }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
       <div>
