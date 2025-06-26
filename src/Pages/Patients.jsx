@@ -315,9 +315,354 @@
 //     </div>
 //   );
 // }
-
 // export default Patients;
 
+
+
+// import { useEffect, useState } from "react";
+// import {
+//   Card,
+//   CardContent,
+//   CardHeader,
+//   CardTitle,
+// } from "../components/ui/card";
+// import { Button } from "../components/ui/button";
+// import { Input } from "../components/ui/input";
+// import {
+//   Table,
+//   TableBody,
+//   TableCell,
+//   TableHead,
+//   TableHeader,
+//   TableRow,
+// } from "../components/ui/table";
+// import {
+//   Plus,
+//   Phone,
+//   Mail,
+//   Calendar,
+//   ExternalLink,
+//   FileText,
+//   RefreshCw,
+// } from "lucide-react";
+// import Select from "react-select";
+// import AdvancedSearch from "../components/search/AdvancedSearch";
+// import { format } from "date-fns";
+// import { useDispatch, useSelector } from "react-redux";
+// import { fetchPatientsDetails } from "../redux/patient-actions";
+// import { fetchAllAppointments } from "../redux/appointment-actions";
+// import { fetchDoctorsFromHistory } from "../api/callHistory"; // Adjust path as needed
+// import { Link } from "wouter";
+// import { navigate } from "wouter/use-browser-location";
+
+// function Patients() {
+//   const dispatch = useDispatch();
+//   const patients = useSelector((state) => state.patients.patients || []);
+//   const appointments = useSelector((state) => state.appointments.appointments || []);
+
+//   const [searchQuery, setSearchQuery] = useState("");
+//   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+//   const [showPatients, setShowPatients] = useState([]);
+//   const [doctorOptions, setDoctorOptions] = useState([]);
+//   const [appointmentFilters, setAppointmentFilters] = useState({
+//     selectedDoctors: [],
+//     startDate: "",
+//     endDate: "",
+//   });
+
+//   useEffect(() => {
+//     dispatch(fetchPatientsDetails());
+//     dispatch(fetchAllAppointments());
+//   }, [dispatch]);
+
+//   useEffect(() => {
+//     const enrichPatients = () => {
+//       const enriched = patients.map((p) => {
+//         const appts = appointments.filter((a) => a.patientId === p.patient_id);
+//         const latest = appts.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+//         return {
+//           ...p,
+//           lastVisit: latest?.date ? new Date(latest.date) : null,
+//           doctorName: latest?.doctor_name || latest?.doctor?.full_name || "",
+//         };
+//       });
+
+//       const filtered = enriched.filter((p) => {
+//         const visit = p.lastVisit ? new Date(p.lastVisit).setHours(0, 0, 0, 0) : null;
+//         const start = appointmentFilters.startDate
+//           ? new Date(appointmentFilters.startDate).setHours(0, 0, 0, 0)
+//           : null;
+//         const end = appointmentFilters.endDate
+//           ? new Date(appointmentFilters.endDate).setHours(23, 59, 59, 999)
+//           : null;
+
+//         return (
+//           (appointmentFilters.selectedDoctors.length === 0 ||
+//             appointmentFilters.selectedDoctors.includes(p.doctorName)) &&
+//           (!start || (visit && visit >= start)) &&
+//           (!end || (visit && visit <= end))
+//         );
+//       });
+
+//       setShowPatients(filtered);
+//     };
+
+//     enrichPatients();
+//   }, [patients, appointments, appointmentFilters]);
+
+//   useEffect(() => {
+//     const loadDoctors = async () => {
+//       try {
+//         const data = await fetchDoctorsFromHistory();
+//         const uniqueNames = Array.from(
+//           new Set(
+//             data
+//               .map((item) => item?.doctor?.full_name || item?.doctor_name)
+//               .filter(Boolean)
+//           )
+//         );
+//         const formatted = uniqueNames.map((name) => ({
+//           value: name,
+//           label: name,
+//         }));
+//         setDoctorOptions(formatted);
+//       } catch (err) {
+//         console.error("Failed to load doctors:", err);
+//       }
+//     };
+
+//     loadDoctors();
+//   }, []);
+
+//   const handleSearchChange = (e) => {
+//     const query = e.target.value;
+//     setSearchQuery(query);
+
+//     if (query === "") {
+//       setShowPatients(patients);
+//       return;
+//     }
+
+//     const filtered = patients.filter((p) => {
+//       const fullName = `${p?.firstname} ${p?.lastname}`.toLowerCase();
+//       return fullName.includes(query.toLowerCase());
+//     });
+//     setShowPatients(filtered);
+//   };
+
+//   const handleRefresh = () => {
+//     dispatch(fetchPatientsDetails());
+//     dispatch(fetchAllAppointments());
+//   };
+
+//   const advancedSearchHandler = (query) => {
+//     if (!query) {
+//       setShowPatients(patients);
+//       return;
+//     }
+
+//     setShowPatients(
+//       patients.filter((p) => {
+//         const dob = query?.dateOfBirth ? p?.dob === query.dateOfBirth : true;
+//         const email = query?.email
+//           ? p?.email?.toLowerCase().includes(query?.email.toLowerCase())
+//           : true;
+//         const insuranceId = query?.insuranceId
+//           ? p?.insurance_id?.toLowerCase().includes(query?.insuranceId.toLowerCase())
+//           : true;
+//         const insuranceProvider = query?.insuranceProvider
+//           ? p?.insurance_provider?.toLowerCase().includes(query.insuranceProvider.toLowerCase())
+//           : true;
+//         const phoneNumber = query.phoneNumber
+//           ? p?.contactmobilephone?.includes(query.phoneNumber)
+//           : true;
+//         const ssn = query.ssn
+//           ? p?.ssn?.toLowerCase().includes(query.ssn.toLowerCase())
+//           : true;
+
+//         return (
+//           dob &&
+//           email &&
+//           insuranceId &&
+//           insuranceProvider &&
+//           phoneNumber &&
+//           ssn
+//         );
+//       })
+//     );
+//   };
+
+//   return (
+//     <div className="space-y-6">
+//       <div className="flex items-center justify-between">
+//         <h1 className="text-2xl font-semibold">Patients</h1>
+//         <Button onClick={handleRefresh}>
+//           <RefreshCw className="w-4 h-4 mr-2" />
+//           Refresh
+//         </Button>
+//       </div>
+
+//       <Card>
+//         <CardHeader>
+//           <CardTitle>Patient Search</CardTitle>
+//         </CardHeader>
+//         <CardContent>
+//           <div className="flex gap-4">
+//             <div className="flex-1">
+//               <Input
+//                 placeholder="Search patients..."
+//                 value={searchQuery}
+//                 onChange={handleSearchChange}
+//               />
+//             </div>
+//             <Button
+//               variant="outline"
+//               onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
+//             >
+//               Advanced Search
+//             </Button>
+//           </div>
+//           {showAdvancedSearch && (
+//             <AdvancedSearch submitHandler={advancedSearchHandler} />
+//           )}
+//         </CardContent>
+//       </Card>
+
+//       <Card>
+//         <CardHeader>
+//           <CardTitle>Appointment Filters</CardTitle>
+//         </CardHeader>
+//         <CardContent>
+//           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+//             <div>
+//               <label className="block text-sm font-medium mb-1">Select Doctor(s)</label>
+//               <Select
+//                 isMulti
+//                 options={doctorOptions}
+//                 value={doctorOptions.filter(opt =>
+//                   appointmentFilters.selectedDoctors.includes(opt.value)
+//                 )}
+//                 onChange={(selected) =>
+//                   setAppointmentFilters({
+//                     ...appointmentFilters,
+//                     selectedDoctors: selected.map((opt) => opt.value),
+//                   })
+//                 }
+//               />
+//             </div>
+//             <div>
+//               <label className="block text-sm font-medium mb-1">Start Date</label>
+//               <Input
+//                 type="date"
+//                 value={appointmentFilters.startDate}
+//                 onChange={(e) =>
+//                   setAppointmentFilters({
+//                     ...appointmentFilters,
+//                     startDate: e.target.value,
+//                   })
+//                 }
+//               />
+//             </div>
+//             <div>
+//               <label className="block text-sm font-medium mb-1">End Date</label>
+//               <Input
+//                 type="date"
+//                 value={appointmentFilters.endDate}
+//                 onChange={(e) =>
+//                   setAppointmentFilters({
+//                     ...appointmentFilters,
+//                     endDate: e.target.value,
+//                   })
+//                 }
+//               />
+//             </div>
+//           </div>
+//         </CardContent>
+//       </Card>
+
+//       <Card>
+//         <CardContent className="p-0">
+//           <Table>
+//             <TableHeader>
+//               <TableRow>
+//                 <TableHead>Name</TableHead>
+//                 <TableHead>Contact</TableHead>
+//                 <TableHead>Insurance</TableHead>
+//                 <TableHead>Last Visit</TableHead>
+//                 <TableHead>Doctor</TableHead>
+//                 <TableHead>Actions</TableHead>
+//               </TableRow>
+//             </TableHeader>
+//             <TableBody>
+//               {showPatients.length === 0 ? (
+//                 <TableRow>
+//                   <TableCell colSpan={6}>
+//                     <p className="text-center text-gray-500 py-4">
+//                       No Patients Found
+//                     </p>
+//                   </TableCell>
+//                 </TableRow>
+//               ) : (
+//                 showPatients.map((patient) => (
+//                   <TableRow key={patient.patient_id}>
+//                     <TableCell>
+//                       {patient.firstname} {patient.lastname}
+//                     </TableCell>
+//                     <TableCell>
+//                       <div className="flex items-center gap-2">
+//                         <Phone className="w-4 h-4" />
+//                         {patient.contactmobilephone}
+//                       </div>
+//                       <div className="flex items-center gap-2 text-sm text-gray-500">
+//                         <Mail className="w-4 h-4" />
+//                         {patient.email}
+//                       </div>
+//                     </TableCell>
+//                     <TableCell>
+//                       <div>{patient.insurance_provider}</div>
+//                       <div className="text-sm text-gray-500">
+//                         {patient.insurance_id}
+//                       </div>
+//                     </TableCell>
+//                     <TableCell>
+//                       <div className="flex items-center gap-2">
+//                         <Calendar className="w-4 h-4" />
+//                         {patient.lastVisit
+//                           ? format(new Date(patient.lastVisit), "MMM dd, yyyy")
+//                           : "N/A"}
+//                       </div>
+//                     </TableCell>
+//                     <TableCell>
+//                       {patient.doctorName}
+//                     </TableCell>
+//                     <TableCell>
+//                       <div className="flex items-center gap-2">
+//                         <Button variant="ghost" size="icon">
+//                           <FileText className="w-4 h-4" />
+//                         </Button>
+//                         <Link href={`/patients/${patient.patient_id}`}>
+//                           <Button
+//                             onClick={() => navigate(`/patients/${patient.patient_id}`)}
+//                             variant="ghost"
+//                             size="icon"
+//                           >
+//                             <ExternalLink className="w-4 h-4" />
+//                           </Button>
+//                         </Link>
+//                       </div>
+//                     </TableCell>
+//                   </TableRow>
+//                 ))
+//               )}
+//             </TableBody>
+//           </Table>
+//         </CardContent>
+//       </Card>
+//     </div>
+//   );
+// }
+
+// export default Patients;
 
 
 import { useEffect, useState } from "react";
@@ -338,7 +683,6 @@ import {
   TableRow,
 } from "../components/ui/table";
 import {
-  Plus,
   Phone,
   Mail,
   Calendar,
@@ -352,7 +696,7 @@ import { format } from "date-fns";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchPatientsDetails } from "../redux/patient-actions";
 import { fetchAllAppointments } from "../redux/appointment-actions";
-import { fetchDoctorsFromHistory } from "../api/callHistory"; // Adjust path as needed
+import { fetchDoctorsFromHistory } from "../api/callHistory";
 import { Link } from "wouter";
 import { navigate } from "wouter/use-browser-location";
 
@@ -378,8 +722,12 @@ function Patients() {
 
   useEffect(() => {
     const enrichPatients = () => {
+      const today = new Date();
+      const todayStart = new Date(today.setHours(0, 0, 0, 0));
+      const todayEnd = new Date(today.setHours(23, 59, 59, 999));
+
       const enriched = patients.map((p) => {
-        const appts = appointments.filter((a) => a.patientId === p.patient_id);
+        const appts = appointments.filter((a) => a.patientID === p.patient_id);
         const latest = appts.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
         return {
           ...p,
@@ -388,28 +736,47 @@ function Patients() {
         };
       });
 
+      const isFiltering =
+        searchQuery ||
+        appointmentFilters.selectedDoctors.length > 0 ||
+        appointmentFilters.startDate ||
+        appointmentFilters.endDate;
+
       const filtered = enriched.filter((p) => {
-        const visit = p.lastVisit ? new Date(p.lastVisit).setHours(0, 0, 0, 0) : null;
+        const fullName = `${p?.firstname} ${p?.lastname}`.toLowerCase();
+        const visit = p.lastVisit ? new Date(p.lastVisit).getTime() : null;
+
         const start = appointmentFilters.startDate
           ? new Date(appointmentFilters.startDate).setHours(0, 0, 0, 0)
-          : null;
+          : todayStart;
         const end = appointmentFilters.endDate
           ? new Date(appointmentFilters.endDate).setHours(23, 59, 59, 999)
-          : null;
+          : todayEnd;
 
-        return (
-          (appointmentFilters.selectedDoctors.length === 0 ||
-            appointmentFilters.selectedDoctors.includes(p.doctorName)) &&
-          (!start || (visit && visit >= start)) &&
-          (!end || (visit && visit <= end))
-        );
+        const matchesDoctor =
+          appointmentFilters.selectedDoctors.length === 0 ||
+          appointmentFilters.selectedDoctors.includes(p.doctorName);
+
+        const matchesSearch =
+          !searchQuery || fullName.includes(searchQuery.toLowerCase());
+
+        const matchesDate = !visit || (visit >= start && visit <= end);
+
+        return matchesSearch && matchesDoctor && matchesDate;
       });
 
-      setShowPatients(filtered);
+      setShowPatients(
+        isFiltering
+          ? filtered
+          : enriched.filter((p) => {
+              const visit = p.lastVisit ? new Date(p.lastVisit).getTime() : null;
+              return visit >= todayStart.getTime() && visit <= todayEnd.getTime();
+            })
+      );
     };
 
     enrichPatients();
-  }, [patients, appointments, appointmentFilters]);
+  }, [patients, appointments, searchQuery, appointmentFilters]);
 
   useEffect(() => {
     const loadDoctors = async () => {
@@ -417,15 +784,10 @@ function Patients() {
         const data = await fetchDoctorsFromHistory();
         const uniqueNames = Array.from(
           new Set(
-            data
-              .map((item) => item?.doctor?.full_name || item?.doctor_name)
-              .filter(Boolean)
+            data.map((item) => item?.doctor?.full_name || item?.doctor_name).filter(Boolean)
           )
         );
-        const formatted = uniqueNames.map((name) => ({
-          value: name,
-          label: name,
-        }));
+        const formatted = uniqueNames.map((name) => ({ value: name, label: name }));
         setDoctorOptions(formatted);
       } catch (err) {
         console.error("Failed to load doctors:", err);
@@ -436,19 +798,19 @@ function Patients() {
   }, []);
 
   const handleSearchChange = (e) => {
-    const query = e.target.value;
-    setSearchQuery(query);
+    setSearchQuery(e.target.value);
+  };
 
-    if (query === "") {
-      setShowPatients(patients);
-      return;
-    }
+  const resetPatientSearch = () => {
+    setSearchQuery("");
+  };
 
-    const filtered = patients.filter((p) => {
-      const fullName = `${p?.firstname} ${p?.lastname}`.toLowerCase();
-      return fullName.includes(query.toLowerCase());
+  const resetAppointmentFilters = () => {
+    setAppointmentFilters({
+      selectedDoctors: [],
+      startDate: "",
+      endDate: "",
     });
-    setShowPatients(filtered);
   };
 
   const handleRefresh = () => {
@@ -456,50 +818,12 @@ function Patients() {
     dispatch(fetchAllAppointments());
   };
 
-  const advancedSearchHandler = (query) => {
-    if (!query) {
-      setShowPatients(patients);
-      return;
-    }
-
-    setShowPatients(
-      patients.filter((p) => {
-        const dob = query?.dateOfBirth ? p?.dob === query.dateOfBirth : true;
-        const email = query?.email
-          ? p?.email?.toLowerCase().includes(query?.email.toLowerCase())
-          : true;
-        const insuranceId = query?.insuranceId
-          ? p?.insurance_id?.toLowerCase().includes(query?.insuranceId.toLowerCase())
-          : true;
-        const insuranceProvider = query?.insuranceProvider
-          ? p?.insurance_provider?.toLowerCase().includes(query.insuranceProvider.toLowerCase())
-          : true;
-        const phoneNumber = query.phoneNumber
-          ? p?.contactmobilephone?.includes(query.phoneNumber)
-          : true;
-        const ssn = query.ssn
-          ? p?.ssn?.toLowerCase().includes(query.ssn.toLowerCase())
-          : true;
-
-        return (
-          dob &&
-          email &&
-          insuranceId &&
-          insuranceProvider &&
-          phoneNumber &&
-          ssn
-        );
-      })
-    );
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Patients</h1>
         <Button onClick={handleRefresh}>
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Refresh
+          <RefreshCw className="w-4 h-4 mr-2" /> Refresh
         </Button>
       </div>
 
@@ -516,16 +840,16 @@ function Patients() {
                 onChange={handleSearchChange}
               />
             </div>
-            <Button
-              variant="outline"
-              onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
-            >
+            <Button variant="outline" onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}>
               Advanced Search
             </Button>
           </div>
-          {showAdvancedSearch && (
-            <AdvancedSearch submitHandler={advancedSearchHandler} />
-          )}
+          <div className="mt-4">
+            <Button onClick={resetPatientSearch} variant="destructive">
+              Reset Search
+            </Button>
+          </div>
+          {showAdvancedSearch && <AdvancedSearch />}
         </CardContent>
       </Card>
 
@@ -540,9 +864,7 @@ function Patients() {
               <Select
                 isMulti
                 options={doctorOptions}
-                value={doctorOptions.filter(opt =>
-                  appointmentFilters.selectedDoctors.includes(opt.value)
-                )}
+                value={doctorOptions.filter((opt) => appointmentFilters.selectedDoctors.includes(opt.value))}
                 onChange={(selected) =>
                   setAppointmentFilters({
                     ...appointmentFilters,
@@ -556,12 +878,7 @@ function Patients() {
               <Input
                 type="date"
                 value={appointmentFilters.startDate}
-                onChange={(e) =>
-                  setAppointmentFilters({
-                    ...appointmentFilters,
-                    startDate: e.target.value,
-                  })
-                }
+                onChange={(e) => setAppointmentFilters({ ...appointmentFilters, startDate: e.target.value })}
               />
             </div>
             <div>
@@ -569,14 +886,14 @@ function Patients() {
               <Input
                 type="date"
                 value={appointmentFilters.endDate}
-                onChange={(e) =>
-                  setAppointmentFilters({
-                    ...appointmentFilters,
-                    endDate: e.target.value,
-                  })
-                }
+                onChange={(e) => setAppointmentFilters({ ...appointmentFilters, endDate: e.target.value })}
               />
             </div>
+          </div>
+          <div className="flex gap-2 mt-4">
+            <Button onClick={resetAppointmentFilters} variant="destructive">
+              Reset Filters
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -598,44 +915,32 @@ function Patients() {
               {showPatients.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6}>
-                    <p className="text-center text-gray-500 py-4">
-                      No Patients Found
-                    </p>
+                    <p className="text-center text-gray-500 py-4">No Patients Found</p>
                   </TableCell>
                 </TableRow>
               ) : (
                 showPatients.map((patient) => (
                   <TableRow key={patient.patient_id}>
-                    <TableCell>
-                      {patient.firstname} {patient.lastname}
-                    </TableCell>
+                    <TableCell>{patient.firstname} {patient.lastname}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4" />
-                        {patient.contactmobilephone}
+                        <Phone className="w-4 h-4" /> {patient.contactmobilephone}
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Mail className="w-4 h-4" />
-                        {patient.email}
+                        <Mail className="w-4 h-4" /> {patient.email}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div>{patient.insurance_provider}</div>
-                      <div className="text-sm text-gray-500">
-                        {patient.insurance_id}
-                      </div>
+                      <div className="text-sm text-gray-500">{patient.insurance_id}</div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
-                        {patient.lastVisit
-                          ? format(new Date(patient.lastVisit), "MMM dd, yyyy")
-                          : "N/A"}
+                        {patient.lastVisit ? format(new Date(patient.lastVisit), "MMM dd, yyyy") : "N/A"}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      {patient.doctorName}
-                    </TableCell>
+                    <TableCell>{patient.doctorName || "N/A"}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button variant="ghost" size="icon">
