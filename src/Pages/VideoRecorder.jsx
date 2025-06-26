@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { FaVideo, FaCopy } from "react-icons/fa";
 import { navigate } from "wouter/use-browser-location";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { format, parse } from "date-fns";
 import { DOCTOR_PORTAL_URL } from "../constants";
-
+import { fetchAppointmentDetails } from "../redux/appointment-actions";
+import CallHistory from "./CallHistory"
+import { useToast } from "../hooks/use-toast";
 
 const VideoCallPage = () => {
   const [room, setRoom] = useState("");
@@ -16,13 +18,23 @@ const VideoCallPage = () => {
   const [appointmentId, setAppointmentId] = useState("");
   const [appointmentType, setAppointmentType] = useState("online");
   const isLoadingUpcoming = useState(false)[0];
-  const appointments = useSelector((state) => state.appointments.appointments)
-  const userName = useSelector((state) => state.me.me.given_name)
+  const dispatch = useDispatch();
+  const userName = useSelector((state) => state.me.me.given_name);
+  const userEmail = useSelector((state) => state.me.me.email);
+  const appointments = useSelector((state) => state.appointments.appointments);
+  const { toast } = useToast();
 
   const today = format(new Date(), 'yyyy-MM-dd');
   useEffect(() => {
           document.title = "VideoCall - Seismic Connect";
   }, []);
+
+  useEffect(() => {
+    if(appointments.length === 0 && userEmail){
+      dispatch(fetchAppointmentDetails(userEmail))
+    }
+  }, [dispatch, userEmail, appointments])
+  
 
   // Mock data - replace with your actual data
   const upcomingAppointments = appointments.filter(
@@ -93,7 +105,11 @@ const VideoCallPage = () => {
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(joinLink);
-    alert("Link copied to clipboard!");
+    toast({
+      title: "Copied!",
+      description: "Link copied to clipboard.",
+      duration: 2000,
+    });
   };
 
   const joinAsParticipant = (room, name) => {
@@ -108,7 +124,7 @@ const VideoCallPage = () => {
     navigate(
       `/meeting-room/${encodeURIComponent(
         room
-      )}`
+      )}?patient=${encodeURIComponent(selectedAppointment.full_name)}`
     );
   };
 
@@ -306,6 +322,7 @@ const VideoCallPage = () => {
                         type="text"
                         placeholder="Enter your name"
                         value={userName}
+                        readOnly
                         className="border border-gray-300 rounded-lg px-4 w-full py-2 mb-4"
                       />
                     </label>
@@ -337,27 +354,27 @@ const VideoCallPage = () => {
                   </button>
                 </div>
                 {showShareLink && (
-                  <div className="mt-6 p-4 bg-gray-100 rounded-lg">
-                    <h3 className="font-medium text-gray-800 mb-2">
-                      Invite others to join
-                    </h3>
-                    <div className="flex items-center">
-                      <input
-                        type="text"
-                        value={joinLink}
-                        readOnly
-                        className="border border-gray-300 rounded-l-lg px-4 py-2 flex-grow"
-                      />
-                      <button
-                        onClick={copyToClipboard}
-                        className="bg-blue-500 text-white px-4 py-2 rounded-r-lg hover:bg-blue-600"
-                      >
-                        <FaCopy className="inline-block mr-1" /> Copy
-                      </button>
+                  <div className="mt-6 w-full flex justify-center">
+                    <div className="bg-gray-100 rounded-lg px-6 py-4 w-full max-w-xl shadow-sm">
+                      <h3 className="font-medium text-gray-800 text-sm mb-2">
+                        Invite others to join
+                      </h3>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-gray-700 mr-4">
+                          Patient's link for the appointment
+                        </p>
+                        <button
+                          onClick={copyToClipboard}
+                          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded"
+                        >
+                          <FaCopy className="w-4 h-4" />
+                          Copy
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-2">
+                        Click copy to share this appointment link
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600 mt-2">
-                      Share this link with participants to join your meeting
-                    </p>
                   </div>
                 )}
               </div>
@@ -399,14 +416,11 @@ const VideoCallPage = () => {
               </div>
             )}
 
-            {activeTab === "history" && (
-              <div className="space-y-4">
-                <div className="text-center py-8 text-gray-500">
-                  <h3 className="text-lg font-medium mb-2">Call History</h3>
-                  <p>Your recent video call history will appear here.</p>
-                </div>
-              </div>
-            )}
+           {activeTab === "history" && (
+           <div className="space-y-4">
+          <CallHistory />
+         </div>
+          )}
           </div>
         </div>
         {invalidMeetingId && (

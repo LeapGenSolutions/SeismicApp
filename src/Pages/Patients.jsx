@@ -672,6 +672,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import {
@@ -695,7 +696,7 @@ import AdvancedSearch from "../components/search/AdvancedSearch";
 import { format } from "date-fns";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchPatientsDetails } from "../redux/patient-actions";
-import { fetchAllAppointments } from "../redux/appointment-actions";
+import { fetchAppointmentDetails } from "../redux/appointment-actions";
 import { fetchDoctorsFromHistory } from "../api/callHistory";
 import { Link } from "wouter";
 import { navigate } from "wouter/use-browser-location";
@@ -716,9 +717,11 @@ function Patients() {
   });
 
   useEffect(() => {
-    dispatch(fetchPatientsDetails());
-    dispatch(fetchAllAppointments());
-  }, [dispatch]);
+    if (patients.length === 0){
+      dispatch(fetchPatientsDetails());
+      dispatch(fetchAppointmentDetails());
+    }
+  }, [dispatch, patients.length]);
 
   useEffect(() => {
     const enrichPatients = () => {
@@ -798,9 +801,80 @@ function Patients() {
   }, []);
 
   const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value);
+    const query = e.target.value;
+    setSearchQuery(query);
+    filterPatients(query);
   };
 
+
+  const filterPatients = (query) => {
+    if (query === "") {
+      setShowPatients(patients);
+      return;
+    }
+    const filteredPatients = patients.filter((p) => {
+      const fullName = `${p?.firstname} ${p?.lastname}`.toLowerCase();
+      return fullName.includes(query.toLowerCase());
+    });
+    setShowPatients(filteredPatients);
+  };
+
+
+  const advancedSearchHandler = (query) => {
+    if (!query) {
+      filterPatients();
+      return;
+    }
+    setShowPatients(
+      patients.filter((p) => {
+        // currently, the dateOfBirth, insurance Provider, insurance id, phone number, email is will not filter and show no partients found
+        // because they are not provided in the patients object
+        const dob = query?.dateOfBirth
+          ? p?.dob
+            ? p?.dob === query.dateOfBirth
+            : false
+          : true;
+        const email = query?.email
+          ? p?.email
+            ? p?.email.includes(query?.email.toLowerCase())
+            : false
+          : true;
+        const insuranceId = query?.insuranceId
+          ? p?.insurance_id
+            ? p?.insurance_id
+              .toLowerCase()
+              .includes(query?.insuranceId.toLowerCase())
+            : false
+          : true;
+        const insuranceProvider = query?.insuranceProvider
+          ? p?.insurance_provider
+            ? p?.insurance_provider
+              .toLowerCase()
+              .includes(query.insuranceProvider.toLowerCase())
+            : false
+          : true;
+        const phoneNumber = query.phoneNumber
+          ? p?.contactmobilephone
+            ? p?.contactmobilephone.includes(query.phoneNumber)
+            : false
+          : true;
+        const ssn = query.ssn
+          ? p?.ssn
+            ? p?.ssn.toLowerCase().includes(query.ssn.toLowerCase())
+            : false
+          : true;
+
+        return (
+          dob &&
+          email &&
+          insuranceId &&
+          insuranceProvider &&
+          phoneNumber &&
+          ssn
+        );
+      })
+    );
+  };
   const resetPatientSearch = () => {
     setSearchQuery("");
   };
@@ -815,8 +889,8 @@ function Patients() {
 
   const handleRefresh = () => {
     dispatch(fetchPatientsDetails());
-    dispatch(fetchAllAppointments());
-  };
+    dispatch(fetchAppointmentDetails());
+  }
 
   return (
     <div className="space-y-6">
@@ -919,46 +993,70 @@ function Patients() {
                   </TableCell>
                 </TableRow>
               ) : (
-                showPatients.map((patient) => (
-                  <TableRow key={patient.patient_id}>
-                    <TableCell>{patient.firstname} {patient.lastname}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4" /> {patient.contactmobilephone}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Mail className="w-4 h-4" /> {patient.email}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>{patient.insurance_provider}</div>
-                      <div className="text-sm text-gray-500">{patient.insurance_id}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        {patient.lastVisit ? format(new Date(patient.lastVisit), "MMM dd, yyyy") : "N/A"}
-                      </div>
-                    </TableCell>
-                    <TableCell>{patient.doctorName || "N/A"}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon">
-                          <FileText className="w-4 h-4" />
-                        </Button>
-                        <Link href={`/patients/${patient.patient_id}`}>
-                          <Button
-                            onClick={() => navigate(`/patients/${patient.patient_id}`)}
-                            variant="ghost"
-                            size="icon"
-                          >
-                            <ExternalLink className="w-4 h-4" />
+                showPatients?.map((patient) => {
+                  if (!patient) {
+                    return null;
+                  }
+                  return (
+                    <TableRow key={patient?.patient_id}>
+                      <TableCell>
+                        {patient?.firstname} {patient?.lastname}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-4 h-4" />
+                          {patient?.contactmobilephone}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <Mail className="w-4 h-4" />
+                          {patient?.email}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>{patient?.insurance_provider}</div>
+                        <div className="text-sm text-gray-500">
+                          {patient?.insurance_id}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          {format(
+                            new Date(),
+                            "MMM dd, yyyy"
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            patient?.insuranceVerified ? "success" : "warning"
+                          }
+                        >
+                          {patient?.insuranceVerified ? "Verified" : "Pending"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="icon">
+                            <FileText className="w-4 h-4" />
                           </Button>
-                        </Link>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                          <Link href={`/patients/${patient?.patient_id}`}>
+                            <Button
+                              onClick={() => {
+                                navigate(`/patients/${patient?.patient_id}`);
+                              }}
+                              variant="ghost"
+                              size="icon"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          </Link>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>
