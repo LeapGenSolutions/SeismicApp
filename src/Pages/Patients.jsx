@@ -29,7 +29,8 @@ import { format } from "date-fns";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchPatientsDetails } from "../redux/patient-actions";
 import { Link } from "wouter";
-import { navigate } from "wouter/use-browser-location";
+//import { navigate } from "wouter/use-browser-location";
+import { PageNavigation } from "../components/ui/page-navigation";
 
 function Patients() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -131,6 +132,11 @@ function Patients() {
 
   return (
     <div className="space-y-6">
+      <PageNavigation 
+        //title="Patients"
+        //subtitle="View and manage patient records"
+        showDate={false}
+      />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Patients</h1>
         <Button>
@@ -236,14 +242,8 @@ function Patients() {
                           <Button variant="ghost" size="icon">
                             <FileText className="w-4 h-4" />
                           </Button>
-                          <Link href={`/patients/${patient?.patient_id}`}>
-                            <Button
-                              onClick={() => {
-                                navigate(`/patients/${patient?.patient_id}`);
-                              }}
-                              variant="ghost"
-                              size="icon"
-                            >
+                          <Link to={`/patients/${patient?.patient_id}`}>
+                            <Button variant="ghost" size="icon">
                               <ExternalLink className="w-4 h-4" />
                             </Button>
                           </Link>
