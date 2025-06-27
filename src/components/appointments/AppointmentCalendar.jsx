@@ -40,6 +40,7 @@ const AppointmentCalendar = () => {
   }, [selectedDoctors]);
 
   const events = appointments.map((appt) => {
+    const today = new Date(appt.appointment_date + " CST"); // Use actual date if available
     const doctorKey = (appt.doctor_email || "").trim().toLowerCase();
     const color = doctorColorMap[doctorKey];
     const [hours, minutes] = appt.time.split(":").map(Number);
