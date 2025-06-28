@@ -52,7 +52,10 @@ function Patients() {
   const [isDoctorDropdownOpen, setIsDoctorDropdownOpen] = useState(false);
 
   useEffect(() => {
-    dispatch(fetchPatientsDetails());
+    if (patients.length === 0) {
+      dispatch(fetchPatientsDetails());
+    }
+    // eslint-disable-next-line
   }, [dispatch]);
 
   useEffect(() => {
