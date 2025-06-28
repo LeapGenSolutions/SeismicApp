@@ -8,15 +8,15 @@ export const fetchDoctorNotesByAppointment = async (apptId, userID) => {
     return response.json();
 }
 
-export const updateDoctorNotesByAppointment = async (apptId, userID, updatedNotes, priority = "High") => {
-    const checkResponse = await fetch(`${BACKEND_URL}api/doctor-notes/${apptId}?userID=${userID}`);
+export const updateDoctorNotesByAppointment = async (apptId, noteData) => {
+    const checkResponse = await fetch(`${BACKEND_URL}api/doctor-notes/${apptId}?userID=${noteData.userID}`);
     if (!checkResponse.ok) {
         // If the notes do not exist, we can create them
-        const createResponse = await fetch(`${BACKEND_URL}api/doctor-notes/${apptId}?username=${userID}`,
+        const createResponse = await fetch(`${BACKEND_URL}api/doctor-notes/${apptId}`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ doctor_notes: updatedNotes , priority: priority })
+                body: JSON.stringify(noteData)
             }
         );
         if (!createResponse.ok) {
@@ -25,11 +25,11 @@ export const updateDoctorNotesByAppointment = async (apptId, userID, updatedNote
         return createResponse.json();
     }
     const response = await fetch(
-        `${BACKEND_URL}api/doctor-notes/${apptId}?username=${userID}`,
+        `${BACKEND_URL}api/doctor-notes/${apptId}`,
         {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ doctor_notes: updatedNotes, priority: priority })
+            body: JSON.stringify(noteData)
         }
     );
     if(!response.ok) {
