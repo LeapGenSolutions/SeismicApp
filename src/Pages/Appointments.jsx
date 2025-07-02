@@ -3,7 +3,6 @@ import AppointmentCalendar from "../components/appointments/AppointmentCalendar"
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
 import { PageNavigation } from "../components/ui/page-navigation";
-
 function Appointments() {
   useEffect(() => {
     document.title = "Appointments - Seismic Connect";

@@ -25,6 +25,7 @@ import AuthPage from "./Pages/AuthPage";
 import StreamVideoCoreV3 from "./Pages/StreamVideoCoreV3";
 import setMyDetails from "./redux/me-actions";
 import TimelineDashboard from "./Pages/TimelineDashboard";
+import ChatbotWindow from "./components/chatbot/ChatbotWindow";
 
 
 function Router() {
@@ -57,6 +58,7 @@ function Router() {
             <Route path="/post-call/:callId" component={PostCallDocumentation} />
             <Route component={NotFound} />
           </Switch>
+          <ChatbotWindow/>
         </main>
       </div>
     </div>
