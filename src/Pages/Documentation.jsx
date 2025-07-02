@@ -20,7 +20,9 @@ function GettingStartedTab() {
   const [openStep, setOpenStep] = useState(1);
   const steps = [
     {
-      icon: <Lock className="w-6 h-6 text-blue-500" />, title: "Sign In or Continue as Guest", num: 1, details: (
+      icon: <Lock className="w-6 h-6 text-blue-500" />,
+      title: "Sign In or Continue as Guest",
+      num: 1, details: (
         <ul className="text-sm list-disc ml-6 mt-2 space-y-1">
           <li>Click <b>Sign in</b> to log in securely with your Microsoft account. You will be redirected to the Microsoft login page to authenticate.</li>
           <li>Or, click <b>Continue as Guest</b> for limited access without signing in.</li>
@@ -28,7 +30,9 @@ function GettingStartedTab() {
       )
     },
     {
-      icon: <LayoutDashboard className="w-6 h-6 text-blue-500" />, title: "Explore the Dashboard & Features", num: 2, details: (
+      icon: <LayoutDashboard className="w-6 h-6 text-blue-500" />,
+      title: "Explore the Dashboard & Features",
+      num: 2, details: (
         <ul className="text-sm list-disc ml-6 mt-2 space-y-1">
           <li>After signing in, you'll be taken to the dashboard.</li>
           <li>View upcoming appointments, transcripts, and summaries.</li>
@@ -142,8 +146,10 @@ function NavigationGuideAccordion() {
               <video
                 src="/dashboard.mp4"
                 controls
+                controlsList="nodownload"
                 className="w-full rounded-xl object-cover shadow"
                 style={{ background: '#000' }}
+                onContextMenu={e => e.preventDefault()}
                 onEnded={() => {
                   const btn = document.getElementById('explore-dashboard-btn');
                   if (btn) btn.style.display = 'flex';
@@ -201,8 +207,10 @@ function NavigationGuideAccordion() {
               <video
                 src="/appointments.mp4"
                 controls
+                controlsList="nodownload"
                 className="w-full rounded-xl object-cover shadow"
                 style={{ background: '#000' }}
+                onContextMenu={e => e.preventDefault()}
                 onEnded={() => {
                   const btn = document.getElementById('explore-appointments-btn');
                   if (btn) btn.style.display = 'flex';
@@ -253,8 +261,10 @@ function NavigationGuideAccordion() {
               <video
                 src="/patients.mp4"
                 controls
+                controlsList="nodownload"
                 className="w-full rounded-xl object-cover shadow"
                 style={{ background: '#000' }}
+                onContextMenu={e => e.preventDefault()}
                 onEnded={() => {
                   const btn = document.getElementById('explore-patients-btn');
                   if (btn) btn.style.display = 'flex';
@@ -327,10 +337,12 @@ function NavigationGuideAccordion() {
               </div>
               <div className="text-xs text-neutral-500 mb-3">A quick tour of the Connect page features</div>
               <video
-                src="/connect.mp4"
+                src="/connectwalkthrough.mp4"
                 controls
+                controlsList="nodownload"
                 className="w-full rounded-xl object-cover shadow"
                 style={{ background: '#000' }}
+                onContextMenu={e => e.preventDefault()}
                 onEnded={() => {
                   const btn = document.getElementById('explore-connect-btn');
                   if (btn) btn.style.display = 'flex';
@@ -378,8 +390,10 @@ function NavigationGuideAccordion() {
               <video
                 src="/contactus.mp4"
                 controls
+                controlsList="nodownload"
                 className="w-full rounded-xl object-cover shadow"
                 style={{ background: '#000' }}
+                onContextMenu={e => e.preventDefault()}
                 onEnded={() => {
                   const btn = document.getElementById('explore-contactus-btn');
                   if (btn) btn.style.display = 'flex';
