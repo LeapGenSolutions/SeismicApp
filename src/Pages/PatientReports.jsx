@@ -9,6 +9,7 @@ import PatientInfoComponent from "../components/patients/PatientInfoComponent";
 import SummaryOfPatient from "../components/patients/SummaryOfPatient";
 import AppointmentModal from "../components/appointments/AppointmentModal";
 import { useQuery } from "@tanstack/react-query";
+import { isValid } from "date-fns";
 import { fetchSummaryofSummaries } from "../api/summaryOfSummaries";
 import { PageNavigation } from "../components/ui/page-navigation";
 
@@ -64,9 +65,10 @@ const PatientReports = () => {
     || ["", ""];
   const maskedSSN = patient?.ssn ? `XXX-XX-${patient?.ssn.slice(-4)}` : "Not Available";
 
-  const lastVisit = filteredAppointments.length > 0
-    ? new Date(filteredAppointments[0].date).toLocaleDateString()
-    : "Not Available";
+const lastVisitDate = filteredAppointments[0]?.date;
+const lastVisit = lastVisitDate && isValid(new Date(lastVisitDate))
+  ? new Date(lastVisitDate).toLocaleDateString()
+  : "Not Available";
 
   return (
     <div className="p-6 w-full">
@@ -125,27 +127,39 @@ const PatientReports = () => {
         selectedAppointment={selectedAppointment}
         setSelectedAppointment={setSelectedAppointment}
       />
+{filteredAppointments.map((appointment) => {
+  const appointmentId = appointment.id;
+  const appointmentTime = appointment.date
+    ? `${new Date(appointment.date).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })} at ${appointment.time ?? "N/A"}`
+    : appointment.time ?? "Time not available";
 
-      {filteredAppointments.map((appointment) => {
-        const appointmentId = appointment.id;
-        const appointmentTime = appointment.date
-          ? `${new Date(appointment.date).toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })} at ${appointment.time ?? "N/A"}`
-          : appointment.time ?? "Time not available";
+    const isSeismified = appointment.status?.trim().toLowerCase() === "completed";
 
-        return (
-          <div
-            key={appointmentId}
-            className="bg-white border rounded-xl shadow-lg w-full mb-8"
-          >
-            <button
-              onClick={() => navigate(`/post-call/${appointmentId}`)}
-              className="w-full text-left px-6 py-4 flex justify-between items-center bg-white-100 rounded-t font-medium text-lg"
-            >
-              <span>Appointment: {appointmentTime}</span>
+  return (
+    <div
+      key={appointmentId}
+      className="bg-white border rounded-xl shadow-lg w-full mb-8"
+    >
+      <button
+        onClick={() => navigate(`/post-call/${appointmentId}`)}
+        className="w-full text-left px-6 py-4 flex justify-between items-center bg-white-100 rounded-t font-medium text-lg"
+      >
+        <span className="flex items-center gap-2">
+          Appointment: {appointmentTime}
+          {isSeismified ? (
+            <span className="text-green-600 text-xs font-medium border border-green-200 bg-green-50 px-2 py-0.5 rounded">
+              Seismified
+            </span>
+          ) : (
+            <span className="text-red-500 text-xs font-medium border border-red-200 bg-red-50 px-2 py-0.5 rounded">
+              Not Seismified
+            </span>
+          )}
+        </span>
               <ExternalLink className="h-5 w-5 text-blue-600" />
             </button>
           </div>
@@ -155,4 +169,4 @@ const PatientReports = () => {
   );
 };
 
-export default PatientReports;
+export default PatientReports

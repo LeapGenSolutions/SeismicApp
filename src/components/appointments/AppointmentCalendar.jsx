@@ -49,8 +49,15 @@ const AppointmentCalendar = () => {
     );
     const end = new Date(start.getTime() + 30 * 60000);
 
+    const isPast = new Date() > end;
+    const statusLabel = isPast
+      ? appt.seismified
+        ? "Seismified"
+        : "Not Seismified"
+      : appt.status || "pending";
+
     return {
-      title: `${appt.full_name} (${appt.status})`,
+      title: `${appt.full_name} (${statusLabel})`,
       start,
       end,
       allDay: false,
