@@ -50,7 +50,7 @@ const PostCallDocumentation = ({
       </CardHeader>
       <CardContent>
         <div className="flex space-x-2 mb-6 justify-center">
-          {['summary', 'transcript', 'soap', 'recommendations', 'billing', 'clusters', 'doctor notes'].map(tab => (
+          {['summary', 'transcript', 'SOAP', 'recommendations', 'billing', 'clusters', 'doctor notes'].map(tab => (
             <button
               key={tab}
               className={`px-4 py-2 rounded font-medium ${docTab === tab ? 'bg-blue-600 text-white' : 'bg-white text-neutral-800 border border-b-0'} transition`}
@@ -68,7 +68,7 @@ const PostCallDocumentation = ({
         {docTab === 'transcript' && (
           <Transcript appointmentId={callId} />
         )}
-        {docTab === 'soap' && (
+        {docTab === 'SOAP' && (
           <Soap appointmentId={callId} />
         )}
 
