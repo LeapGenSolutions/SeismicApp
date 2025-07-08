@@ -7,6 +7,21 @@ import { fetchSoapNotes,updateSoapNotes} from "../../api/soap";
 import { useSelector } from "react-redux";
 import LoadingCard from "./LoadingCard"; // Adjust if path is different
 
+const extractBullets = (text) => {
+  if (!text) return [];
+
+  // Prefer newline-split if available  
+  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+
+  if (lines.length > 1) return lines;
+
+  // Fallback: split by punctuation if only one paragraph
+  return text
+    .split(/(?<=[.?!])\s+(?=[A-Z])|\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 5);
+};
+
 const Soap = ({ appointmentId }) => {
   const username = useSelector((state) => state.me.me.email);
   const [soapNotes, setSoapNotes] = useState({ Subjective: "", Objective: "", Assessment: "", Plan: "" });
@@ -22,6 +37,7 @@ const Soap = ({ appointmentId }) => {
     if (data && !isLoading) {
       const raw = data?.data?.soap_notes || "";
       const parts = raw.split("\n\n");
+
 if (isLoading) {
     return <LoadingCard message="Your SOAP’s lathering... please hold." />;
   }
@@ -80,6 +96,13 @@ if (isLoading) {
             <AccordionContent
               className={`rounded-md p-4 ${isEditing ? "bg-white" : "bg-gray-100"}`}
             >
+              {section === "Plan" && !isEditing ? (
+                <ul className="list-disc ml-6 space-y-2">
+                  {extractBullets(soapNotes.Plan).map((item, index) => (
+                    <li key={index}>{item}</li>
+                  ))}
+                </ul>
+              ) : (
               <Textarea
               className={`w-full mt-2 border rounded ${
               isEditing ? "bg-white border-gray-300" : "bg-gray-100 border-gray-200"
@@ -92,7 +115,7 @@ if (isLoading) {
             rows={4}
            readOnly={!isEditing}
           />
-
+              )}
             </AccordionContent>
           </AccordionItem>
         ))}
