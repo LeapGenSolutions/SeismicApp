@@ -5,7 +5,10 @@ import { format, parse, startOfWeek, getDay } from "date-fns";
 import enUS from "date-fns/locale/en-US";
 import AppointmentModal from "./AppointmentModal";
 import CustomToolbar from "./CustomToolbar";
-import { fetchAppointmentsByDoctorEmails } from "../../api/callHistory";
+import {
+  fetchAppointmentsByDoctorEmails,
+  checkAppointments,
+} from "../../api/callHistory";
 
 const locales = {
   "en-US": enUS,
@@ -32,8 +35,26 @@ const AppointmentCalendar = () => {
         setAppointments([]);
         return;
       }
+
       const data = await fetchAppointmentsByDoctorEmails(selectedDoctors);
-      setAppointments(data);
+      const appointmentIDs = data.map((appt) => appt.id);
+
+      // Get seismified status
+      let seismifiedIDs = [];
+      try {
+        const result = await checkAppointments(appointmentIDs);
+        seismifiedIDs = result?.found || [];
+      } catch (error) {
+        console.error("Seismified check failed:", error);
+      }
+
+      // Add `seismified: true/false` to each appointment
+      const updatedData = data.map((appt) => ({
+        ...appt,
+        seismified: seismifiedIDs.includes(appt.id),
+      }));
+
+      setAppointments(updatedData);
     };
 
     fetchData();
@@ -49,12 +70,7 @@ const AppointmentCalendar = () => {
     );
     const end = new Date(start.getTime() + 30 * 60000);
 
-    const isPast = new Date() > end;
-    const statusLabel = isPast
-      ? appt.seismified
-        ? "Seismified"
-        : "Not Seismified"
-      : appt.status || "pending";
+    const statusLabel = appt.seismified ? "Seismified" : "Not Seismified"; //  Title label
 
     return {
       title: `${appt.full_name} (${statusLabel})`,
