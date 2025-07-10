@@ -10,6 +10,8 @@ import { useParams } from "wouter";
 import Clusters from "../components/post-call/Clusters";
 import DoctorNotes from "../components/post-call/DoctorNotes";
 import { navigate } from "wouter/use-browser-location";
+import { useSearchParams } from "wouter";
+
 
 const PostCallDocumentation = ({
   onSave,
@@ -33,6 +35,10 @@ const PostCallDocumentation = ({
       navigate("/appointments");
     }
   }
+
+  const searchParams = useSearchParams()[0];
+  const username = searchParams.get("username");
+
 
   return (
     <>
@@ -62,29 +68,29 @@ const PostCallDocumentation = ({
         </div>
 
         {docTab === 'summary' && (
-          <Summary appointmentId={callId} />
+          <Summary username={username} appointmentId={callId} />
         )}
 
         {docTab === 'transcript' && (
-          <Transcript appointmentId={callId} />
+          <Transcript username={username} appointmentId={callId} />
         )}
         {docTab === 'SOAP' && (
-          <Soap appointmentId={callId} />
+          <Soap username={username} appointmentId={callId} />
         )}
 
         {docTab === 'recommendations' && (
-          <Reccomendations appointmentId={callId} />
+          <Reccomendations username={username} appointmentId={callId} />
         )}
         {docTab === 'billing' && (
-          <Billing appointmentId={callId} />
+          <Billing username={username} appointmentId={callId} />
         )}
 
         {docTab === 'clusters' && (
-          <Clusters appointmentId={callId} />
+          <Clusters username={username} appointmentId={callId} />
         )}
 
         {docTab === 'doctor notes' && (
-          <DoctorNotes appointmentId={callId} />
+          <DoctorNotes username={username} appointmentId={callId} />
         )}
 
         <div className="flex justify-end mt-8">
