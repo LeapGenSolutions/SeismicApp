@@ -4,7 +4,6 @@ import { Button } from "../ui/button"
 import { Textarea } from "../ui/textarea"
 import { useQuery,useMutation } from "@tanstack/react-query";
 import { fetchSoapNotes,updateSoapNotes} from "../../api/soap";
-import { useSelector } from "react-redux";
 import LoadingCard from "./LoadingCard"; // Adjust if path is different
 
 const extractBullets = (text) => {
@@ -22,14 +21,13 @@ const extractBullets = (text) => {
     .filter((line) => line.length > 5);
 };
 
-const Soap = ({ appointmentId }) => {
-  const username = useSelector((state) => state.me.me.email);
+const Soap = ({ appointmentId, username }) => {
   const [soapNotes, setSoapNotes] = useState({ Subjective: "", Objective: "", Assessment: "", Plan: "" });
   const [initialNotes, setInitialNotes] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["soap-notes", appointmentId],
+    queryKey: ["soap-notes", appointmentId, username],
     queryFn: () => fetchSoapNotes(`${username}_${appointmentId}_soap`, username),
   });
 
@@ -38,9 +36,6 @@ const Soap = ({ appointmentId }) => {
       const raw = data?.data?.soap_notes || "";
       const parts = raw.split("\n\n");
 
-if (isLoading) {
-    return <LoadingCard message="Your SOAP’s lathering... please hold." />;
-  }
       const parsed = {
         Subjective: parts[0]?.replace("Subjective - ", "") || "",
         Objective: parts[1]?.replace("Objective - ", "") || "",
