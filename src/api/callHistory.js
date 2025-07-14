@@ -46,3 +46,26 @@ export const fetchAppointmentsByDoctorEmails = async (emails) => {
     return [];
   }
 };
+
+export const checkAppointments = async (appointmentIDs) => {
+  if (!appointmentIDs || appointmentIDs.length === 0) return { found: [], notFound: [] };
+
+  try {
+    const response = await fetch(`${BACKEND_URL}api/call-history/checkAppointments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ appointmentIDs }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to check appointment seismification status");
+    }
+
+    return await response.json(); // { found: [...], notFound: [...] }
+  } catch (error) {
+    console.error("checkAppointments error:", error);
+    return { found: [], notFound: [] };
+  }
+};
