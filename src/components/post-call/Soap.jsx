@@ -1,20 +1,26 @@
 import { useEffect, useState } from "react";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../ui/accordion"
-import { Button } from "../ui/button"
-import { Textarea } from "../ui/textarea"
-import { useQuery,useMutation } from "@tanstack/react-query";
-import { fetchSoapNotes,updateSoapNotes} from "../../api/soap";
-import LoadingCard from "./LoadingCard"; // Adjust if path is different
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "../ui/accordion";
+import { Button } from "../ui/button";
+import { Textarea } from "../ui/textarea";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { fetchSoapNotes, updateSoapNotes } from "../../api/soap";
+import LoadingCard from "./LoadingCard"; // Adjust path if needed
 
 const extractBullets = (text) => {
   if (!text) return [];
 
-  // Prefer newline-split if available  
-  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
 
   if (lines.length > 1) return lines;
 
-  // Fallback: split by punctuation if only one paragraph
   return text
     .split(/(?<=[.?!])\s+(?=[A-Z])|\n/)
     .map((line) => line.trim())
@@ -22,8 +28,15 @@ const extractBullets = (text) => {
 };
 
 const Soap = ({ appointmentId, username }) => {
-  const [soapNotes, setSoapNotes] = useState({ Subjective: "", Objective: "", Assessment: "", Plan: "" });
+  const [soapNotes, setSoapNotes] = useState({
+    Subjective: "",
+    Objective: "",
+    Assessment: "",
+    Plan: "",
+  });
   const [initialNotes, setInitialNotes] = useState(null);
+  const [patientLine, setPatientLine] = useState("");
+  const [reasonLine, setReasonLine] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -34,13 +47,23 @@ const Soap = ({ appointmentId, username }) => {
   useEffect(() => {
     if (data && !isLoading) {
       const raw = data?.data?.soap_notes || "";
-      const parts = raw.split("\n\n");
+
+      // Extract all parts using regex
+      const patientMatch = raw.match(/Patient:.*?\n/);
+      const reasonMatch = raw.match(/Reason for Visit -.*?\n/);
+      const subjectiveMatch = raw.match(/Subjective -([\s\S]*?)(?=\n\nObjective -)/);
+      const objectiveMatch = raw.match(/Objective -([\s\S]*?)(?=\n\nAssessment -)/);
+      const assessmentMatch = raw.match(/Assessment -([\s\S]*?)(?=\n\nPlan -)/);
+      const planMatch = raw.match(/Plan -([\s\S]*)$/);
+
+      setPatientLine(patientMatch?.[0]?.trim() || "");
+      setReasonLine(reasonMatch?.[0]?.trim() || "");
 
       const parsed = {
-        Subjective: parts[0]?.replace("Subjective - ", "") || "",
-        Objective: parts[1]?.replace("Objective - ", "") || "",
-        Assessment: parts[2]?.replace("Assessment - ", "") || "",
-        Plan: parts[3]?.replace("Plan - ", "") || "",
+        Subjective: (subjectiveMatch?.[1] || "").trim(),
+        Objective: (objectiveMatch?.[1] || "").trim(),
+        Assessment: (assessmentMatch?.[1] || "").trim(),
+        Plan: (planMatch?.[1] || "").trim(),
       };
 
       setSoapNotes(parsed);
@@ -61,7 +84,7 @@ const Soap = ({ appointmentId, username }) => {
   });
 
   const handleSave = () => {
-    const combined = `Subjective - ${soapNotes.Subjective}\n\nObjective - ${soapNotes.Objective}\n\nAssessment - ${soapNotes.Assessment}\n\nPlan - ${soapNotes.Plan}`;
+    const combined = `${patientLine}\n\n${reasonLine}\n\nSubjective - ${soapNotes.Subjective}\n\nObjective - ${soapNotes.Objective}\n\nAssessment - ${soapNotes.Assessment}\n\nPlan - ${soapNotes.Plan}`;
     mutation.mutate(combined);
   };
 
@@ -73,8 +96,8 @@ const Soap = ({ appointmentId, username }) => {
   if (isLoading) {
     return <LoadingCard message="Your SOAP’s lathering... please hold." />;
   }
-  
-  if(error){
+
+  if (error) {
     return <LoadingCard />;
   }
 
@@ -91,26 +114,55 @@ const Soap = ({ appointmentId, username }) => {
             <AccordionContent
               className={`rounded-md p-4 ${isEditing ? "bg-white" : "bg-gray-100"}`}
             >
-              {section === "Plan" && !isEditing ? (
-                <ul className="list-disc ml-6 space-y-2">
-                  {extractBullets(soapNotes.Plan).map((item, index) => (
-                    <li key={index}>{item}</li>
-                  ))}
-                </ul>
+              {/* Show Subjective with patient + reason */}
+             {section === "Subjective" ? (
+              isEditing ? (
+                <div className="space-y-2">
+                <p className="font-semibold">{patientLine}</p>
+                  <Textarea
+                    className="w-full mt-2 border border-gray-300 rounded"
+                    placeholder="Enter reason for visit..."
+                    value={reasonLine}
+                    onChange={(e) => setReasonLine(e.target.value)}
+                    rows={2}
+                  />
+                  <Textarea
+                    className="w-full mt-2 border border-gray-300 rounded"
+                    placeholder="Enter subjective notes..."
+                    value={soapNotes.Subjective}
+                    onChange={(e) =>
+                      setSoapNotes({ ...soapNotes, Subjective: e.target.value })
+                    }
+                    rows={4}
+                  />
+                </div>
               ) : (
+                <div className="space-y-2">
+                  <p className="font-semibold">{patientLine}</p>
+                  <p className="font-semibold">{reasonLine}</p>
+                  <p>{soapNotes.Subjective}</p>
+                </div>
+              )
+            ) : section === "Plan" && !isEditing ? (
+              <ul className="list-disc ml-6 space-y-2">
+                {extractBullets(soapNotes.Plan).map((item, index) => (
+                  <li key={index}>{item}</li>
+                ))}
+              </ul>
+            ) : (
               <Textarea
-              className={`w-full mt-2 border rounded ${
-              isEditing ? "bg-white border-gray-300" : "bg-gray-100 border-gray-200"
-              }`}
-             placeholder={`Enter ${section.toLowerCase()}...`}
-             value={soapNotes[section]}
-             onChange={(e) =>
-             setSoapNotes({ ...soapNotes, [section]: e.target.value })
-            }
-            rows={4}
-           readOnly={!isEditing}
-          />
-              )}
+                className={`w-full mt-2 border rounded ${
+                  isEditing ? "bg-white border-gray-300" : "bg-gray-100 border-gray-200"
+                }`}
+                placeholder={`Enter ${section.toLowerCase()}...`}
+                value={soapNotes[section]}
+                onChange={(e) =>
+                  setSoapNotes({ ...soapNotes, [section]: e.target.value })
+                }
+                rows={4}
+                readOnly={!isEditing}
+              />
+            )}
             </AccordionContent>
           </AccordionItem>
         ))}
@@ -129,13 +181,13 @@ const Soap = ({ appointmentId, username }) => {
             <Button
               onClick={handleSave}
               disabled={mutation.isLoading}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               {mutation.isLoading ? "Saving..." : "Save SOAP Notes"}
             </Button>
             <Button
               onClick={handleCancel}
-              className="bg-gray-500 hover:bg-gray-600"
+              className="bg-gray-500 hover:bg-gray-600 text-white"
             >
               Cancel
             </Button>
