@@ -39,17 +39,34 @@ const Soap = ({ appointmentId, username }) => {
       const subjRaw = (subjectiveMatch?.[1] || "").trim();
       const { hpi, ros } = parseSubjective(subjRaw);
 
-      setPatientLine(patientMatch?.[0]?.replace("Patient: ", "").trim() || "");
-      setReasonLine(reasonMatch?.[0]?.replace("Reason for Visit -", "").trim() || "");
+      // --- Clean Reason Line ---
+      const reasonText = (reasonMatch?.[0]?.replace("Reason for Visit -", "").trim() || "")
+        .replace(/^Patient presents with\s*/i, "")
+        .replace(/^Patient reports\s*/i, "")
+        .trim();
+
+      // --- Parse Objective JSON safely ---
+      let objectiveText = (objectiveMatch?.[1] || "").trim();
+      let objectiveJson = "{}";
+      try {
+        const jsonPart = objectiveText.match(/{[\s\S]*}/);
+        if (jsonPart) {
+          objectiveJson = jsonPart[0];
+        }
+      } catch {
+        objectiveJson = "{}";
+      }
 
       const parsed = {
         HPI: hpi,
         ROS: ros,
-        Objective: (objectiveMatch?.[1] || "").trim(),
+        Objective: objectiveJson,
         Assessment: (assessmentMatch?.[1] || "").trim(),
         Plan: (planMatch?.[1] || "").trim(),
       };
 
+      setPatientLine(patientMatch?.[0]?.replace("Patient: ", "").trim() || "");
+      setReasonLine(reasonText);
       setSoapNotes(parsed);
       setInitialNotes(parsed);
     }

@@ -1,7 +1,15 @@
 import { Textarea } from "../../ui/textarea";
 import { formatROS } from "../utils/soapUtils";
 
-const SubjectiveSection = ({ isEditing, patientLine, reasonLine, soapNotes, setPatientLine, setReasonLine, setSoapNotes }) => {
+const SubjectiveSection = ({
+  isEditing,
+  patientLine,
+  reasonLine,
+  soapNotes,
+  setPatientLine,
+  setReasonLine,
+  setSoapNotes,
+}) => {
   return (
     <div className="bg-gray-100 rounded-md p-4">
       <h4 className="text-blue-700 font-semibold text-lg">Subjective</h4>
@@ -25,8 +33,13 @@ const SubjectiveSection = ({ isEditing, patientLine, reasonLine, soapNotes, setP
       ) : (
         <div className="space-y-3">
           <p className="font-bold text-base">
-            {patientLine} with a chief complaint of {reasonLine}
+            {patientLine} with a chief complaint of{" "}
+            {reasonLine
+              .replace(/^Patient presents with\s*/i, "")
+              .replace(/^Patient reports\s*/i, "")
+              .trim()}
           </p>
+
           {soapNotes.HPI && (
             <>
               <p className="font-semibold">HPI:</p>

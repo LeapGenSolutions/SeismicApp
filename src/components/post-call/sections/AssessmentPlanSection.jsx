@@ -8,11 +8,13 @@ const AssessmentPlanSection = ({ isEditing, soapNotes, setSoapNotes, patientLine
           value={soapNotes.Assessment}
           onChange={(e) => setSoapNotes({ ...soapNotes, Assessment: e.target.value })}
           rows={4}
+          placeholder="Assessment..."
         />
         <Textarea
           value={soapNotes.Plan}
           onChange={(e) => setSoapNotes({ ...soapNotes, Plan: e.target.value })}
           rows={4}
+          placeholder="Plan..."
         />
       </>
     );
@@ -61,6 +63,7 @@ const AssessmentPlanSection = ({ isEditing, soapNotes, setSoapNotes, patientLine
 
   return (
     <div className="space-y-4">
+      {/* Patient summary line */}
       {patientLine && reasonLine && (
         <p className="font-semibold">
           {(() => {
@@ -84,13 +87,34 @@ const AssessmentPlanSection = ({ isEditing, soapNotes, setSoapNotes, patientLine
         </p>
       )}
 
+      {/* Section rendering */}
       {[...sections.entries()].map(([heading, bullets], idx) => (
         <div key={idx} className="space-y-1">
           <p className="font-semibold text-black">{heading}:</p>
           <ul className="list-disc ml-5 text-sm space-y-1">
-            {bullets.map((b, i) => (
-              <li key={i}>{b}</li>
-            ))}
+            {bullets.map((b, i) => {
+              // Highlight explicit diagnosis lines
+              const diagnosisMatch = b.match(/^(Diagnosis|Dx)[:/-]?\s*(.+)/i);
+              if (diagnosisMatch) {
+                return (
+                  <li key={i}>
+                    <span className="font-bold text-black">Diagnosis:</span>{" "}
+                    <span className="font-semibold text-black">{diagnosisMatch[2]}</span>
+                  </li>
+                );
+              }
+
+              // Auto-detect common diagnosis terms
+              if (/viral myocarditis|pleuritis|pneumonia|bronchitis|asthma|lupus|hypertension|diabetes/i.test(b)) {
+                return (
+                  <li key={i}>
+                    <span className="font-semibold text-black">{b}</span>
+                  </li>
+                );
+              }
+
+              return <li key={i}>{b}</li>;
+            })}
           </ul>
         </div>
       ))}

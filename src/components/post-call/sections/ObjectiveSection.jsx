@@ -11,7 +11,11 @@ const ObjectiveSection = ({ isEditing, soapNotes, setSoapNotes }) => {
 
   const vitals = [];
   const physical = [];
-  const allEntries = [...(data.exams || []), ...(data.tests || [])];
+  const allEntries = [
+    ...(data.observations || []),
+    ...(data.exams || []),
+    ...(data.tests || []),
+  ];
 
   const vitalKeywords = [
     "bp", "blood pressure",
@@ -22,12 +26,10 @@ const ObjectiveSection = ({ isEditing, soapNotes, setSoapNotes }) => {
     "bmi"
   ];
 
-  // --- Parsing vitals vs physical ---
   allEntries.forEach((entry) => {
     if (!entry) return;
 
     if (/^Vitals[:/-]/i.test(entry)) {
-      // Multiple vitals in one line
       const vitalsPart = entry.replace(/^Vitals[:/-]\s*/i, "");
       const vitalItems = vitalsPart.split(/[,;]\s*/);
 
@@ -35,7 +37,6 @@ const ObjectiveSection = ({ isEditing, soapNotes, setSoapNotes }) => {
         let match =
           vital.match(/^(.+?)([:=/-])\s*(.+)$/) ||
           vital.match(/^([A-Za-z\s]+?)\s+([\d][\s\S]*)$/);
-
         if (match) {
           const rawLabel = match[1].trim();
           const value = match[3] || match[2];
@@ -44,7 +45,6 @@ const ObjectiveSection = ({ isEditing, soapNotes, setSoapNotes }) => {
         }
       });
     } else {
-      // Single entry
       let match =
         entry.match(/^(.+?)([:=/-])\s*(.+)$/) ||
         entry.match(/^([A-Za-z\s]+?)\s+([\d][\s\S]*)$/);
@@ -65,7 +65,6 @@ const ObjectiveSection = ({ isEditing, soapNotes, setSoapNotes }) => {
     }
   });
 
-  // --- Update helper ---
   const updateVitals = (updatedVitals) => {
     data.exams = [
       ...updatedVitals.map((v) => `${v.rawLabel || v.label}: ${v.value}`),
