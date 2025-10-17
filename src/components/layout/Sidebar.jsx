@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { useMsal } from "@azure/msal-react";
 import Logo from "../../assets/Logo";        // Seismic Connect logo
-import VPMCLogo from "../../assets/VPMCLogo"; // VPMC client logo
 
 const Sidebar = () => {
   const [location] = useLocation();
@@ -39,14 +38,6 @@ const Sidebar = () => {
             <Logo size="medium" />
             <h1 className="text-xl font-semibold">Seismic Connect</h1>
           </div>
-
-          {/* VPMC partner logo underneath */}
-          <div className="flex flex-col items-center mt-3 border-t border-neutral-700 pt-3">
-          <VPMCLogo className="h-8 w-auto" />
-          <p className="text-xs text-gray-300 mt-1 text-center">
-            Virginia Premium Medical Care
-          </p>
-        </div>
         </div>
 
         {/* --- Navigation Links --- */}
