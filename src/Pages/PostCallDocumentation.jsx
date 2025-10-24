@@ -11,13 +11,16 @@ import Clusters from "../components/post-call/Clusters";
 import DoctorNotes from "../components/post-call/DoctorNotes";
 import { navigate } from "wouter/use-browser-location";
 import { useSearchParams } from "wouter";
-import { ArrowLeft } from "lucide-react"; // ADD THIS IMPORT
-
+import { ArrowLeft } from "lucide-react";
+import { useSelector } from "react-redux";  // already available globally, using existing Redux data
 
 const PostCallDocumentation = ({ onSave }) => {
   const [docTab, setDocTab] = useState("summary");
   const { callId } = useParams();
   const [prevPage, setPrevPage] = useState(null);
+  const searchParams = useSearchParams()[0];
+  const username = searchParams.get("username");
+  const appointments = useSelector((state) => state.appointments.appointments);
 
   useEffect(() => {
     document.title = "PostCallDocumentation - Seismic Connect";
@@ -27,7 +30,6 @@ const PostCallDocumentation = ({ onSave }) => {
     }
   }, []);
 
-  // ✅ keep lowercase 'b'
   const handleback = () => {
     if (window.history.length > 1) {
       window.history.back();
@@ -36,21 +38,27 @@ const PostCallDocumentation = ({ onSave }) => {
     }
   };
 
-  const searchParams = useSearchParams()[0];
-  const username = searchParams.get("username");
+  //  Try to extract patientId from URL; if not found, derive from appointment
+  let patientId = searchParams.get("patient_id");
+  if (!patientId && appointments?.length > 0) {
+    const currentAppointment = appointments.find((a) => a.id === callId);
+    if (currentAppointment) {
+      patientId = currentAppointment.patient_id;
+    }
+  }
 
   return (
     <>
       {prevPage !== "video-call" && (
         <div className="mb-4">
           <button
-            onClick={handleback} //  lowercase 'b'
+            onClick={handleback}
             className="inline-flex items-center px-3 py-1.5 text-sm font-medium 
            text-white bg-blue-600 border border-blue-700 rounded-lg 
            hover:bg-blue-700 transition-colors duration-200"
             aria-label="Go back to previous page"
           >
-            <ArrowLeft className="h-4 w-4 mr-1.5" /> {/* ✅ imported properly */}
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
             Go Back
           </button>
         </div>
@@ -86,7 +94,11 @@ const PostCallDocumentation = ({ onSave }) => {
           </div>
 
           {docTab === "summary" && (
-            <Summary username={username} appointmentId={callId} />
+            <Summary
+              username={username}
+              appointmentId={callId}
+              patientId={patientId}
+            />
           )}
 
           {docTab === "transcript" && (
