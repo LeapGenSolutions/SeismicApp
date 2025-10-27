@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-
 import { navigate } from "wouter/use-browser-location";
 import { DOCTOR_PORTAL_URL } from "../../constants";
 import { FaCopy } from "react-icons/fa";
@@ -57,9 +56,17 @@ const AppointmentModal = ({ selectedAppointment, setSelectedAppointment }) => {
                     {selectedAppointment.time}
                 </p>
                 <p>
-                    <span className="font-semibold">Status:</span>{" "}
-                    {selectedAppointment.status}
-                </p>
+                <span className="font-semibold">Seismic Status:</span>{" "}
+                {selectedAppointment.seismified ? (
+                <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
+                 Seismified
+               </span>
+                ) : (
+                <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
+                Not Seismified
+                </span>
+                   )}
+                 </p>
                 <p>
                     <span className="font-semibold">SSN:</span>{" "}
                     {selectedAppointment.ssn}
@@ -122,11 +129,17 @@ const AppointmentModal = ({ selectedAppointment, setSelectedAppointment }) => {
                     Join
                 </button>
                 <button
-                    onClick={handlePostCallClick}
-                    className="bg-zinc-600 hover:bg-zinc-700 text-white font-medium py-2 px-4 rounded"
+               onClick={handlePostCallClick}
+               disabled={!selectedAppointment.seismified}
+               className={`py-2 px-4 rounded font-medium ${
+               selectedAppointment.seismified
+                ? "bg-zinc-600 hover:bg-zinc-700 text-white"
+                 : "bg-gray-300 text-dark gray-500 cursor-not-allowed"
+                }`}
                 >
-                    Post Call Documentation
-                </button>
+                Post Call Documentation
+               </button>
+
                 <button
                     onClick={() => setSelectedAppointment(null)}
                     className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded"
