@@ -6,7 +6,8 @@ import enUS from "date-fns/locale/en-US";
 import AppointmentModal from "./AppointmentModal";
 import CustomToolbar from "./CustomToolbar";
 import { fetchAppointmentsByDoctorEmails } from "../../api/callHistory";
-import CreateAppointmentModal from "./CreateAppointmentModal"; // new import
+import CreateAppointmentModal from "./CreateAppointmentModal";
+import { useSelector } from "react-redux"; 
 
 const locales = { "en-US": enUS };
 
@@ -24,16 +25,10 @@ const AppointmentCalendar = () => {
   const [selectedDoctors, setSelectedDoctors] = useState([]);
   const [doctorColorMap, setDoctorColorMap] = useState({});
   const [isDropdownOpen, setDropdownOpen] = useState(false);
-
-  // new state for create modal
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // doctor info (this would ideally come from your auth context)
-  const loggedInDoctor = {
-    name: "Anusha Yammada",
-    email: "anusha.y@leapgen.ai",
-    specialization: "Cardiology",
-  };
+  
+  const loggedInDoctor = useSelector((state) => state.me.me);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -108,7 +103,7 @@ const AppointmentCalendar = () => {
               onDoctorUpdate={handleDoctorUpdate}
               isDropdownOpen={isDropdownOpen}
               setDropdownOpen={setDropdownOpen}
-              onAddAppointment={() => setShowCreateModal(true)} // open modal
+              onAddAppointment={() => setShowCreateModal(true)}
             />
           ),
         }}
@@ -125,14 +120,13 @@ const AppointmentCalendar = () => {
       {/* New Create Appointment Modal */}
       {showCreateModal && (
         <CreateAppointmentModal
-          username={loggedInDoctor.email}
-          doctorName={loggedInDoctor.name}
-          doctorSpecialization={loggedInDoctor.specialization}
+          username={loggedInDoctor?.email}
+          doctorName={loggedInDoctor?.name}
+          doctorSpecialization={loggedInDoctor?.specialization || "General"}
           onClose={() => setShowCreateModal(false)}
           onSuccess={(newAppointment) => {
             setShowCreateModal(false);
 
-            // ✅ Instantly add to local calendar
             if (newAppointment) {
               const [hours, minutes] = newAppointment.time.split(":").map(Number);
               const start = new Date(newAppointment.appointment_date + " CST");
@@ -144,14 +138,13 @@ const AppointmentCalendar = () => {
                 start,
                 end,
                 allDay: false,
-                color: "#22c55e", // green for new
+                color: "#22c55e",
                 ...newAppointment,
               };
 
               setAppointments((prev) => [...prev, newEvent]);
             }
 
-            // Optional: backend re-sync
             if (selectedDoctors.length > 0) {
               fetchAppointmentsByDoctorEmails(selectedDoctors).then((data) =>
                 setAppointments(data)
