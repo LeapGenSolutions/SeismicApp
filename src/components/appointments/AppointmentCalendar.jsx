@@ -6,10 +6,9 @@ import enUS from "date-fns/locale/en-US";
 import AppointmentModal from "./AppointmentModal";
 import CustomToolbar from "./CustomToolbar";
 import { fetchAppointmentsByDoctorEmails } from "../../api/callHistory";
+import CreateAppointmentModal from "./CreateAppointmentModal"; // new import
 
-const locales = {
-  "en-US": enUS,
-};
+const locales = { "en-US": enUS };
 
 const localizer = dateFnsLocalizer({
   format,
@@ -26,6 +25,16 @@ const AppointmentCalendar = () => {
   const [doctorColorMap, setDoctorColorMap] = useState({});
   const [isDropdownOpen, setDropdownOpen] = useState(false);
 
+  // new state for create modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // doctor info (this would ideally come from your auth context)
+  const loggedInDoctor = {
+    name: "Anusha Yammada",
+    email: "anusha.y@leapgen.ai",
+    specialization: "Cardiology",
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       if (selectedDoctors.length === 0) {
@@ -35,7 +44,6 @@ const AppointmentCalendar = () => {
       const data = await fetchAppointmentsByDoctorEmails(selectedDoctors);
       setAppointments(data);
     };
-
     fetchData();
   }, [selectedDoctors]);
 
@@ -90,9 +98,7 @@ const AppointmentCalendar = () => {
         startAccessor="start"
         endAccessor="end"
         style={{ height: 500 }}
-        onSelectEvent={(event) => {
-          setSelectedAppointment(event);
-        }}
+        onSelectEvent={(event) => setSelectedAppointment(event)}
         eventPropGetter={eventPropGetter}
         components={{
           toolbar: (props) => (
@@ -102,14 +108,56 @@ const AppointmentCalendar = () => {
               onDoctorUpdate={handleDoctorUpdate}
               isDropdownOpen={isDropdownOpen}
               setDropdownOpen={setDropdownOpen}
+              onAddAppointment={() => setShowCreateModal(true)} // open modal
             />
           ),
         }}
       />
+
+      {/* Existing Appointment Modal */}
       {selectedAppointment && (
         <AppointmentModal
           selectedAppointment={selectedAppointment}
           setSelectedAppointment={setSelectedAppointment}
+        />
+      )}
+
+      {/* New Create Appointment Modal */}
+      {showCreateModal && (
+        <CreateAppointmentModal
+          username={loggedInDoctor.email}
+          doctorName={loggedInDoctor.name}
+          doctorSpecialization={loggedInDoctor.specialization}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={(newAppointment) => {
+            setShowCreateModal(false);
+
+            // ✅ Instantly add to local calendar
+            if (newAppointment) {
+              const [hours, minutes] = newAppointment.time.split(":").map(Number);
+              const start = new Date(newAppointment.appointment_date + " CST");
+              start.setHours(hours, minutes, 0);
+              const end = new Date(start.getTime() + 30 * 60000);
+
+              const newEvent = {
+                title: `${newAppointment.full_name} (${newAppointment.status})`,
+                start,
+                end,
+                allDay: false,
+                color: "#22c55e", // green for new
+                ...newAppointment,
+              };
+
+              setAppointments((prev) => [...prev, newEvent]);
+            }
+
+            // Optional: backend re-sync
+            if (selectedDoctors.length > 0) {
+              fetchAppointmentsByDoctorEmails(selectedDoctors).then((data) =>
+                setAppointments(data)
+              );
+            }
+          }}
         />
       )}
     </div>
