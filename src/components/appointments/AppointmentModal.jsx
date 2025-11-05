@@ -17,9 +17,11 @@ const AppointmentModal = ({ selectedAppointment, setSelectedAppointment }) => {
     }, [selectedAppointment]);
     if (!selectedAppointment) return null;
     
-    const maskedSSN = selectedAppointment?.ssn
-    ? `XXX-XX-${selectedAppointment.ssn.slice(-4)}`
+   const maskedSSN =
+  selectedAppointment?.ssn
+    ? `XXX-XX-${String(selectedAppointment.ssn).slice(-4)}`
     : "Not Available";
+
 
     const handleJoinClick = () => {
         setSelectedAppointment(null);
