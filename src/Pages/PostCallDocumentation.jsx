@@ -167,7 +167,7 @@ const PostCallDocumentation = ({ onSave }) => {
           )}
 
           {docTab === "emotional connect" && selectedAppointment && (
-            <EmotionalConnect username={username} appointmentId={callId} patientId = {selectedAppointment.patient_id ?? selectedAppointment.patient_Id}/>
+            <EmotionalConnect username={username} appointmentId={callId} patientId = {selectedAppointment.ssn}/>
           )}
         </CardContent>
       </Card>

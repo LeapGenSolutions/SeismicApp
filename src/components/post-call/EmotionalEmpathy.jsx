@@ -8,7 +8,7 @@ const EmotionalEmpathy = (props) => {
     const [openProof, setOpenProof] = useState({});
     const { data: total_data, isLoading, error } = useQuery({
         queryKey: ["emotionalEmpathy", appointmentId, username],
-        queryFn: () => fetchEmotionalEmpathy(`${username}_${patientId}`, username),
+        queryFn: () => fetchEmotionalEmpathy(patientId, username),
     })
 
     const data = total_data ? total_data.data : {};
