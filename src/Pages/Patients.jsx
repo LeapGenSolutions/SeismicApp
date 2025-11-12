@@ -20,17 +20,15 @@ import {
   Mail,
   Calendar,
   ExternalLink,
-  PlusCircle,
 } from "lucide-react";
 import AdvancedSearch from "../components/search/AdvancedSearch";
 import { format, parseISO } from "date-fns";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchPatientsDetails } from "../redux/patient-actions";
-import { fetchAppointmentDetails } from "../redux/appointment-actions";
+import { fetchAppointmentDetails } from "../redux/appointment-actions"; 
 import DoctorMultiSelect from "../components/DoctorMultiSelect";
 import { Link } from "wouter";
 import { PageNavigation } from "../components/ui/page-navigation";
-import AddPatientModal from "../components/modals/AddPatientModal"; // ✅ Replaced CreateAppointmentModal
 
 function Patients() {
   const dispatch = useDispatch();
@@ -39,7 +37,7 @@ function Patients() {
     (state) => state.appointments.appointments || []
   );
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().split("T")[0]; 
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
@@ -50,16 +48,14 @@ function Patients() {
     endDate: today,
   });
   const [isDoctorDropdownOpen, setIsDoctorDropdownOpen] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false); // ✅ handles AddPatientModal
 
-  // Fetch all patients initially
   useEffect(() => {
     if (patients.length === 0) {
       dispatch(fetchPatientsDetails());
     }
-  }, [dispatch, patients.length]);
+    // eslint-disable-next-line
+  }, [dispatch]);
 
-  // Fetch appointments when doctor filter changes
   useEffect(() => {
     if (appointmentFilters.selectedDoctors.length > 0) {
       dispatch(fetchAppointmentDetails(appointmentFilters.selectedDoctors));
@@ -68,7 +64,6 @@ function Patients() {
     }
   }, [appointmentFilters.selectedDoctors, dispatch]);
 
-  // Merge patients and appointments
   const enrichPatients = useCallback(() => {
     const { selectedDoctors, startDate, endDate } = appointmentFilters;
 
@@ -122,7 +117,6 @@ function Patients() {
     if (patients.length && appointments.length) enrichPatients();
   }, [patients, appointments, enrichPatients]);
 
-  // Search
   const handleSearchChange = (e) => {
     const q = e.target.value.toLowerCase();
     setSearchQuery(q);
@@ -139,7 +133,6 @@ function Patients() {
     );
   };
 
-  // Advanced search
   const advancedSearchHandler = (query) => {
     if (!query) {
       enrichPatients();
@@ -153,14 +146,10 @@ function Patients() {
           ? p.email?.toLowerCase().includes(query.email.toLowerCase())
           : true;
         const insIdMatch = query.insuranceId
-          ? p.insurance_id
-              ?.toLowerCase()
-              .includes(query.insuranceId.toLowerCase())
+          ? p.insurance_id?.toLowerCase().includes(query.insuranceId.toLowerCase())
           : true;
         const insProvMatch = query.insuranceProvider
-          ? p.insurance_provider
-              ?.toLowerCase()
-              .includes(query.insuranceProvider.toLowerCase())
+          ? p.insurance_provider?.toLowerCase().includes(query.insuranceProvider.toLowerCase())
           : true;
         const phoneMatch = query.phoneNumber
           ? p.contactmobilephone?.includes(query.phoneNumber)
@@ -181,30 +170,17 @@ function Patients() {
     );
   };
 
-  // Refresh after successful appointment
-  const handleAppointmentSuccess = async () => {
-    setShowAddModal(false);
-    await dispatch(fetchAppointmentDetails(appointmentFilters.selectedDoctors));
-    enrichPatients();
-  };
-
   return (
     <div className="space-y-6">
-      <PageNavigation showDate={false} />
-
-      {/* Header */}
+      <PageNavigation 
+        //title="Patients"
+        //subtitle="View and manage patient records"
+        showDate={false}
+      />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Patients</h1>
-        <Button
-          onClick={() => setShowAddModal(true)} // ✅ opens AddPatientModal
-          className="bg-blue-600 text-white hover:bg-blue-700 text-sm px-4 py-2 rounded-md shadow-sm flex items-center gap-2"
-        >
-          <PlusCircle className="w-4 h-4" />
-          Add
-        </Button>
       </div>
 
-      {/* Search */}
       <Card>
         <CardHeader>
           <CardTitle>Patient Search</CardTitle>
@@ -230,7 +206,6 @@ function Patients() {
         </CardContent>
       </Card>
 
-      {/* Appointment filters */}
       <Card>
         <CardHeader>
           <CardTitle>Appointment Filters</CardTitle>
@@ -281,7 +256,6 @@ function Patients() {
         </CardContent>
       </Card>
 
-      {/* Patients Table */}
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -328,10 +302,7 @@ function Patients() {
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
                         {patient?.lastVisit
-                          ? format(
-                              parseISO(patient?.lastVisit.toISOString()),
-                              "MMM dd, yyyy"
-                            )
+                          ? format(parseISO(patient?.lastVisit.toISOString()), "MMM dd, yyyy")
                           : "N/A"}
                       </div>
                     </TableCell>
@@ -352,14 +323,6 @@ function Patients() {
           </Table>
         </CardContent>
       </Card>
-
-      {/* ✅ Add Patient Modal */}
-      {showAddModal && (
-        <AddPatientModal
-          onClose={() => setShowAddModal(false)}
-          onSuccess={handleAppointmentSuccess}
-        />
-      )}
     </div>
   );
 }
