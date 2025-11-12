@@ -11,12 +11,12 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
   const { toast } = useToast();
   const loggedInDoctor = useSelector((state) => state.me.me);
 
-  const patients = useSelector((state) => state.patients.patients || []);
-
   // Doctor details
   const resolvedDoctorName = loggedInDoctor?.name || "Dr. Unknown";
   const resolvedDoctorEmail =
     loggedInDoctor?.email?.toLowerCase() || username?.toLowerCase() || "";
+  const resolvedSpecialization =
+    loggedInDoctor?.specialization?.trim() || "General Medicine";
   const resolvedDoctorId =
     loggedInDoctor?.oid?.replace(/-/g, "") ||
     uuidv5(resolvedDoctorName, "6ba7b810-9dad-11d1-80b4-00c04fd430c8").replace(
@@ -78,45 +78,26 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
     setIsSubmitting(true);
 
     try {
-      const existingPatient = patients.find(
-        (p) =>
-          p.email?.toLowerCase() === formData.email.toLowerCase() ||
-          p.ssn === formData.ssn
-      );
+      // Step 1: Save or update patient
+      const patientPayload = {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        dob: formData.dob,
+        gender: formData.gender,
+        email: formData.email,
+        phone: formData.phone.replace(/\D/g, ""),
+        ehr: formData.ehr,
+        mrn: formData.mrn,
+      };
 
-      let createdPatient = null;
-      let patient_id = "";
+      const createdPatient = await createOrUpdatePatient(patientPayload);
 
-      if (existingPatient) {
-        console.log("Existing patient found:", existingPatient.patient_id);
-        toast({
-          title: "Existing Patient Found",
-          description: `Appointment will be created for ${existingPatient.firstname} ${existingPatient.lastname}.`,
-          variant: "success",
-        });
-        patient_id = existingPatient.patient_id;
-      } else {
-        // Step 1: Save or update patient
-        const patientPayload = {
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          dob: formData.dob,
-          gender: formData.gender,
-          email: formData.email,
-          phone: formData.phone.replace(/\D/g, ""),
-          ehr: formData.ehr,
-          mrn: formData.mrn,
-        };
-
-        createdPatient = await createOrUpdatePatient(patientPayload);
-
-        patient_id =
-          createdPatient?.chatbot_id ||
-          createdPatient?.chatbot_patient?.patientID ||
-          createdPatient?.chatbot_patient?.original_json?.patientID ||
-          createdPatient?.patientID ||
-          "";
-      }
+      const patient_id =
+        createdPatient?.chatbot_id ||
+        createdPatient?.chatbot_patient?.patientID ||
+        createdPatient?.chatbot_patient?.original_json?.patientID ||
+        createdPatient?.patientID ||
+        "";
 
       if (!patient_id) throw new Error("Missing patient_id from backend");
 
@@ -142,7 +123,7 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
           : `Dr. ${resolvedDoctorName}`,
         doctor_id: resolvedDoctorId,
         doctor_email: resolvedDoctorEmail,
-        //specialization: resolvedSpecialization,
+        specialization: resolvedSpecialization,
         time: convertTo24Hour(formData.time),
         status: "scheduled",
         email: formData.email,
@@ -196,7 +177,7 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-2xl">
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            <Calendar size={18} /> Create Appointment/ Add Patient
+            <Calendar size={18} /> Create Appointment
           </h2>
           <button
             onClick={onClose}
@@ -231,6 +212,13 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
                 value={formData.time}
                 onChange={handleChange}
                 error={errors.time}
+              />
+              <Input
+                label="Doctor Specialization"
+                name="specialization"
+                value={resolvedSpecialization}
+                readOnly
+                className="bg-gray-100 text-gray-700"
               />
             </div>
           </section>
