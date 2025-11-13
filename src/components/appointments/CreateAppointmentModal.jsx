@@ -1,17 +1,25 @@
-import { useState } from "react";
-import { useSelector } from "react-redux";
+import { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { BACKEND_URL } from "../../constants";
 import { createAppointment } from "../../api/appointment";
+import { fetchPatientsDetails } from "../../redux/patient-actions";
 import { useToast } from "../../hooks/use-toast";
 import UnsavedChangesModal from "../UnsavedChangesModal";
-import { Calendar, User2, Clock, ChevronDown } from "lucide-react";
+import { Calendar, User2, Clock, ChevronDown, Search } from "lucide-react";
 import { v5 as uuidv5 } from "uuid";
 
 const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
   const { toast } = useToast();
-  const loggedInDoctor = useSelector((state) => state.me.me);
+  const dispatch = useDispatch();
 
-  // Doctor Info
+  useEffect(() => {
+    dispatch(fetchPatientsDetails());
+  }, [dispatch]);
+
+  const loggedInDoctor = useSelector((state) => state.me.me);
+  const patientsList = useSelector((state) => state.patients.patients);
+  const [existingPatient, setExistingPatient] = useState(null);
+
   const resolvedDoctorName = loggedInDoctor?.name || "Dr. Unknown";
   const resolvedDoctorEmail =
     loggedInDoctor?.email?.toLowerCase() || username?.toLowerCase() || "";
@@ -36,12 +44,24 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
     mrn: "",
     appointment_date: "",
     time: "",
-    custom_time: "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
+
+  const extractMRN = (p) =>
+    p.mrn ||
+    p.original_json?.mrn ||
+    p.original_json?.details?.mrn ||
+    p.original_json?.original_json?.details?.mrn ||
+    "";
+
+  const extractDetails = (p) =>
+    p.details ||
+    p.original_json?.details ||
+    p.original_json?.original_json?.details ||
+    p;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -49,27 +69,88 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
     setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
+  const handleMRNSearch = () => {
+    if (!formData.mrn.trim()) {
+      toast({
+        title: "MRN Missing",
+        description: "Please enter an MRN.",
+        variant: "destructive",
+        className:
+          "border-l-4 border-yellow-500 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
+      });
+      return;
+    }
+
+    const targetMRN = formData.mrn.toLowerCase().trim();
+
+    const match = patientsList.find(
+      (p) => extractMRN(p).toLowerCase().trim() === targetMRN
+    );
+
+    if (!match) {
+      toast({
+        title: "Patient Not Found",
+        description: "Invalid MRN or patient does not exist.",
+        variant: "destructive",
+        className:
+          "border-l-4 border-red-600 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
+      });
+      setExistingPatient(null);
+      return;
+    }
+
+    setExistingPatient(match);
+    const d = extractDetails(match);
+
+    setFormData((prev) => ({
+      ...prev,
+      first_name: d.first_name || "",
+      middle_name: d.middle_name || "",
+      last_name: d.last_name || "",
+      dob: d.dob || "",
+      gender: d.gender || "",
+      email: d.email || "",
+      phone: d.phone || "",
+      ehr: d.ehr || "",
+      mrn: d.mrn || "",
+    }));
+
+    toast({
+      title: "Patient Record Matched",
+      description: "You may proceed to schedule the appointment.",
+      variant: "success",
+      className:
+        "border-l-4 border-green-600 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
+    });
+  };
+
   const validateForm = () => {
     const newErrors = {};
-
     if (!formData.first_name.trim()) newErrors.first_name = "Required";
     if (!formData.last_name.trim()) newErrors.last_name = "Required";
     if (!formData.dob.trim()) newErrors.dob = "Required";
     if (!formData.mrn.trim()) newErrors.mrn = "Required";
     if (!formData.appointment_date.trim()) newErrors.appointment_date = "Required";
-    if (!formData.time && !formData.custom_time) newErrors.time = "Required";
-
+    if (!formData.time) newErrors.time = "Required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const convertTo24Hour = (t) => {
+    if (!t) return "";
+    const d = new Date(`1970-01-01 ${t}`);
+    return d.toTimeString().slice(0, 5);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) {
       toast({
-        title: "Missing Information",
+        title: "Missing Fields",
         description: "Please fill all required fields.",
         variant: "destructive",
+        className:
+          "border-l-4 border-yellow-500 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
       });
       return;
     }
@@ -77,57 +158,38 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
     setIsSubmitting(true);
 
     try {
-      // ⭐ STEP 1 — SAVE PATIENT
-      const patientPayload = {
-        first_name: formData.first_name,
-        middle_name: formData.middle_name,
-        last_name: formData.last_name,
-        dob: formData.dob,
-        gender: formData.gender,
-        email: formData.email?.toLowerCase().trim(),
-        phone: formData.phone?.replace(/\D/g, ""),
-        ehr: formData.ehr,
-        mrn: formData.mrn,
-      };
+      let patient_id, practice_id;
 
-      const patientRes = await fetch(`${BACKEND_URL}api/patients/add`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patientPayload),
-      });
+      if (existingPatient) {
+        const d = extractDetails(existingPatient);
+        patient_id = existingPatient.patient_id || d.patient_id;
+        practice_id = existingPatient.practice_id || d.practice_id;
+      } else {
+        const patientRes = await fetch(`${BACKEND_URL}api/patients/add`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            first_name: formData.first_name,
+            middle_name: formData.middle_name,
+            last_name: formData.last_name,
+            dob: formData.dob,
+            gender: formData.gender,
+            email: formData.email?.toLowerCase().trim(),
+            phone: formData.phone?.replace(/\D/g, ""),
+            ehr: formData.ehr,
+            mrn: formData.mrn,
+          }),
+        });
 
-      if (!patientRes.ok) throw new Error("Patient save failed");
+        const saved = await patientRes.json();
+        const d =
+          saved?.chatbotPatient?.original_json?.original_json?.details ||
+          saved?.chatbotPatient?.original_json?.details ||
+          saved?.chatbotPatient;
 
-      const savedPatient = await patientRes.json();
-      console.log("🔥 BACKEND PATIENT RESPONSE >>>", savedPatient);
-
-      // ⭐⭐⭐ FIXED PATIENT ID EXTRACTION
-      const patient_id =
-        savedPatient?.chatbotPatient?.patientID ||
-        savedPatient?.chatbotPatient?.original_json?.patientID ||
-        savedPatient?.chatbotPatient?.original_json?.original_json?.details
-          ?.patient_id;
-
-      // ⭐⭐⭐ FIXED PRACTICE ID EXTRACTION
-      const practice_id =
-        savedPatient?.chatbotPatient?.practiceID ||
-        savedPatient?.chatbotPatient?.original_json?.practiceID ||
-        savedPatient?.chatbotPatient?.original_json?.original_json?.details
-          ?.practice_id;
-
-      if (!patient_id) throw new Error("Missing patient_id from backend");
-
-      console.log("🔥 patient_id:", patient_id);
-      console.log("🔥 practice_id:", practice_id);
-
-      // ⭐ STEP 2 — CREATE APPOINTMENT
-      const convertTo24Hour = (t) => {
-        if (!t) return "";
-        const d = new Date(`1970-01-01 ${t}`);
-        return d.toTimeString().slice(0, 5);
-      };
-
-      const finalTime = formData.custom_time || formData.time;
+        patient_id = saved?.chatbotPatient?.patientID || d?.patient_id;
+        practice_id = saved?.chatbotPatient?.practiceID || d?.practice_id;
+      }
 
       const fullName = [formData.first_name, formData.middle_name, formData.last_name]
         .filter(Boolean)
@@ -136,41 +198,31 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
       const appointmentData = {
         id: Math.random().toString(36).slice(2, 26),
         type: "appointment",
-
         first_name: formData.first_name,
         middle_name: formData.middle_name,
         last_name: formData.last_name,
         full_name: fullName,
-
         dob: formData.dob,
         gender: formData.gender,
         mrn: formData.mrn,
         ehr: formData.ehr,
-
         doctor_name: resolvedDoctorName.startsWith("Dr.")
           ? resolvedDoctorName
           : `Dr. ${resolvedDoctorName}`,
         doctor_id: resolvedDoctorId,
         doctor_email: resolvedDoctorEmail,
         specialization: resolvedSpecialization,
-
-        time: convertTo24Hour(finalTime),
+        time: convertTo24Hour(formData.time),
         status: "scheduled",
         appointment_date: formData.appointment_date,
-
         email: formData.email,
         phone: formData.phone?.replace(/\D/g, ""),
-
-        // ⭐ REQUIRED FIELDS BACKEND NEEDS
-        patient_id: patient_id,
-        practice_id: practice_id,
+        patient_id,
+        practice_id,
         ssn: String(patient_id),
-
         insurance_provider: "Self-Pay",
         insurance_verified: false,
       };
-
-      console.log("🔥 FINAL APPOINTMENT PAYLOAD >>>", appointmentData);
 
       await createAppointment(resolvedDoctorEmail, appointmentData);
 
@@ -178,16 +230,19 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
         title: "Success",
         description: "Appointment created successfully.",
         variant: "success",
+        className:
+          "border-l-4 border-blue-600 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
       });
 
       onSuccess(appointmentData);
       onClose();
     } catch (err) {
-      console.error("❌ ERROR:", err.message);
       toast({
         title: "Error",
         description: err.message,
         variant: "destructive",
+        className:
+          "border-l-4 border-red-600 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
       });
     } finally {
       setIsSubmitting(false);
@@ -196,54 +251,37 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-40 flex justify-end items-center z-50"
+      className="fixed inset-0 bg-black/40 flex justify-end items-center z-50"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
-          const hasData = Object.values(formData).some(
-            (v) => v && v.toString().trim() !== ""
-          );
-          if (hasData) setShowUnsavedConfirm(true);
+          const filled = Object.values(formData).some((v) => v);
+          if (filled) setShowUnsavedConfirm(true);
           else onClose();
         }
       }}
     >
       <div
-      className="bg-white shadow-2xl rounded-2xl w-full max-w-xl h-[85vh] 
-                mr-10 mt-6 mb-4 overflow-y-auto flex flex-col 
-                border border-blue-100 relative z-[9999]"
+        className="bg-white shadow-xl rounded-xl w-full max-w-lg h-[70vh] mr-16 mt-10 mb-6 overflow-y-auto flex flex-col border border-gray-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* HEADER */}
-        <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-2xl">
+        <div className="flex justify-between items-center px-5 py-3 bg-blue-600 rounded-t-xl">
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
             <Calendar size={18} /> Create Appointment
           </h2>
-          <button
-            onClick={onClose}
-            className="text-white text-2xl font-bold hover:text-gray-200 leading-none"
-          >
+          <button onClick={onClose} className="text-white text-2xl leading-none">
             ×
           </button>
         </div>
 
-        {/* FORM */}
-        <form
-          onSubmit={handleSubmit}
-          className="flex-1 overflow-y-auto px-6 py-5 bg-gray-50 space-y-6 rounded-b-2xl"
-        >
-          {/* APPOINTMENT SECTION */}
-          <section className="bg-white border rounded-xl p-4 shadow-sm">
+        <form className="px-5 py-4 space-y-5 bg-gray-50" onSubmit={handleSubmit}>
+          <section className="bg-white border rounded-xl p-4">
             <h3 className="text-md font-semibold text-blue-700 mb-3 flex items-center gap-2">
               <Clock size={16} /> Appointment Details
             </h3>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <Input
-                label={
-                  <>
-                    Appointment Date <span className="text-red-500">*</span>
-                  </>
-                }
+                label="Appointment Date *"
                 type="date"
                 name="appointment_date"
                 value={formData.appointment_date}
@@ -252,23 +290,11 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
               />
 
               <ScrollableTimeDropdown
-                label={
-                  <>
-                    Time <span className="text-red-500">*</span>
-                  </>
-                }
+                label="Time *"
                 name="time"
                 value={formData.time}
                 onChange={handleChange}
                 error={errors.time}
-              />
-
-              <Input
-                label="Custom Time (Optional)"
-                name="custom_time"
-                value={formData.custom_time}
-                onChange={handleChange}
-                placeholder="e.g., 7:30 PM or 19:45"
               />
 
               <Input
@@ -278,120 +304,60 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
                 value={resolvedSpecialization}
                 className="bg-gray-100"
               />
+
+              <div className="col-span-2">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  MRN *
+                </label>
+
+                <div className="flex gap-2">
+                  <input
+                    name="mrn"
+                    value={formData.mrn}
+                    onChange={handleChange}
+                    className={`border rounded-md w-full p-2 text-sm ${
+                      errors.mrn ? "border-red-500 bg-red-50" : "border-gray-300"
+                    }`}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleMRNSearch}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center gap-1"
+                  >
+                    <Search size={16} /> Search
+                  </button>
+                </div>
+
+                {errors.mrn && <p className="text-xs text-red-500 mt-1">{errors.mrn}</p>}
+              </div>
             </div>
           </section>
 
-          {/* PATIENT SECTION */}
-          <section className="bg-white border rounded-xl p-4 shadow-sm">
+          <section className="bg-white border rounded-xl p-4">
             <h3 className="text-md font-semibold text-blue-700 mb-3 flex items-center gap-2">
               <User2 size={16} /> Patient Information
             </h3>
 
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label={
-                  <>
-                    First Name <span className="text-red-500">*</span>
-                  </>
-                }
-                name="first_name"
-                value={formData.first_name}
-                onChange={handleChange}
-                error={errors.first_name}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="First Name *" name="first_name" value={formData.first_name} onChange={handleChange} error={errors.first_name} />
+              <Input label="Middle Name" name="middle_name" value={formData.middle_name} onChange={handleChange} />
+              <Input label="Last Name *" name="last_name" value={formData.last_name} onChange={handleChange} error={errors.last_name} />
+              <Input type="date" label="Date of Birth *" name="dob" value={formData.dob} onChange={handleChange} error={errors.dob} />
 
-              <Input
-                label="Middle Name"
-                name="middle_name"
-                value={formData.middle_name}
-                onChange={handleChange}
-              />
+              <Select label="Gender" name="gender" value={formData.gender} onChange={handleChange} options={["Male", "Female", "Other"]} />
 
-              <Input
-                label={
-                  <>
-                    Last Name <span className="text-red-500">*</span>
-                  </>
-                }
-                name="last_name"
-                value={formData.last_name}
-                onChange={handleChange}
-                error={errors.last_name}
-              />
-
-              <Input
-                type="date"
-                label={
-                  <>
-                    Date of Birth <span className="text-red-500">*</span>
-                  </>
-                }
-                name="dob"
-                value={formData.dob}
-                onChange={handleChange}
-                error={errors.dob}
-              />
-
-              <Select
-                label="Gender"
-                name="gender"
-                value={formData.gender}
-                onChange={handleChange}
-                options={["Male", "Female", "Other"]}
-              />
-
-              <Input
-                label="Email"
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-              />
-
-              <Input
-                label="Phone Number"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="e.g., 5551234567"
-              />
-
-              <Input
-                label="EHR"
-                name="ehr"
-                value={formData.ehr}
-                onChange={handleChange}
-              />
-
-              <Input
-                label={
-                  <>
-                    MRN <span className="text-red-500">*</span>
-                  </>
-                }
-                name="mrn"
-                value={formData.mrn}
-                onChange={handleChange}
-                error={errors.mrn}
-              />
+              <Input label="Email" name="email" value={formData.email} onChange={handleChange} />
+              <Input label="Phone Number" name="phone" value={formData.phone} onChange={handleChange} />
+              <Input label="EHR" name="ehr" value={formData.ehr} onChange={handleChange} />
             </div>
           </section>
 
-          {/* FOOTER */}
           <div className="flex justify-end gap-3 pt-3 border-t">
-            <button
-              type="button"
-              onClick={onClose}
-              className="bg-gray-400 text-white px-5 py-2 rounded-lg hover:bg-gray-500"
-            >
+            <button type="button" onClick={onClose} className="bg-gray-400 text-white px-4 py-2 rounded-lg">
               Cancel
             </button>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700"
-            >
+            <button type="submit" disabled={isSubmitting} className="bg-blue-600 text-white px-4 py-2 rounded-lg">
               {isSubmitting ? "Saving..." : "Save Appointment"}
             </button>
           </div>
@@ -411,22 +377,9 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
   );
 };
 
-/* ---------------- INPUT ---------------- */
-const Input = ({
-  label,
-  type = "text",
-  name,
-  value,
-  onChange,
-  error,
-  placeholder,
-  readOnly,
-  className = "",
-}) => (
+const Input = ({ label, type = "text", name, value, onChange, error, placeholder, readOnly, className = "" }) => (
   <div>
-    <label className="block text-xs font-semibold text-gray-600 mb-1">
-      {label}
-    </label>
+    <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
     <input
       type={type}
       name={name}
@@ -434,7 +387,7 @@ const Input = ({
       readOnly={readOnly}
       onChange={onChange}
       placeholder={placeholder}
-      className={`border rounded-md w-full p-2 text-sm focus:ring-2 focus:ring-blue-400 ${
+      className={`border rounded-md w-full p-2 text-sm ${
         error ? "border-red-500 bg-red-50" : "border-gray-300"
       } ${className}`}
     />
@@ -442,18 +395,10 @@ const Input = ({
   </div>
 );
 
-/* ---------------- SELECT ---------------- */
 const Select = ({ label, name, value, onChange, options }) => (
   <div>
-    <label className="block text-xs font-semibold text-gray-600 mb-1">
-      {label}
-    </label>
-    <select
-      name={name}
-      value={value}
-      onChange={onChange}
-      className="border border-gray-300 rounded-md w-full p-2 text-sm bg-white"
-    >
+    <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
+    <select name={name} value={value} onChange={onChange} className="border border-gray-300 rounded-md w-full p-2 text-sm bg-white">
       <option value="">Select</option>
       {options.map((opt) => (
         <option key={opt}>{opt}</option>
@@ -462,9 +407,10 @@ const Select = ({ label, name, value, onChange, options }) => (
   </div>
 );
 
-/* ---------------- TIME DROPDOWN ---------------- */
 const ScrollableTimeDropdown = ({ label, name, value, onChange, error }) => {
   const [open, setOpen] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
+  const [manualValue, setManualValue] = useState("");
 
   const generateTimeSlots = () => {
     let slots = [];
@@ -488,13 +434,14 @@ const ScrollableTimeDropdown = ({ label, name, value, onChange, error }) => {
 
   return (
     <div className="relative">
-      <label className="block text-xs font-semibold text-gray-600 mb-1">
-        {label}
-      </label>
+      <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
 
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          setOpen(!open);
+          setManualMode(false);
+        }}
         className={`flex justify-between items-center w-full border rounded-md px-3 py-2 text-sm bg-white ${
           error ? "border-red-500 bg-red-50" : "border-gray-300"
         }`}
@@ -504,7 +451,44 @@ const ScrollableTimeDropdown = ({ label, name, value, onChange, error }) => {
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-white border rounded-lg shadow-lg">
+        <div className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto bg-white border rounded-xl shadow-lg">
+          <div
+            onClick={() => setManualMode(true)}
+            className="px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 border-b text-blue-700 font-semibold"
+          >
+            ⌨️ Enter time manually
+          </div>
+
+          {manualMode && (
+            <div className="px-3 py-2 bg-gray-50 border-b">
+              <input
+                type="text"
+                placeholder="07:45 PM or 19:45"
+                value={manualValue}
+                onChange={(e) => setManualValue(e.target.value)}
+                className="border border-gray-300 rounded-md w-full p-2 text-sm mb-2"
+              />
+
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setManualMode(false)} className="px-3 py-1 text-sm bg-gray-300 rounded-md">
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange({ target: { name, value: manualValue } });
+                    setManualMode(false);
+                    setOpen(false);
+                  }}
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          )}
+
           {times.map((time) => (
             <div
               key={time}
@@ -512,9 +496,7 @@ const ScrollableTimeDropdown = ({ label, name, value, onChange, error }) => {
                 onChange({ target: { name, value: time } });
                 setOpen(false);
               }}
-              className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
-                value === time ? "bg-blue-100 font-semibold" : ""
-              }`}
+              className="px-3 py-2 text-sm cursor-pointer hover:bg-blue-50"
             >
               {time}
             </div>
