@@ -25,7 +25,8 @@ const AppointmentModal = ({ selectedAppointment, setSelectedAppointment }) => {
 
   const handleJoinClick = () => {
     setSelectedAppointment(null);
-    navigate(`/meeting-room/${selectedAppointment.id}?patient=${selectedAppointment.full_name}`);
+     const type = isOnline ? "online" : "inperson";
+    navigate(`/meeting-room/${selectedAppointment.id}?patient=${encodeURIComponent(selectedAppointment.full_name)}&type=${type}`  );
   };
 
   const handlePostCallClick = () => {
