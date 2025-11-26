@@ -49,6 +49,16 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
+    
+  // Generate correct 24-character ID
+const generate24CharId = () => {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  return Array.from({ length: 24 }, () =>
+    chars.charAt(Math.floor(Math.random() * chars.length))
+  ).join("");
+};
+
 
   const extractMRN = (p) =>
     p.mrn ||
@@ -196,7 +206,7 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
         .join(" ");
 
       const appointmentData = {
-        id: Math.random().toString(36).slice(2, 26),
+        id: generate24CharId(),
         type: "appointment",
         first_name: formData.first_name,
         middle_name: formData.middle_name,
