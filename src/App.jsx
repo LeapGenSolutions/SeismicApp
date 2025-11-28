@@ -9,7 +9,13 @@ import Appointments from "./Pages/Appointments";
 import Patients from "./Pages/Patients";
 import PatientReports from "./Pages/PatientReports";
 import Reports from "./Pages/Reports";
+import BillingReports from "./Pages/BillingReports"; 
+import BillingHistory from "./Pages/BillingHistory";
+import BillCalculation from "./Pages/BillCalculation";
+import InvoicePreview from "./Pages/InvoicePreview";
 import Settings from "./Pages/Settings";
+import AthenaIntegration from "./Pages/AthenaIntegration";
+import PaymentBilling from "./Pages/PaymentBilling";
 import NotFound from "./Pages/not-found";
 import VideoRecorder from "./Pages/VideoRecorder";
 import AboutUs from "./Pages/AboutUs";
@@ -53,7 +59,13 @@ function Router() {
             <Route path="/patients" component={Patients} />
             <Route path="/patients/:patientId" component={PatientReports} />
             <Route path="/reports" component={Reports} />
+             <Route path="/billing-reports" component={BillingReports} />
+              <Route path="/billing-history" component={BillingHistory} />
+              <Route path="/bill-calculation" component={BillCalculation} />
+              <Route path="/invoice/:invoiceId" component={InvoicePreview} />
             <Route path="/settings" component={Settings} />
+            <Route path="/athena-integration" component={AthenaIntegration} />
+            <Route path="/payment-billing" component={PaymentBilling} />
             <Route path="/meeting-room/:callId" component={StreamVideoCoreV3} />
             <Route path="/post-call/:callId" component={PostCallDocumentation} />
             <Route component={NotFound} />
