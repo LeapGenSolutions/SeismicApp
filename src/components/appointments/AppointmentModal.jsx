@@ -20,8 +20,9 @@ const AppointmentModal = ({
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+
   useEffect(() => {
-    if (selectedAppointment) {
+    if (selectedAppointment?.id) {
       const link = `${DOCTOR_PORTAL_URL}${selectedAppointment.id}`;
       setJoinLink(link);
       setIsOnline(true);
@@ -30,25 +31,49 @@ const AppointmentModal = ({
 
   if (!selectedAppointment) return null;
 
+
   const maskedSSN =
     selectedAppointment?.ssn
       ? `XXX-XX-${String(selectedAppointment.ssn).slice(-4)}`
       : "Not Available";
 
+  
+  const formatTime = () => {
+    try {
+      if (!selectedAppointment.time) return "N/A";
+
+      const [h, m] = selectedAppointment.time.split(":");
+      const hour = parseInt(h, 10);
+      const minute = m?.padStart(2, "0") || "00";
+      const ampm = hour >= 12 ? "PM" : "AM";
+      const displayHour = ((hour + 11) % 12) + 1;
+
+      return `${displayHour}:${minute} ${ampm}`;
+    } catch {
+      return "N/A";
+    }
+  };
+
+
   const handleJoinClick = () => {
+    const appt = selectedAppointment;
     setSelectedAppointment(null);
+
     const type = isOnline ? "online" : "inperson";
+
     navigate(
-      `/meeting-room/${selectedAppointment.id}?patient=${encodeURIComponent(
-        selectedAppointment.full_name
+      `/meeting-room/${appt.id}?patient=${encodeURIComponent(
+        appt.full_name
       )}&type=${type}`
     );
   };
 
   const handlePostCallClick = () => {
+    const appt = selectedAppointment;
     setSelectedAppointment(null);
+
     navigate(
-      `/post-call/${selectedAppointment.id}?username=${selectedAppointment.doctor_email}`
+      `/post-call/${appt.id}?username=${appt.doctor_email}`
     );
   };
 
@@ -61,13 +86,16 @@ const AppointmentModal = ({
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-2xl shadow-xl p-6 w-[90%] max-w-md relative">
-          {/* HEADER */}
+          
+        
           <div className="flex justify-between items-center border-b pb-2 mb-4">
             <h1 className="text-2xl font-bold text-gray-800">
               Appointment Details
             </h1>
 
             <div className="flex gap-4">
+
+             
               <button
                 onClick={() => setShowEditModal(true)}
                 className="text-gray-700 hover:text-blue-600 transition"
@@ -76,7 +104,7 @@ const AppointmentModal = ({
                 <Pencil size={20} strokeWidth={1.8} />
               </button>
 
-              {/* SHOW DELETE ONLY IF NOT SEISMIFIED */}
+       
               {!selectedAppointment.seismified && (
                 <button
                   onClick={() => setShowDeleteModal(true)}
@@ -89,7 +117,7 @@ const AppointmentModal = ({
             </div>
           </div>
 
-          {/* BODY */}
+          
           <div className="space-y-2 text-gray-700">
             <p>
               <span className="font-semibold">Appointment ID:</span>{" "}
@@ -109,14 +137,7 @@ const AppointmentModal = ({
 
             <p>
               <span className="font-semibold">Time:</span>{" "}
-              {(() => {
-                const [h, m] = selectedAppointment.time.split(":");
-                const hour = parseInt(h, 10);
-                const minute = m.padStart(2, "0");
-                const ampm = hour >= 12 ? "PM" : "AM";
-                const displayHour = ((hour + 11) % 12) + 1;
-                return `${displayHour}:${minute} ${ampm}`;
-              })()}
+              {formatTime()}
             </p>
 
             <p>
@@ -146,6 +167,7 @@ const AppointmentModal = ({
               {selectedAppointment.doctor_name}
             </p>
 
+           
             <div className="flex space-x-4 mt-2">
               <label className="flex items-center space-x-1">
                 <input
@@ -166,6 +188,7 @@ const AppointmentModal = ({
               </label>
             </div>
 
+           
             {isOnline && (
               <>
                 <p className="pt-2 font-semibold text-gray-700">Meeting Link:</p>
@@ -187,7 +210,7 @@ const AppointmentModal = ({
             )}
           </div>
 
-          {/* FOOTER */}
+
           <div className="mt-6 text-right space-x-1">
             <button
               onClick={handleJoinClick}
@@ -218,6 +241,7 @@ const AppointmentModal = ({
         </div>
       </div>
 
+      
       {showEditModal && (
         <EditAppointmentModal
           appointment={selectedAppointment}
@@ -229,6 +253,7 @@ const AppointmentModal = ({
         />
       )}
 
+   
       {showDeleteModal && (
         <DeleteAppointmentModal
           appointment={selectedAppointment}
@@ -244,4 +269,3 @@ const AppointmentModal = ({
 };
 
 export default AppointmentModal
-

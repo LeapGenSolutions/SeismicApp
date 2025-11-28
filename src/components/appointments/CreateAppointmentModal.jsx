@@ -49,16 +49,6 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
-    
-  // Generate correct 24-character ID
-const generate24CharId = () => {
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  return Array.from({ length: 24 }, () =>
-    chars.charAt(Math.floor(Math.random() * chars.length))
-  ).join("");
-};
-
 
   const extractMRN = (p) =>
     p.mrn ||
@@ -140,7 +130,8 @@ const generate24CharId = () => {
     if (!formData.last_name.trim()) newErrors.last_name = "Required";
     if (!formData.dob.trim()) newErrors.dob = "Required";
     if (!formData.mrn.trim()) newErrors.mrn = "Required";
-    if (!formData.appointment_date.trim()) newErrors.appointment_date = "Required";
+    if (!formData.appointment_date.trim())
+      newErrors.appointment_date = "Required";
     if (!formData.time) newErrors.time = "Required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -201,12 +192,15 @@ const generate24CharId = () => {
         practice_id = saved?.chatbotPatient?.practiceID || d?.practice_id;
       }
 
-      const fullName = [formData.first_name, formData.middle_name, formData.last_name]
+      const fullName = [
+        formData.first_name,
+        formData.middle_name,
+        formData.last_name,
+      ]
         .filter(Boolean)
         .join(" ");
 
       const appointmentData = {
-        id: generate24CharId(),
         type: "appointment",
         first_name: formData.first_name,
         middle_name: formData.middle_name,
@@ -234,7 +228,13 @@ const generate24CharId = () => {
         insurance_verified: false,
       };
 
-      await createAppointment(resolvedDoctorEmail, appointmentData);
+      const createdItem = await createAppointment(
+        resolvedDoctorEmail,
+        appointmentData
+      );
+
+      const savedAppointment =
+        createdItem?.data?.[createdItem.data.length - 1];
 
       toast({
         title: "Success",
@@ -244,7 +244,8 @@ const generate24CharId = () => {
           "border-l-4 border-blue-600 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
       });
 
-      onSuccess(appointmentData);
+      onSuccess(savedAppointment);
+
       onClose();
     } catch (err) {
       toast({
@@ -339,7 +340,9 @@ const generate24CharId = () => {
                   </button>
                 </div>
 
-                {errors.mrn && <p className="text-xs text-red-500 mt-1">{errors.mrn}</p>}
+                {errors.mrn && (
+                  <p className="text-xs text-red-500 mt-1">{errors.mrn}</p>
+                )}
               </div>
             </div>
           </section>
@@ -350,24 +353,77 @@ const generate24CharId = () => {
             </h3>
 
             <div className="grid grid-cols-2 gap-3">
-              <Input label="First Name *" name="first_name" value={formData.first_name} onChange={handleChange} error={errors.first_name} />
-              <Input label="Middle Name" name="middle_name" value={formData.middle_name} onChange={handleChange} />
-              <Input label="Last Name *" name="last_name" value={formData.last_name} onChange={handleChange} error={errors.last_name} />
-              <Input type="date" label="Date of Birth *" name="dob" value={formData.dob} onChange={handleChange} error={errors.dob} />
+              <Input
+                label="First Name *"
+                name="first_name"
+                value={formData.first_name}
+                onChange={handleChange}
+                error={errors.first_name}
+              />
+              <Input
+                label="Middle Name"
+                name="middle_name"
+                value={formData.middle_name}
+                onChange={handleChange}
+              />
+              <Input
+                label="Last Name *"
+                name="last_name"
+                value={formData.last_name}
+                onChange={handleChange}
+                error={errors.last_name}
+              />
+              <Input
+                type="date"
+                label="Date of Birth *"
+                name="dob"
+                value={formData.dob}
+                onChange={handleChange}
+                error={errors.dob}
+              />
 
-              <Select label="Gender" name="gender" value={formData.gender} onChange={handleChange} options={["Male", "Female", "Other"]} />
+              <Select
+                label="Gender"
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+                options={["Male", "Female", "Other"]}
+              />
 
-              <Input label="Email" name="email" value={formData.email} onChange={handleChange} />
-              <Input label="Phone Number" name="phone" value={formData.phone} onChange={handleChange} />
-              <Input label="EHR" name="ehr" value={formData.ehr} onChange={handleChange} />
+              <Input
+                label="Email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+              />
+              <Input
+                label="Phone Number"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+              />
+              <Input
+                label="EHR"
+                name="ehr"
+                value={formData.ehr}
+                onChange={handleChange}
+              />
             </div>
           </section>
 
           <div className="flex justify-end gap-3 pt-3 border-t">
-            <button type="button" onClick={onClose} className="bg-gray-400 text-white px-4 py-2 rounded-lg">
+            <button
+              type="button"
+              onClick={onClose}
+              className="bg-gray-400 text-white px-4 py-2 rounded-lg"
+            >
               Cancel
             </button>
-            <button type="submit" disabled={isSubmitting} className="bg-blue-600 text-white px-4 py-2 rounded-lg">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+            >
               {isSubmitting ? "Saving..." : "Save Appointment"}
             </button>
           </div>
@@ -387,9 +443,22 @@ const generate24CharId = () => {
   );
 };
 
-const Input = ({ label, type = "text", name, value, onChange, error, placeholder, readOnly, className = "" }) => (
+
+const Input = ({
+  label,
+  type = "text",
+  name,
+  value,
+  onChange,
+  error,
+  placeholder,
+  readOnly,
+  className = "",
+}) => (
   <div>
-    <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
+    <label className="block text-xs font-semibold text-gray-600 mb-1">
+      {label}
+    </label>
     <input
       type={type}
       name={name}
@@ -407,8 +476,15 @@ const Input = ({ label, type = "text", name, value, onChange, error, placeholder
 
 const Select = ({ label, name, value, onChange, options }) => (
   <div>
-    <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
-    <select name={name} value={value} onChange={onChange} className="border border-gray-300 rounded-md w-full p-2 text-sm bg-white">
+    <label className="block text-xs font-semibold text-gray-600 mb-1">
+      {label}
+    </label>
+    <select
+      name={name}
+      value={value}
+      onChange={onChange}
+      className="border border-gray-300 rounded-md w-full p-2 text-sm bg-white"
+    >
       <option value="">Select</option>
       {options.map((opt) => (
         <option key={opt}>{opt}</option>
@@ -417,7 +493,13 @@ const Select = ({ label, name, value, onChange, options }) => (
   </div>
 );
 
-const ScrollableTimeDropdown = ({ label, name, value, onChange, error }) => {
+const ScrollableTimeDropdown = ({
+  label,
+  name,
+  value,
+  onChange,
+  error,
+}) => {
   const [open, setOpen] = useState(false);
   const [manualMode, setManualMode] = useState(false);
   const [manualValue, setManualValue] = useState("");
@@ -444,7 +526,9 @@ const ScrollableTimeDropdown = ({ label, name, value, onChange, error }) => {
 
   return (
     <div className="relative">
-      <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
+      <label className="block text-xs font-semibold text-gray-600 mb-1">
+        {label}
+      </label>
 
       <button
         type="button"
@@ -480,7 +564,11 @@ const ScrollableTimeDropdown = ({ label, name, value, onChange, error }) => {
               />
 
               <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setManualMode(false)} className="px-3 py-1 text-sm bg-gray-300 rounded-md">
+                <button
+                  type="button"
+                  onClick={() => setManualMode(false)}
+                  className="px-3 py-1 text-sm bg-gray-300 rounded-md"
+                >
                   Cancel
                 </button>
 

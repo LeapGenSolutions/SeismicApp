@@ -29,16 +29,15 @@ const AppointmentCalendar = () => {
 
   const loggedInDoctor = useSelector((state) => state.me.me);
 
-  // seismified helper
   const applySeismified = async (list) => {
-    const ids = (Array.isArray(list) ? list : []).map(a => a?.id).filter(Boolean);
+    const ids = (Array.isArray(list) ? list : []).map((a) => a?.id).filter(Boolean);
     if (ids.length === 0) return list || [];
     try {
       const result = await checkAppointments(ids);
       const found = result?.found || [];
-      return (list || []).map(a => ({ ...a, seismified: found.includes(a.id) }));
+      return (list || []).map((a) => ({ ...a, seismified: found.includes(a.id) }));
     } catch (e) {
-      return (list || []).map(a => ({ ...a, seismified: false }));
+      return (list || []).map((a) => ({ ...a, seismified: false }));
     }
   };
 
@@ -60,9 +59,9 @@ const AppointmentCalendar = () => {
     const color = doctorColorMap[doctorKey];
     const [hours, minutes] = appt.time.split(":").map(Number);
 
-    const start = new Date(
-      new Date(appt.appointment_date + " CST").setHours(hours, minutes, 0)
-    );
+    const start = new Date(`${appt.appointment_date}T00:00:00`);
+    start.setHours(hours, minutes, 0);
+
     const end = new Date(start.getTime() + 30 * 60000);
 
     const seismicLabel = appt.seismified ? "Seismified" : "Not Seismified";
@@ -120,21 +119,15 @@ const AppointmentCalendar = () => {
     setDoctorColorMap(colorMap);
   };
 
-
   const handleAppointmentUpdated = (updated) => {
     setAppointments((prev) =>
-      prev.map((a) =>
-        a.id === updated.id ? { ...updated, animate: "success" } : a
-      )
+      prev.map((a) => (a.id === updated.id ? { ...updated, animate: "success" } : a))
     );
   };
 
-
   const handleAppointmentDeleted = (deleted) => {
     setAppointments((prev) =>
-      prev.map((a) =>
-        a.id === deleted.id ? { ...a, animate: "fade" } : a
-      )
+      prev.map((a) => (a.id === deleted.id ? { ...a, animate: "fade" } : a))
     );
 
     setTimeout(() => {
@@ -189,29 +182,30 @@ const AppointmentCalendar = () => {
           doctorName={loggedInDoctor?.name}
           doctorSpecialization={loggedInDoctor?.specialization || "General"}
           onClose={() => setShowCreateModal(false)}
-          onSuccess={(newAppointment) => {
+          onSuccess={async (newAppointment) => {
             setShowCreateModal(false);
 
             if (newAppointment) {
-              const [hours, minutes] = newAppointment.time.split(":").map(Number);
-              const start = new Date(newAppointment.appointment_date + " CST");
+             
+              const [updated] = await applySeismified([newAppointment]);
+
+              const [hours, minutes] = updated.time.split(":").map(Number);
+              const start = new Date(`${updated.appointment_date}T00:00:00`);
               start.setHours(hours, minutes, 0);
               const end = new Date(start.getTime() + 30 * 60000);
 
-              const doctorKey = (newAppointment.doctor_email || "").toLowerCase();
+              const doctorKey = (updated.doctor_email || "").toLowerCase();
               const eventColor = doctorColorMap[doctorKey] || "#E5E7EB";
 
-              
               const newEvent = {
-                title: `${newAppointment.full_name} (${newAppointment.status} • ${
-                  newAppointment.seismified ? "Seismified" : "Not Seismified"
+                title: `${updated.full_name} (${updated.status} • ${
+                  updated.seismified ? "Seismified" : "Not Seismified"
                 })`,
                 start,
                 end,
                 allDay: false,
                 color: eventColor,
-                seismified: false,
-                ...newAppointment,
+                ...updated,
               };
 
               setAppointments((prev) => [...prev, newEvent]);
@@ -224,3 +218,4 @@ const AppointmentCalendar = () => {
 };
 
 export default AppointmentCalendar
+
