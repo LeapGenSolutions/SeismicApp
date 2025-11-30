@@ -21,22 +21,25 @@ function Reports() {
     document.title = "Reports - Seismic Connect";
   }, []);
 
+  // Unified Seismic gradient for all cards
+  const SEISMIC_GRADIENT = "from-blue-600 via-blue-700 to-indigo-700";
+
   const reportCards = [
     {
       id: "billing-analytics",
       title: "Billing Analytics",
       description: "Visual insights into revenue, CPT usage, and provider performance.",
       icon: BarChart3,
-      gradient: "from-blue-600 via-blue-700 to-indigo-700",
+      gradient: SEISMIC_GRADIENT,
       badge: "Dashboard",
-      onClick: () => setLocation("/billing-reports"), // route to your BillingReports page
+      onClick: () => setLocation("/billing-reports"),
     },
     {
       id: "billing-history",
       title: "Billing History",
       description: "Review invoices, payment status, and historical billing activity.",
       icon: FileText,
-      gradient: "from-emerald-600 via-emerald-700 to-teal-700",
+      gradient: SEISMIC_GRADIENT,
       badge: "Transaction Log",
       onClick: () => setLocation("/billing-history"),
     },
@@ -45,7 +48,7 @@ function Reports() {
       title: "Estimated Billing",
       description: "Simulate billing based on CPT codes, duration, and provider type.",
       icon: Calculator,
-      gradient: "from-purple-600 via-purple-700 to-fuchsia-700",
+      gradient: SEISMIC_GRADIENT,
       badge: "Simulation",
       onClick: () => setLocation("/bill-calculation"),
     },
@@ -68,7 +71,9 @@ function Reports() {
               className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group"
               onClick={card.onClick}
             >
-              <CardHeader className={`p-5 bg-gradient-to-r ${card.gradient} text-white`}>
+              <CardHeader
+                className={`p-5 bg-gradient-to-r ${card.gradient} text-white`}
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-white/15 rounded-xl backdrop-blur-sm group-hover:bg-white/25 transition-colors">
@@ -78,14 +83,13 @@ function Reports() {
                       <CardTitle className="text-lg font-semibold text-white">
                         {card.title}
                       </CardTitle>
-                      <p className="text-xs text-blue-100 mt-1">
-                        {card.badge}
-                      </p>
+                      <p className="text-xs text-blue-100 mt-1">{card.badge}</p>
                     </div>
                   </div>
                   <ArrowRight className="w-5 h-5 text-white/80 group-hover:translate-x-1 transition-transform" />
                 </div>
               </CardHeader>
+
               <CardContent className="p-5 bg-white">
                 <p className="text-sm text-gray-700 leading-relaxed mb-4">
                   {card.description}
@@ -106,4 +110,4 @@ function Reports() {
   );
 }
 
-export default Reports;
+export default Reports

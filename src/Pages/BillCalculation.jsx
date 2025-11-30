@@ -82,22 +82,23 @@ export default function BillCalculation() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Left: Input form */}
         <Card className="xl:col-span-2 shadow-lg border-0 overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-purple-600 via-purple-700 to-fuchsia-700 text-white p-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-lg">
-                <Calculator className="w-5 h-5" />
-              </div>
-              <div>
-                <CardTitle className="text-xl font-semibold">
-                  Billing Estimation Setup
-                </CardTitle>
-                <p className="text-sm text-purple-100 mt-1">
-                  Enter provider details, duration, and CPT codes to calculate a
-                  rough estimate.
-                </p>
-              </div>
+        <CardHeader className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white p-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white/20 rounded-lg">
+              <Calculator className="w-5 h-5" />
             </div>
-          </CardHeader>
+            <div>
+              <CardTitle className="text-xl font-semibold">
+                Billing Estimation Setup
+              </CardTitle>
+              <p className="text-sm text-blue-100 mt-1">
+                Enter provider details, duration, and CPT codes to calculate a
+                rough estimate.
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+
           <CardContent className="p-6 space-y-6 bg-white">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
@@ -189,19 +190,20 @@ export default function BillCalculation() {
 
             <div className="flex justify-end">
               <Button
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 text-sm font-semibold shadow-md"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 text-sm font-semibold shadow-md"
                 onClick={handleCalculate}
               >
                 <Calculator className="w-4 h-4 mr-2" />
                 Calculate Estimate
               </Button>
+
             </div>
           </CardContent>
         </Card>
 
         {/* Right: Estimate summary */}
         <Card className="shadow-lg border-0 h-fit">
-          <CardHeader className="bg-gradient-to-r from-slate-600 to-slate-700 text-white p-5">
+          <CardHeader className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white p-5">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">
                 <DollarSign className="w-4 h-4" />
@@ -210,12 +212,13 @@ export default function BillCalculation() {
                 <CardTitle className="text-base font-semibold">
                   Estimated Billing Summary
                 </CardTitle>
-                <p className="text-xs text-slate-200 mt-1">
+                <p className="text-xs text-blue-100 mt-1">
                   Preview of estimated charges based on your inputs.
                 </p>
               </div>
             </div>
           </CardHeader>
+
           <CardContent className="p-5 space-y-4 bg-white">
             {!estimate && (
               <div className="text-sm text-gray-500 flex flex-col items-center justify-center py-8 text-center">
