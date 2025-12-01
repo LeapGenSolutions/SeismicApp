@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  ExternalLink,
-} from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { useSelector } from "react-redux";
 import { navigate } from "wouter/use-browser-location";
 import { useParams } from "wouter";
@@ -16,7 +14,16 @@ const PatientReports = () => {
   const { patientId } = useParams();
   const patients = useSelector((state) => state.patients.patients);
   const appointments = useSelector((state) => state.appointments.appointments);
+
+ 
   const patient = patients.find((p) => String(p.patient_id) === patientId);
+  const firstName = patient?.firstname || patient?.first_name || "";
+  const lastName = patient?.lastname || patient?.last_name || "";
+
+  const maskedSSN = patient?.ssn
+    ? `XXX-XX-${patient?.ssn.slice(-4)}`
+    : "Not Available";
+
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [summaryOfSummariesData, setSummaryOfSummariesData] = useState(null);
 
@@ -31,20 +38,23 @@ const PatientReports = () => {
     }
   }, [summaryData]);
 
+
+  const getUnifiedDate = (a) =>
+    a.appointment_date || a.date || a.timestamp || a.created_at;
+
   const filteredAppointments = useMemo(() => {
     return appointments
-      .filter((a) => String(patient?.patient_id) === String(a.patient_id))
+      .filter((a) => String(a.patient_id) === String(patient?.patient_id))
       .sort(
         (a, b) =>
-          new Date(b.timestamp || b.date || b.created_at) -
-          new Date(a.timestamp || a.date || a.created_at)
+          new Date(getUnifiedDate(b)) - new Date(getUnifiedDate(a))
       );
   }, [appointments, patient?.patient_id]);
 
   const now = new Date();
   let nextAppointment = filteredAppointments
-    .filter((apt) => new Date(apt.date) > now)
-    .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+    .filter((apt) => new Date(getUnifiedDate(apt)) > now)
+    .sort((a, b) => new Date(getUnifiedDate(a)) - new Date(getUnifiedDate(b)))[0];
 
   if (!nextAppointment && filteredAppointments.length > 0) {
     nextAppointment = filteredAppointments[0];
@@ -59,18 +69,14 @@ const PatientReports = () => {
     return;
   }
 
-  const [firstName, lastName] = [
-    patient?.firstname, patient?.lastname]
-    || ["", ""];
-  const maskedSSN = patient?.ssn ? `XXX-XX-${patient?.ssn.slice(-4)}` : "Not Available";
-
-  const lastVisit = filteredAppointments.length > 0
-    ? new Date(filteredAppointments[0].date).toLocaleDateString()
-    : "Not Available";
+  const lastVisit =
+    filteredAppointments.length > 0
+      ? new Date(getUnifiedDate(filteredAppointments[0])).toLocaleDateString()
+      : "Not Available";
 
   return (
     <div className="p-6 w-full">
-      <PageNavigation 
+      <PageNavigation
         title="Patient Reports"
         subtitle={`${firstName} ${lastName}`}
         customTrail={[
@@ -79,16 +85,10 @@ const PatientReports = () => {
           { href: `/patients/${patient.id}/reports`, label: "Reports", icon: null, isLast: true }
         ]}
       />
-      <div className="mb-4">
-        {/*<button
-          onClick={() => navigate("/patients")}
-          className="text-sm text-blue-600 border border-blue-600 px-3 py-1 rounded hover:bg-blue-600 hover:text-white transition"
-        >
-          Back
-        </button>*/}
-      </div>
 
-      <h1 className="text-3xl font-bold mb-4 text-gray-800 text-left">Patient Reports</h1>
+      <h1 className="text-3xl font-bold mb-4 text-gray-800 text-left">
+        Patient Reports
+      </h1>
 
       <div className="bg-white border border-gray-300 rounded-xl shadow p-6 mb-6 w-full">
         <PatientInfoComponent
@@ -101,11 +101,12 @@ const PatientReports = () => {
         />
         <SummaryOfPatient summaryDataProp={summaryOfSummariesData} />
       </div>
-
       {nextAppointment && (
         <div className="bg-white border border-gray-300 rounded-xl shadow p-6 mb-6 w-full">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold text-gray-800 border-b pb-2">Upcoming Appointment</h3>
+            <h3 className="text-xl font-semibold text-gray-800 border-b pb-2">
+              Upcoming Appointment
+            </h3>
             <button
               onClick={handleJoinCall}
               className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition"
@@ -114,9 +115,20 @@ const PatientReports = () => {
             </button>
           </div>
           <div className="text-sm text-gray-700 space-y-1">
-            <p><strong>Patient Name:</strong> {nextAppointment.full_name}</p>
-            <p><strong>Date:</strong> {new Date(nextAppointment.date).toLocaleDateString()} at {nextAppointment.time}</p>
-            <p><strong>Status:</strong> <span className="inline-block px-2 py-0.5 rounded-full border border-gray-300 text-gray-800 text-xs bg-gray-100">{nextAppointment.status ?? "N/A"}</span></p>
+            <p>
+              <strong>Patient Name:</strong> {nextAppointment.full_name}
+            </p>
+            <p>
+              <strong>Date:</strong>{" "}
+              {new Date(getUnifiedDate(nextAppointment)).toLocaleDateString()}{" "}
+              at {nextAppointment.time}
+            </p>
+            <p>
+              <strong>Status:</strong>{" "}
+              <span className="inline-block px-2 py-0.5 rounded-full border border-gray-300 text-gray-800 text-xs bg-gray-100">
+                {nextAppointment.status ?? "N/A"}
+              </span>
+            </p>
           </div>
         </div>
       )}
@@ -128,12 +140,14 @@ const PatientReports = () => {
 
       {filteredAppointments.map((appointment) => {
         const appointmentId = appointment.id;
-        const appointmentTime = appointment.date
-          ? `${new Date(appointment.date).toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })} at ${appointment.time ?? "N/A"}`
+        const unifiedDate = getUnifiedDate(appointment);
+
+        const appointmentTime = unifiedDate
+          ? `${new Date(unifiedDate).toLocaleDateString(undefined, {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })} at ${appointment.time ?? "N/A"}`
           : appointment.time ?? "Time not available";
 
         return (
@@ -155,4 +169,4 @@ const PatientReports = () => {
   );
 };
 
-export default PatientReports;
+export default PatientReports
