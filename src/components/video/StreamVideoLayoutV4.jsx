@@ -9,7 +9,7 @@ import { useSelector } from "react-redux";
 import sendMessageToQueue from "../../api/SendMessageToQueue";
 import { navigate } from "wouter/use-browser-location";
 
-const StreamVideoLayoutV4 = ({ callId }) => {
+const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
     const {
         useCallCallingState,
         useParticipants,
@@ -92,6 +92,9 @@ const StreamVideoLayoutV4 = ({ callId }) => {
         } else {
             setRecording(true);
             await call.startRecording();
+            if (onRecordingStarted) {
+                onRecordingStarted();
+            }
         }
     };
     return (
