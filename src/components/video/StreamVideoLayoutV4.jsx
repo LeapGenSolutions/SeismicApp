@@ -13,7 +13,8 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
     const {
         useCallCallingState,
         useParticipants,
-        useIsCallRecordingInProgress
+        useIsCallRecordingInProgress,
+        useMicrophoneState,               // 👈 to read mic state
     } = useCallStateHooks();
     const call = useCall();
     const [recording, setRecording] = useState(false);
@@ -26,6 +27,7 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
     const intervalRef = useRef(null);
     const cyclingRef = useRef(false); // flag to prevent multiple intervals
 
+    const { isMute } = useMicrophoneState();   // 👈 mic muted = true/false
 
     useEffect(() => {
         if (!isCallRecordingInProgress && !recording) return;
@@ -102,8 +104,48 @@ const StreamVideoLayoutV4 = ({ callId, onRecordingStarted }) => {
             <div>
                 <SideBySideLayout participants={Participants} />
             </div>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '10px' }}>
-                <ToggleAudioPreviewButton />
+            <div
+                style={{
+                    display: 'flex',
+                    gap: '10px',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginTop: '10px',
+                }}
+            >
+                {/* 🎤 Mic button with toast to the LEFT (Google-Meet style) */}
+                <div
+                    style={{
+                        position: 'relative',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}
+                >
+                    <ToggleAudioPreviewButton />
+
+                    {isMute && (
+                        <div
+                            style={{
+                                position: 'absolute',
+                                right: '110%',                // LEFT of mic
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                backgroundColor: '#111827',
+                                color: '#F9FAFB',
+                                padding: '10px 14px',
+                                borderRadius: '8px',
+                                fontSize: '13px',
+                                boxShadow: '0 8px 20px rgba(15,23,42,0.45)',
+                                whiteSpace: 'nowrap',
+                                zIndex: 999,
+                            }}
+                        >
+                            your mic is muted. please unmute to continue.
+                        </div>
+                    )}
+                </div>
+
                 <ToggleVideoPreviewButton />
                 <button
                     style={{
