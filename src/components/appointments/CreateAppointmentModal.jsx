@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { BACKEND_URL } from "../../constants";
 import { createAppointment } from "../../api/appointment";
@@ -16,7 +16,6 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
   }, [dispatch]);
 
   const loggedInDoctor = useSelector((state) => state.me.me);
-  console.log("LOGGED IN DOCTOR FROM REDUX:", loggedInDoctor);
   const patientsList = useSelector((state) => state.patients.patients);
   const [existingPatient, setExistingPatient] = useState(null);
 
@@ -26,6 +25,7 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
   const resolvedSpecialization = loggedInDoctor?.specialization;
   const resolvedDoctorId = loggedInDoctor?.doctor_id;
 
+  // --- FORM STATE ---
   const [formData, setFormData] = useState({
     first_name: "",
     middle_name: "",
@@ -38,11 +38,24 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
     mrn: "",
     appointment_date: "",
     time: "",
+    specialization: resolvedSpecialization || "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
+  const [nameSearchTerm, setNameSearchTerm] = useState("");
+  const [nameMatches, setNameMatches] = useState([]);
+
+  const requiredFields = [
+    "first_name",
+    "last_name",
+    "dob",
+    "mrn",
+    "appointment_date",
+    "time",
+  ];
 
   const extractMRN = (p) =>
     p.mrn ||
@@ -57,106 +70,231 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
     p.original_json?.original_json?.details ||
     p;
 
+  const norm = (str) => (str || "").toString().toLowerCase().trim();
+
+  const isSameCalendarDay = (dateA, dateB) => {
+    return (
+      dateA.getFullYear() === dateB.getFullYear() &&
+      dateA.getMonth() === dateB.getMonth() &&
+      dateA.getDate() === dateB.getDate()
+    );
+  };
+
+  const runFieldValidation = (name, value) => {
+    let message = "";
+
+    if (requiredFields.includes(name)) {
+      if (!value) {
+        message = "This field is required.";
+      } else {
+        if (name === "dob") {
+          const d = new Date(value);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          if (!isNaN(d.getTime()) && d > today) {
+            message = "Date of birth cannot be in the future.";
+          }
+        }
+
+        if (name === "appointment_date") {
+          const [y, m, d] = value.split("-");
+          const selected = new Date(y, m - 1, d || 1);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          if (!isNaN(selected.getTime()) && selected < today) {
+            message = "Appointment date cannot be in the past.";
+          }
+        }
+      }
+    }
+
+    return message;
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
+
     setFormData((prev) => ({ ...prev, [name]: value }));
-    setErrors((prev) => ({ ...prev, [name]: "" }));
+    setTouched((prev) => ({ ...prev, [name]: true }));
+
+    setErrors((prev) => {
+      const next = { ...prev };
+
+      if (requiredFields.includes(name)) {
+        next[name] = runFieldValidation(name, value);
+      } else {
+        next[name] = "";
+      }
+
+      return next;
+    });
+  };
+
+  // --- SEARCH LOGIC ---
+  const applyExistingPatient = (match) => {
+    setExistingPatient(match);
+    const d = extractDetails(match);
+    const resolvedMRN = extractMRN(match);
+
+    setFormData((prev) => ({
+      ...prev,
+      first_name: d.first_name || "",
+      middle_name: d.middle_name || "",
+      last_name: d.last_name || "",
+      dob: d.dob || "",
+      gender: d.gender || "",
+      email: d.email || "",
+      phone: d.phone || "",
+      ehr: d.ehr || "",
+      mrn: resolvedMRN || d.mrn || prev.mrn || "",
+    }));
+
+    setTouched((prev) => ({
+      ...prev,
+      first_name: true,
+      last_name: true,
+      dob: true,
+      mrn: true,
+    }));
+
+    setErrors((prev) => ({
+      ...prev,
+      first_name: "",
+      last_name: "",
+      dob: "",
+      mrn: "",
+    }));
+
+    toast({
+      title: "Patient located",
+      description: "Existing patient details have been loaded.",
+      variant: "success",
+      className:
+        "fixed right-4 bottom-4 max-w-sm bg-white text-gray-900 shadow-xl border border-green-500 rounded-lg px-4 py-3 text-sm",
+    });
   };
 
   const handleMRNSearch = () => {
     if (!formData.mrn.trim()) {
+      setTouched((prev) => ({ ...prev, mrn: true }));
+      setErrors((prev) => ({ ...prev, mrn: "MRN is required to search." }));
+
       toast({
-        title: "MRN Missing",
-        description: "Please enter an MRN.",
+        title: "MRN required",
+        description: "Enter an MRN to search for a patient record.",
         variant: "destructive",
         className:
-          "border-l-4 border-yellow-500 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
+          "fixed right-4 bottom-4 max-w-sm bg-white text-gray-900 shadow-xl border border-yellow-500 rounded-lg px-4 py-3 text-sm",
       });
       return;
     }
 
-    const targetMRN = formData.mrn.toLowerCase().trim();
-
+    const target = formData.mrn.toLowerCase().trim();
     const match = patientsList.find(
-      (p) => extractMRN(p).toLowerCase().trim() === targetMRN
+      (p) => extractMRN(p).toLowerCase().trim() === target
     );
 
-            if (!match) {
-          toast({
-            title: "Patient Not Found",
-            description: "Invalid MRN or patient does not exist.",
-            variant: "destructive",
-            className:
-              "border-l-4 border-red-600 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
-          });
+    if (!match) {
+      setExistingPatient(null);
+      setErrors((prev) => ({
+        ...prev,
+        mrn: "No patient found with this MRN.",
+      }));
 
-          setExistingPatient(null);
+      toast({
+        title: "Patient not found",
+        description:
+          "No record matches this MRN. Verify and try again.",
+        variant: "destructive",
+        className:
+          "fixed right-4 bottom-4 max-w-sm bg-white text-gray-900 shadow-xl border border-red-500 rounded-lg px-4 py-3 text-sm",
+      });
+      return;
+    }
 
-          // RESET ALL PATIENT FIELDS WHEN MRN IS INVALID
-          setFormData((prev) => ({
-            ...prev,
-            first_name: "",
-            middle_name: "",
-            last_name: "",
-            dob: "",
-            gender: "",
-            email: "",
-            phone: "",
-            ehr: "",
-            // Keep the MRN input as-is so user can correct it
-            mrn: prev.mrn,
-          }));
+    setNameMatches([]);
+    applyExistingPatient(match);
+  };
 
-          return;
-        }
+  const handleNameSearch = () => {
+    if (!nameSearchTerm.trim()) {
+      toast({
+        title: "Name required",
+        description: "Enter a patient name to search.",
+        variant: "destructive",
+        className:
+          "fixed right-4 bottom-4 max-w-sm bg-white text-gray-900 shadow-xl border border-yellow-500 rounded-lg px-4 py-3 text-sm",
+      });
+      return;
+    }
 
-        setExistingPatient(match);
-        const d = extractDetails(match);
+    const term = norm(nameSearchTerm);
 
-        setFormData((prev) => ({
-          ...prev,
-          first_name: d.first_name || "",
-          middle_name: d.middle_name || "",
-          last_name: d.last_name || "",
-          dob: d.dob || "",
-          gender: d.gender || "",
-          email: d.email || "",
-          phone: d.phone || "",
-          ehr: d.ehr || "",
-          mrn: d.mrn || "",
-        }));
+    const matches = patientsList.filter((p) => {
+      const d = extractDetails(p);
+      const first = norm(d.first_name);
+      const last = norm(d.last_name);
+      const full = norm(
+        [d.first_name, d.middle_name, d.last_name].filter(Boolean).join(" ")
+      );
+      return full.includes(term) || first.includes(term) || last.includes(term);
+    });
 
-        toast({
-          title: "Patient Record Matched",
-          description: "You may proceed to schedule the appointment.",
-          variant: "success",
-          className:
-            "border-l-4 border-green-600 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
-        });
-          };
+    if (!matches.length) {
+      toast({
+        title: "No matching patients",
+        description:
+          "No records found for the entered name.",
+        variant: "destructive",
+        className:
+          "fixed right-4 bottom-4 max-w-sm bg-white text-gray-900 shadow-xl border border-red-500 rounded-lg px-4 py-3 text-sm",
+      });
+      return;
+    }
+
+    if (matches.length === 1) {
+      applyExistingPatient(matches[0]);
+      return;
+    }
+
+    setNameMatches(matches);
+
+    toast({
+      title: "Multiple matches found",
+      description: "Select the correct patient from the list.",
+      variant: "success",
+      className:
+        "fixed right-4 bottom-4 max-w-sm bg-white text-gray-900 shadow-xl border border-blue-500 rounded-lg px-4 py-3 text-sm",
+    });
+  };
+
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.first_name.trim()) newErrors.first_name = "Required";
-    if (!formData.last_name.trim()) newErrors.last_name = "Required";
-    if (!formData.dob.trim()) newErrors.dob = "Required";
-    if (!formData.mrn.trim()) newErrors.mrn = "Required";
-    if (!formData.appointment_date.trim())
-      newErrors.appointment_date = "Required";
-    if (!formData.time) newErrors.time = "Required";
+
+    requiredFields.forEach((field) => {
+      if (!formData[field]) newErrors[field] = "This field is required.";
+    });
+
+    if (formData.dob) {
+      const d = new Date(formData.dob);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (!isNaN(d.getTime()) && d > today) {
+        newErrors.dob = "Date of birth cannot be in the future.";
+      }
+    }
 
     if (formData.appointment_date) {
-  // Safe parsing for YYYY-MM-DD
-  const [year, month, day] = formData.appointment_date.split("-");
-  const selected = new Date(year, month - 1, day);
+      const [y, m, d] = formData.appointment_date.split("-");
+      const date = new Date(y, m - 1, d || 1);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  if (selected < today) {
-    newErrors.appointment_date = "Cannot select a past date";
-  }
-}
-
+      if (!isNaN(date.getTime()) && date < today) {
+        newErrors.appointment_date = "Appointment date cannot be in the past.";
+      }
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -165,18 +303,69 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
   const convertTo24Hour = (t) => {
     if (!t) return "";
     const d = new Date(`1970-01-01 ${t}`);
+    if (isNaN(d.getTime())) return "";
     return d.toTimeString().slice(0, 5);
+  };
+
+  const isSelectedTimeInPastToday = () => {
+    if (!formData.appointment_date || !formData.time) return false;
+
+    const [y, m, d] = formData.appointment_date.split("-");
+    const selectedDate = new Date(y, m - 1, d || 1);
+    const today = new Date();
+
+    if (!isSameCalendarDay(selectedDate, today)) return false;
+
+    const selectedTime = new Date(`1970-01-01 ${formData.time}`);
+    if (isNaN(selectedTime.getTime())) return false;
+
+    const now = new Date();
+
+    if (selectedTime.getHours() < now.getHours()) return true;
+    if (
+      selectedTime.getHours() === now.getHours() &&
+      selectedTime.getMinutes() <= now.getMinutes()
+    ) {
+      return true;
+    }
+
+    return false;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    setTouched((prev) => {
+      const next = { ...prev };
+      requiredFields.forEach((f) => (next[f] = true));
+      return next;
+    });
+
     if (!validateForm()) {
       toast({
-        title: "Missing Fields",
-        description: "Please fill all required fields.",
+        title: "Form incomplete",
+        description: "Review highlighted fields before submitting.",
         variant: "destructive",
         className:
-          "border-l-4 border-yellow-500 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
+          "fixed right-4 bottom-4 max-w-sm bg-white text-gray-900 shadow-xl border border-yellow-500 rounded-lg px-4 py-3 text-sm",
+      });
+      return;
+    }
+
+    if (isSelectedTimeInPastToday()) {
+      setErrors((prev) => ({
+        ...prev,
+        time: "Appointment time cannot be in the past.",
+      }));
+      setTouched((prev) => ({ ...prev, time: true }));
+
+      toast({
+        title: "Invalid appointment time",
+        description:
+          "Selected time has already passed. Choose a future time.",
+        variant: "destructive",
+        className:
+          "fixed right-4 bottom-4 max-w-sm bg-white text-gray-900 shadow-xl border border-red-500 rounded-lg px-4 py-3 text-sm",
       });
       return;
     }
@@ -191,7 +380,7 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
         patient_id = existingPatient.patient_id || d.patient_id;
         practice_id = existingPatient.practice_id || d.practice_id;
       } else {
-        const patientRes = await fetch(`${BACKEND_URL}api/patients/add`, {
+        const res = await fetch(`${BACKEND_URL}api/patients/add`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -207,7 +396,7 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
           }),
         });
 
-        const saved = await patientRes.json();
+        const saved = await res.json();
         const d =
           saved?.chatbotPatient?.original_json?.original_json?.details ||
           saved?.chatbotPatient?.original_json?.details ||
@@ -238,7 +427,7 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
         doctor_name: resolvedDoctorName,
         doctor_id: resolvedDoctorId,
         doctor_email: resolvedDoctorEmail,
-        specialization: resolvedSpecialization,
+        specialization: formData.specialization || resolvedSpecialization,
         time: convertTo24Hour(formData.time),
         status: "scheduled",
         appointment_date: formData.appointment_date,
@@ -251,45 +440,54 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
         insurance_verified: false,
       };
 
-      const createdItem = await createAppointment(
+      const created = await createAppointment(
         resolvedDoctorEmail,
         appointmentData
       );
 
-      const savedAppointment =
-        createdItem?.data?.[createdItem.data.length - 1];
+      const savedAppointment = created?.data?.[created.data.length - 1];
 
       toast({
-        title: "Success",
-        description: "Appointment created successfully.",
+        title: "Appointment created",
+        description: "The appointment has been successfully scheduled.",
         variant: "success",
         className:
-          "border-l-4 border-blue-600 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
+          "fixed right-4 bottom-4 max-w-sm bg-white text-gray-900 shadow-xl border border-green-500 rounded-lg px-4 py-3 text-sm",
       });
 
       onSuccess(savedAppointment);
       onClose();
     } catch (err) {
       toast({
-        title: "Error",
-        description: err.message,
+        title: "Error creating appointment",
+        description:
+          err?.message || "Unable to create appointment. Try again.",
         variant: "destructive",
         className:
-          "border-l-4 border-red-600 bg-white text-gray-900 shadow-md px-4 py-3 rounded-md",
+          "fixed right-4 bottom-4 max-w-sm bg-white text-gray-900 shadow-xl border border-red-500 rounded-lg px-4 py-3 text-sm",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const isFormValidForSubmit =
+    requiredFields.every((f) => formData[f] && !errors[f]) && !isSubmitting;
+
+  const formHasAnyValue = Object.values(formData).some(
+    (v) => v !== undefined && v !== null && String(v).trim() !== ""
+  );
+
   return (
     <div
       className="fixed inset-0 bg-black/40 flex justify-end items-center z-50"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
-          const filled = Object.values(formData).some((v) => v);
-          if (filled) setShowUnsavedConfirm(true);
-          else onClose();
+          if (formHasAnyValue) {
+            setShowUnsavedConfirm(true);
+          } else {
+            onClose();
+          }
         }
       }}
     >
@@ -299,18 +497,20 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
       >
         <div className="flex justify-between items-center px-5 py-3 bg-blue-600 rounded-t-xl">
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            <Calendar size={18} /> Create Appointment
+            <Calendar size={18} /> Schedule Appointment
           </h2>
-          <button onClick={onClose} className="text-white text-2xl leading-none">
+          <button onClick={onClose} className="text-white text-2xl">
             ×
           </button>
         </div>
 
         <form className="px-5 py-4 space-y-5 bg-gray-50" onSubmit={handleSubmit}>
           <section className="bg-white border rounded-xl p-4">
-            <h3 className="text-md font-semibold text-blue-700 mb-3 flex items-center gap-2">
-              <Clock size={16} /> Appointment Details
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-md font-semibold text-blue-700 flex items-center gap-2">
+                <Clock size={16} /> Appointment Details
+              </h3>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <Input
@@ -320,24 +520,58 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
                 value={formData.appointment_date}
                 onChange={handleChange}
                 error={errors.appointment_date}
+                touched={touched.appointment_date}
               />
 
               <ScrollableTimeDropdown
-                label="Time *"
+                label="Appointment Time *"
                 name="time"
                 value={formData.time}
                 onChange={handleChange}
                 error={errors.time}
+                touched={touched.time}
+                appointmentDate={formData.appointment_date}
+                toast={toast}
               />
 
-              <Input
-                label="Doctor Specialization"
-                name="specialization"
-                readOnly
-                value={resolvedSpecialization}
-                className="bg-gray-100"
-              />
+           <Input
+            label="Doctor Specialty"
+            name="specialization"
+            value={formData.specialization}
+            readOnly
+            className="bg-blue-50 cursor-not-allowed"
+          />
+              <div className="col-span-2">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  Search by Patient Name *
+                </label>
 
+                <div className="flex gap-2">
+                 <input
+                  name="nameSearch"
+                  value={nameSearchTerm}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setNameSearchTerm(value);
+
+                    // CLEAR RESULTS WHEN INPUT IS EMPTY
+                    if (value.trim() === "") {
+                      setNameMatches([]);
+                    }
+                  }}
+                  placeholder="Enter first, last, or full name"
+                  className="border rounded-md w-full p-2 text-sm border-gray-300"
+                />
+
+                  <button
+                    type="button"
+                    onClick={handleNameSearch}
+                    className="px-4 py-2 bg-blue-50 text-blue-700 rounded-md border border-blue-200 flex items-center gap-1 text-sm"
+                  >
+                    <Search size={16} /> Search
+                  </button>
+                </div>
+              </div>
               <div className="col-span-2">
                 <label className="block text-xs font-semibold text-gray-600 mb-1">
                   MRN *
@@ -348,29 +582,58 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
                     name="mrn"
                     value={formData.mrn}
                     onChange={handleChange}
-                    className={`border rounded-md w-full p-2 text-sm ${
-                      errors.mrn ? "border-red-500 bg-red-50" : "border-gray-300"
-                    }`}
+                    className="border rounded-md w-full p-2 text-sm border-gray-300"
+                    placeholder="Enter MRN"
                   />
 
                   <button
                     type="button"
                     onClick={handleMRNSearch}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center gap-1"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center gap-1 text-sm"
                   >
                     <Search size={16} /> Search
                   </button>
                 </div>
-
-                {errors.mrn && (
+                {errors.mrn && touched.mrn && (
                   <p className="text-xs text-red-500 mt-1">{errors.mrn}</p>
                 )}
               </div>
+              {nameMatches.length > 1 && (
+                <div className="col-span-2">
+                  <div className="p-2 bg-blue-50 rounded-md border max-h-40 overflow-y-auto">
+                    {nameMatches.map((p) => {
+                      const d = extractDetails(p);
+                      return (
+                        <div
+                          key={p.patient_id}
+                          className="p-1 hover:bg-blue-100 cursor-pointer text-xs flex justify-between items-center"
+                          onClick={() => {
+                            applyExistingPatient(p);
+                            setNameMatches([]);
+                          }}
+                        >
+                          <span>
+                            {d.first_name} {d.last_name}
+                            {d.dob && (
+                              <span className="text-[10px] text-gray-500 ml-1">
+                                • DOB {new Date(d.dob).toLocaleString("en-US", { month: "short", year: "numeric" })}
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-[10px] text-gray-500">
+                            MRN {extractMRN(p)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </section>
 
           <section className="bg-white border rounded-xl p-4">
-            <h3 className="text-md font-semibold text-blue-700 mb-3 flex items-center gap-2">
+            <h3 className="text-md font-semibold text-blue-700 flex items-center gap-2 mb-3">
               <User2 size={16} /> Patient Information
             </h3>
 
@@ -381,28 +644,49 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
                 value={formData.first_name}
                 onChange={handleChange}
                 error={errors.first_name}
+                touched={touched.first_name}
               />
+
               <Input
                 label="Middle Name"
                 name="middle_name"
                 value={formData.middle_name}
                 onChange={handleChange}
               />
+
               <Input
                 label="Last Name *"
                 name="last_name"
                 value={formData.last_name}
                 onChange={handleChange}
                 error={errors.last_name}
+                touched={touched.last_name}
               />
-              <Input
-                type="date"
-                label="Date of Birth *"
-                name="dob"
-                value={formData.dob}
-                onChange={handleChange}
-                error={errors.dob}
-              />
+
+              {/* Conditionally display DOB */}
+              {existingPatient ? (
+                <Input
+                  type="month"
+                  label="Date of Birth *"
+                  name="dob"
+                  value={formData.dob ? formData.dob.slice(0, 7) : ""}
+                  onChange={() => {}}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                  error={errors.dob}
+                  touched={touched.dob}
+                />
+              ) : (
+                <Input
+                  type="date"
+                  label="Date of Birth *"
+                  name="dob"
+                  value={formData.dob}
+                  onChange={handleChange}
+                  error={errors.dob}
+                  touched={touched.dob}
+                />
+              )}
 
               <Select
                 label="Gender"
@@ -418,17 +702,21 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
                 value={formData.email}
                 onChange={handleChange}
               />
+
               <Input
                 label="Phone Number"
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
+                placeholder="Enter phone number"
               />
+
               <Input
-                label="EHR"
+                label="EHR ID"
                 name="ehr"
                 value={formData.ehr}
                 onChange={handleChange}
+                placeholder="Optional"
               />
             </div>
           </section>
@@ -436,15 +724,26 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
           <div className="flex justify-end gap-3 pt-3 border-t">
             <button
               type="button"
-              onClick={onClose}
-              className="bg-gray-400 text-white px-4 py-2 rounded-lg"
+              onClick={() => {
+                if (formHasAnyValue) {
+                  setShowUnsavedConfirm(true);
+                } else {
+                  onClose();
+                }
+              }}
+              className="bg-gray-400 text-white px-4 py-2 rounded-lg text-sm"
             >
               Cancel
             </button>
+
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+              disabled={!isFormValidForSubmit}
+              className={`px-4 py-2 rounded-lg text-sm text-white ${
+                isFormValidForSubmit
+                  ? "bg-blue-600 hover:bg-blue-700"
+                  : "bg-gray-300 cursor-not-allowed"
+              }`}
             >
               {isSubmitting ? "Saving..." : "Save Appointment"}
             </button>
@@ -465,6 +764,7 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
   );
 };
 
+
 const Input = ({
   label,
   type = "text",
@@ -472,28 +772,47 @@ const Input = ({
   value,
   onChange,
   error,
+  touched,
   placeholder,
   readOnly,
   className = "",
-}) => (
-  <div>
-    <label className="block text-xs font-semibold text-gray-600 mb-1">
-      {label}
-    </label>
-    <input
-      type={type}
-      name={name}
-      value={value}
-      readOnly={readOnly}
-      onChange={onChange}
-      placeholder={placeholder}
-      className={`border rounded-md w-full p-2 text-sm ${
-        error ? "border-red-500 bg-red-50" : "border-gray-300"
-      } ${className}`}
-    />
-    {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
-  </div>
-);
+}) => {
+  const isInvalid = touched && !!error;
+  const hasValue = String(value || "").trim() !== "";
+  const isValid = touched && !error && hasValue;
+
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-gray-600 mb-1">
+        {label}
+      </label>
+
+      <div
+        className={`relative rounded-md ${
+          isInvalid
+            ? "border-l-4 border-l-red-500 pl-2"
+            : isValid
+            ? "border-l-4 border-l-green-500 pl-2"
+            : ""
+        }`}
+      >
+        <input
+          type={type}
+          name={name}
+          value={value}
+          readOnly={readOnly}
+          onChange={onChange}
+          placeholder={placeholder}
+          className={`border rounded-md w-full p-2 text-sm ${
+            isInvalid ? "border-red-500 bg-red-50" : "border-gray-300"
+          } ${className}`}
+        />
+      </div>
+
+      {isInvalid && <p className="text-xs text-red-500 mt-1">{error}</p>}
+    </div>
+  );
+};
 
 const Select = ({ label, name, value, onChange, options }) => (
   <div>
@@ -520,6 +839,9 @@ const ScrollableTimeDropdown = ({
   value,
   onChange,
   error,
+  touched,
+  appointmentDate,
+  toast,
 }) => {
   const [open, setOpen] = useState(false);
   const [manualMode, setManualMode] = useState(false);
@@ -545,85 +867,198 @@ const ScrollableTimeDropdown = ({
 
   const times = generateTimeSlots();
 
+  const isSameCalendarDay = (dateA, dateB) => {
+    return (
+      dateA.getFullYear() === dateB.getFullYear() &&
+      dateA.getMonth() === dateB.getMonth() &&
+      dateA.getDate() === dateB.getDate()
+    );
+  };
+
+  const isPastTime = (slot) => {
+    if (!appointmentDate) return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [Y, M, D] = appointmentDate.split("-").map(Number);
+    const selectedDate = new Date(Y, M - 1, D || 1);
+
+    if (!isSameCalendarDay(selectedDate, today)) return false;
+
+    const slotDate = new Date(`1970-01-01 ${slot}`);
+    if (isNaN(slotDate.getTime())) return false;
+
+    const now = new Date();
+
+    if (slotDate.getHours() < now.getHours()) return true;
+    if (
+      slotDate.getHours() === now.getHours() &&
+      slotDate.getMinutes() <= now.getMinutes()
+    )
+      return true;
+
+    return false;
+  };
+
+  const isInvalid = touched && !!error;
+  const hasValue = String(value || "").trim() !== "";
+  const isValid = touched && !error && hasValue;
+
+  const handleManualAdd = () => {
+    if (!manualValue.trim()) {
+      toast?.({
+        title: "Time required",
+        description: "Enter a valid appointment time.",
+        variant: "destructive",
+        className:
+          "fixed right-4 bottom-4 max-w-sm bg-white text-gray-900 shadow-xl border border-yellow-500 rounded-lg px-4 py-3 text-sm",
+      });
+      return;
+    }
+
+    const parsed = new Date(`1970-01-01 ${manualValue}`);
+    if (isNaN(parsed.getTime())) {
+      toast?.({
+        title: "Invalid time format",
+        description:
+          "Enter time in a valid format (e.g., 03:30 PM or 19:30).",
+        variant: "destructive",
+        className:
+          "fixed right-4 bottom-4 max-w-sm bg-white text-gray-900 shadow-xl border border-red-500 rounded-lg px-4 py-3 text-sm",
+      });
+      return;
+    }
+
+    if (appointmentDate) {
+      const [Y, M, D] = appointmentDate.split("-").map(Number);
+      const selectedDate = new Date(Y, M - 1, D || 1);
+      const today = new Date();
+
+      if (isSameCalendarDay(selectedDate, today)) {
+        const now = new Date();
+
+        if (
+          parsed.getHours() < now.getHours() ||
+          (parsed.getHours() === now.getHours() &&
+            parsed.getMinutes() <= now.getMinutes())
+        ) {
+          toast?.({
+            title: "Invalid time",
+            description:
+              "Selected time has already passed. Choose a future time.",
+            variant: "destructive",
+            className:
+              "fixed right-4 bottom-4 max-w-sm bg-white text-gray-900 shadow-xl border border-red-500 rounded-lg px-4 py-3 text-sm",
+          });
+          return;
+        }
+      }
+    }
+
+    onChange({ target: { name, value: manualValue } });
+    setManualMode(false);
+    setOpen(false);
+  };
+
   return (
     <div className="relative">
       <label className="block text-xs font-semibold text-gray-600 mb-1">
         {label}
       </label>
 
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(!open);
-          setManualMode(false);
-        }}
-        className={`flex justify-between items-center w-full border rounded-md px-3 py-2 text-sm bg-white ${
-          error ? "border-red-500 bg-red-50" : "border-gray-300"
+      <div
+        className={`relative rounded-md ${
+          isInvalid
+            ? "border-l-4 border-l-red-500 pl-2"
+            : isValid
+            ? "border-l-4 border-l-green-500 pl-2"
+            : ""
         }`}
       >
-        {value || "Select time"}
-        <ChevronDown size={16} />
-      </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(!open);
+            setManualMode(false);
+          }}
+          className={`flex justify-between items-center w-full border rounded-md px-3 py-2 text-sm bg-white ${
+            isInvalid ? "border-red-500 bg-red-50" : "border-gray-300"
+          }`}
+        >
+          {value || "Select time"}
+          <ChevronDown size={16} />
+        </button>
 
-      {open && (
-        <div className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto bg-white border rounded-xl shadow-lg">
-          <div
-            onClick={() => setManualMode(true)}
-            className="px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 border-b text-blue-700 font-semibold"
-          >
-            ⌨️ Enter time manually
-          </div>
-
-          {manualMode && (
-            <div className="px-3 py-2 bg-gray-50 border-b">
-              <input
-                type="text"
-                placeholder="07:45 PM or 19:45"
-                value={manualValue}
-                onChange={(e) => setManualValue(e.target.value)}
-                className="border border-gray-300 rounded-md w-full p-2 text-sm mb-2"
-              />
-
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setManualMode(false)}
-                  className="px-3 py-1 text-sm bg-gray-300 rounded-md"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    onChange({ target: { name, value: manualValue } });
-                    setManualMode(false);
-                    setOpen(false);
-                  }}
-                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
-          )}
-
-          {times.map((time) => (
+        {open && (
+          <div className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto bg-white border rounded-xl shadow-lg">
             <div
-              key={time}
-              onClick={() => {
-                onChange({ target: { name, value: time } });
-                setOpen(false);
-              }}
-              className="px-3 py-2 text-sm cursor-pointer hover:bg-blue-50"
+              onClick={() => setManualMode(true)}
+              className="px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 border-b text-blue-700 font-semibold"
             >
-              {time}
+              Enter time manually
             </div>
-          ))}
-        </div>
-      )}
 
-      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+            {manualMode && (
+              <div className="px-3 py-2 bg-gray-50 border-b">
+                <input
+                  type="text"
+                  placeholder="e.g., 07:45 PM or 19:45"
+                  value={manualValue}
+                  onChange={(e) => setManualValue(e.target.value)}
+                  className="border border-gray-300 rounded-md w-full p-2 text-sm mb-2"
+                />
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManualMode(false);
+                      setManualValue("");
+                    }}
+                    className="px-3 py-1 text-sm bg-gray-300 rounded-md"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleManualAdd}
+                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {times.map((time) => {
+              const disabled = isPastTime(time);
+
+              return (
+                <div
+                  key={time}
+                  onClick={() => {
+                    if (!disabled) {
+                      onChange({ target: { name, value: time } });
+                      setOpen(false);
+                    }
+                  }}
+                  className={`px-3 py-2 text-sm ${
+                    disabled
+                      ? "text-gray-400 bg-gray-100 cursor-not-allowed"
+                      : "cursor-pointer hover:bg-blue-50"
+                  }`}
+                >
+                  {time}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {isInvalid && <p className="text-xs text-red-500 mt-1">{error}</p>}
     </div>
   );
 };
