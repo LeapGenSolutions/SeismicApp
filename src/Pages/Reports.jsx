@@ -57,7 +57,7 @@ function Reports() {
   return (
     <div className="space-y-6">
       <PageNavigation
-        title="Reports"
+        title="Billing Reports"
         subtitle="View billing analytics, history, and estimated billing"
         showDate={true}
       />

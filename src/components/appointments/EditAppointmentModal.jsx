@@ -33,7 +33,9 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
       mrn: formData.mrn,
       specialization: formData.specialization,
     };
-
+    cleanPayload.appointment_date = new Date(cleanPayload.appointment_date)
+  .toISOString()
+  .slice(0, 10);
     try {
       const apiResult = await updateAppointment(
         appointment.doctor_email,
@@ -239,4 +241,4 @@ const Input = ({
   </div>
 );
 
-export default EditAppointmentModal;
+export default EditAppointmentModal

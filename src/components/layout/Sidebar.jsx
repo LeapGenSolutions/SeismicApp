@@ -111,7 +111,7 @@ const Sidebar = () => {
               }`}
             >
               <FileText className="w-5 h-5 mr-3" />
-              Reports
+             Billing Reports
             </div>
           </Link>
 
