@@ -34,8 +34,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
       email: formData.email,
       mrn: formData.mrn,
       specialization: formData.specialization,
-
-      // ⭐ REQUIRED FIX — backend needs these to update correctly
       id: appointment.id,
       doctor_email: appointment.doctor_email,
     };
@@ -144,62 +142,71 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
           </section>
 
           <section className="bg-white border rounded-xl p-4">
-            <h3 className="text-md font-semibold text-blue-700 mb-3 flex items-center gap-2">
-              <User2 size={16} /> Patient Information
-            </h3>
+              <h3 className="text-md font-semibold text-blue-700 mb-3 flex items-center gap-2">
+                <User2 size={16} /> Patient Information
+              </h3>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="First Name"
-                name="first_name"
-                value={formData.first_name}
-                onChange={handleChange}
-              />
-              <Input
-                label="Middle Name"
-                name="middle_name"
-                value={formData.middle_name}
-                onChange={handleChange}
-              />
-              <Input
-                label="Last Name"
-                name="last_name"
-                value={formData.last_name}
-                onChange={handleChange}
-              />
-              <Input
-                type="date"
-                label="DOB"
-                name="dob"
-                value={formData.dob}
-                onChange={handleChange}
-              />
-              <Input
-                label="Gender"
-                name="gender"
-                value={formData.gender}
-                onChange={handleChange}
-              />
-              <Input
-                label="Phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-              />
-              <Input
-                label="Email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-              />
-              <Input
-                label="MRN"
-                name="mrn"
-                value={formData.mrn}
-                onChange={handleChange}
-              />
-            </div>
-          </section>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="First Name"
+                  name="first_name"
+                  value={formData.first_name}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+                <Input
+                  label="Middle Name"
+                  name="middle_name"
+                  value={formData.middle_name}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+                <Input
+                  label="Last Name"
+                  name="last_name"
+                  value={formData.last_name}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+                <Input
+                  type="date"
+                  label="DOB"
+                  name="dob"
+                  value={formData.dob}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+                <Input
+                  label="Gender"
+                  name="gender"
+                  value={formData.gender}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+                <Input
+                  label="Phone"
+                  name="phone"
+                  value={formData.phone}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+                <Input
+                  label="Email"
+                  name="email"
+                  value={formData.email}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+                <Input
+                  label="MRN"
+                  name="mrn"
+                  value={formData.mrn}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+            </section>
+
 
           <div className="flex justify-end gap-3 pt-3 border-t">
             <button
