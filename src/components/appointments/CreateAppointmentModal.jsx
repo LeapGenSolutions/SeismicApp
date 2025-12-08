@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { BACKEND_URL } from "../../constants";
 import { createAppointment } from "../../api/appointment";
 import { fetchPatientsDetails } from "../../redux/patient-actions";
 import { useToast } from "../../hooks/use-toast";
 import UnsavedChangesModal from "../UnsavedChangesModal";
-import { Calendar, User2, Clock,ChevronDown } from "lucide-react";
+import { Calendar, User2, Clock, ChevronDown } from "lucide-react";
 
 const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
   const { toast } = useToast();
@@ -191,33 +191,31 @@ const CreateAppointmentModal = ({ username, onClose, onSuccess }) => {
     }
 
     // Duplicate MRN check for NEW patient only
-    // Ensure MRN is unique (only for new patients)
-if (!existingPatient && formData.mrn?.trim()) {
-  const enteredMRN = formData.mrn.trim().toLowerCase();
+    if (!existingPatient && formData.mrn?.trim()) {
+      const enteredMRN = formData.mrn.trim().toLowerCase();
 
-  // Count how many patients have this MRN
-  const matches = patientsList.filter((p) => {
-    const existing = extractMRN(p);
-    if (!existing) return false;
-    return existing.toString().trim().toLowerCase() === enteredMRN;
-  });
+      const matches = patientsList.filter((p) => {
+        const existing = extractMRN(p);
+        if (!existing) return false;
+        return existing.toString().trim().toLowerCase() === enteredMRN;
+      });
 
-  if (matches.length > 0) {
-    toast({
-      title: "Duplicate MRN",
-      description: "This MRN already exists. Please use a unique MRN.",
-      variant: "destructive",
-    });
+      if (matches.length > 0) {
+        toast({
+          title: "Duplicate MRN",
+          description: "This MRN already exists. Please use a unique MRN.",
+          variant: "destructive",
+        });
 
-    setErrors((prev) => ({
-      ...prev,
-      mrn: "MRN already exists. Please use a unique MRN.",
-    }));
-    setTouched((prev) => ({ ...prev, mrn: true }));
+        setErrors((prev) => ({
+          ...prev,
+          mrn: "MRN already exists. Please use a unique MRN.",
+        }));
+        setTouched((prev) => ({ ...prev, mrn: true }));
 
-    return; // BLOCK creation
-  }
-}
+        return; // BLOCK creation
+      }
+    }
 
     setIsSubmitting(true);
 
@@ -372,62 +370,58 @@ if (!existingPatient && formData.mrn?.trim()) {
             </div>
 
             {/* SEARCH RESULTS */}
-            { nameMatches.length > 0 && (
-  <div className="border rounded-md max-h-80 overflow-y-auto">
-    {nameMatches.map((p) => {
-      const d = extractDetails(p);
+            {nameMatches.length > 0 && (
+              <div className="border rounded-md max-h-80 overflow-y-auto">
+                {nameMatches.map((p) => {
+                  const d = extractDetails(p);
 
-      // Full Name
-      const displayName = [d.first_name, d.middle_name, d.last_name]
-        .filter(Boolean)
-        .join(" ");
+                  const displayName = [d.first_name, d.middle_name, d.last_name]
+                    .filter(Boolean)
+                    .join(" ");
 
-      // Format DOB -> MM/DD/YYYY
-      let formattedDOB = "—";
+                  let formattedDOB = "—";
 
-if (d?.dob) {
-  const cleanDOB = d.dob.split("T")[0]; // remove time if present
-  const parts = cleanDOB.split("-");
+                  if (d?.dob) {
+                    const cleanDOB = d.dob.split("T")[0];
+                    const parts = cleanDOB.split("-");
 
-  if (parts.length === 3) {
-    const [yyyy, mm, dd] = parts;
-    formattedDOB = `${mm}/${dd}/${yyyy}`;
-  }
-}
+                    if (parts.length === 3) {
+                      const [yyyy, mm, dd] = parts;
+                      formattedDOB = `${mm}/${dd}/${yyyy}`;
+                    }
+                  }
 
-      // Extract MRN
-      const resolvedMRN = extractMRN(p) || "—";
+                  const resolvedMRN = extractMRN(p) || "—";
 
-      return (
-        <div
-          key={p.patient_id}
-          className="px-3 py-2 border-b hover:bg-blue-50 cursor-pointer text-sm"
-          onClick={() => {
-            applyExistingPatient(p);
-            setNameSearchTerm(displayName);
-            setNameMatches([]);
-          }}
-        >
-          {/* NAME */}
-          <div className="font-medium">{displayName || "Unnamed Patient"}</div>
+                  return (
+                    <div
+                      key={p.patient_id}
+                      className="px-3 py-2 border-b hover:bg-blue-50 cursor-pointer text-sm"
+                      onClick={() => {
+                        applyExistingPatient(p);
+                        setNameSearchTerm(displayName);
+                        setNameMatches([]);
+                      }}
+                    >
+                      <div className="font-medium">
+                        {displayName || "Unnamed Patient"}
+                      </div>
 
-          {/* DOB + MRN */}
-          <div className="text-xs text-gray-600 flex gap-2 mt-1">
-            <span>DOB: {formattedDOB}</span>
-            <span>|</span>
-            <span>MRN: {resolvedMRN}</span>
-          </div>
-        </div>
-      );
-    })}
-  </div>
-)}
+                      <div className="text-xs text-gray-600 flex gap-2 mt-1">
+                        <span>DOB: {formattedDOB}</span>
+                        <span>|</span>
+                        <span>MRN: {resolvedMRN}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* RIGHT HALF — APPOINTMENT + PATIENT FORM */}
           <div className="w-[60%] p-4 overflow-y-auto bg-gray-50">
             <form onSubmit={handleSubmit} className="space-y-5">
-
               {/* APPOINTMENT DETAILS */}
               <section className="bg-white border rounded-xl p-4">
                 <h3 className="text-md font-semibold text-blue-700 flex items-center gap-2 mb-3">
@@ -436,27 +430,27 @@ if (d?.dob) {
 
                 <div className="grid grid-cols-2 gap-3 min-w-[0]">
                   <Input
-  label="Appointment Date *"
-  type="date"
-  name="appointment_date"
-  value={formData.appointment_date}
-  onChange={handleChange}
-  error={errors.appointment_date}
-  touched={touched.appointment_date}
-/>
+                    label="Appointment Date *"
+                    type="date"
+                    name="appointment_date"
+                    value={formData.appointment_date}
+                    onChange={handleChange}
+                    error={errors.appointment_date}
+                    touched={touched.appointment_date}
+                  />
 
                   <div className="min-w-[180px]">
-  <ScrollableTimeDropdown
-  label="Appointment Time *"
-  name="time"
-  value={formData.time}
-  onChange={handleChange}
-  error={errors.time}
-  touched={touched.time}
-  appointmentDate={formData.appointment_date}
-  toast={toast}
-/>
-</div>
+                    <ScrollableTimeDropdown
+                      label="Appointment Time *"
+                      name="time"
+                      value={formData.time}
+                      onChange={handleChange}
+                      error={errors.time}
+                      touched={touched.time}
+                      appointmentDate={formData.appointment_date}
+                      toast={toast}
+                    />
+                  </div>
 
                   <Input
                     label="Doctor Specialty"
@@ -475,17 +469,18 @@ if (d?.dob) {
                 </h3>
 
                 <div className="grid grid-cols-2 gap-3">
-
                   <Input
-  label="First Name *"
-  name="first_name"
-  value={formData.first_name}
-  readOnly={!!existingPatient}
-  onChange={existingPatient ? undefined : handleChange}
-  className={existingPatient ? "bg-gray-100 cursor-not-allowed" : ""}
-  error={errors.first_name}
-  touched={touched.first_name}
-/>
+                    label="First Name *"
+                    name="first_name"
+                    value={formData.first_name}
+                    readOnly={!!existingPatient}
+                    onChange={existingPatient ? undefined : handleChange}
+                    className={
+                      existingPatient ? "bg-gray-100 cursor-not-allowed" : ""
+                    }
+                    error={errors.first_name}
+                    touched={touched.first_name}
+                  />
 
                   <Input
                     label="Middle Name"
@@ -493,33 +488,37 @@ if (d?.dob) {
                     value={formData.middle_name}
                     readOnly={!!existingPatient}
                     onChange={existingPatient ? undefined : handleChange}
-                    className={existingPatient ? "bg-gray-100 cursor-not-allowed" : ""}
+                    className={
+                      existingPatient ? "bg-gray-100 cursor-not-allowed" : ""
+                    }
                   />
 
                   <Input
-  label="Last Name *"
-  name="last_name"
-  value={formData.last_name}
-  readOnly={!!existingPatient}
-  onChange={existingPatient ? undefined : handleChange}
-  className={existingPatient ? "bg-gray-100 cursor-not-allowed" : ""}
-  error={errors.last_name}
-  touched={touched.last_name}
-/>
+                    label="Last Name *"
+                    name="last_name"
+                    value={formData.last_name}
+                    readOnly={!!existingPatient}
+                    onChange={existingPatient ? undefined : handleChange}
+                    className={
+                      existingPatient ? "bg-gray-100 cursor-not-allowed" : ""
+                    }
+                    error={errors.last_name}
+                    touched={touched.last_name}
+                  />
 
-                  {/* DATE OF BIRTH - ALWAYS CALENDAR */}
-<Input
-  type="date"
-  label="Date of Birth *"
-  name="dob"
-  value={formData.dob}
-  readOnly={!!existingPatient}
-  onChange={existingPatient ? undefined : handleChange}
-  className={existingPatient ? "bg-gray-100 cursor-not-allowed" : ""}
-  error={errors.dob}
-  touched={touched.dob}
-/>
-
+                  <Input
+                    type="date"
+                    label="Date of Birth *"
+                    name="dob"
+                    value={formData.dob}
+                    readOnly={!!existingPatient}
+                    onChange={existingPatient ? undefined : handleChange}
+                    className={
+                      existingPatient ? "bg-gray-100 cursor-not-allowed" : ""
+                    }
+                    error={errors.dob}
+                    touched={touched.dob}
+                  />
 
                   <Select
                     label="Gender"
@@ -528,7 +527,9 @@ if (d?.dob) {
                     onChange={existingPatient ? () => {} : handleChange}
                     options={["Male", "Female", "Other"]}
                     disabled={!!existingPatient}
-                    className={existingPatient ? "bg-gray-100 cursor-not-allowed" : ""}
+                    className={
+                      existingPatient ? "bg-gray-100 cursor-not-allowed" : ""
+                    }
                   />
 
                   <Input
@@ -537,7 +538,9 @@ if (d?.dob) {
                     value={formData.email}
                     readOnly={!!existingPatient}
                     onChange={existingPatient ? undefined : handleChange}
-                    className={existingPatient ? "bg-gray-100 cursor-not-allowed" : ""}
+                    className={
+                      existingPatient ? "bg-gray-100 cursor-not-allowed" : ""
+                    }
                   />
 
                   <Input
@@ -547,7 +550,9 @@ if (d?.dob) {
                     readOnly={!!existingPatient}
                     onChange={existingPatient ? undefined : handleChange}
                     placeholder="Enter phone number"
-                    className={existingPatient ? "bg-gray-100 cursor-not-allowed" : ""}
+                    className={
+                      existingPatient ? "bg-gray-100 cursor-not-allowed" : ""
+                    }
                   />
 
                   <Input
@@ -556,7 +561,9 @@ if (d?.dob) {
                     value={formData.mrn}
                     readOnly={!!existingPatient}
                     onChange={existingPatient ? undefined : handleChange}
-                    className={existingPatient ? "bg-gray-100 cursor-not-allowed" : ""}
+                    className={
+                      existingPatient ? "bg-gray-100 cursor-not-allowed" : ""
+                    }
                   />
                 </div>
               </section>
@@ -585,7 +592,7 @@ if (d?.dob) {
           </div>
         </div>
 
-        {showUnsavedConfirm && (
+        {showUnsavedConfirm &&
           <UnsavedChangesModal
             onConfirm={() => {
               setShowUnsavedConfirm(false);
@@ -593,13 +600,12 @@ if (d?.dob) {
             }}
             onCancel={() => setShowUnsavedConfirm(false)}
           />
-        )}
+        }
       </div>
     </div>
   );
 };
 
-/* Input Component */
 /* Input Component */
 const Input = ({
   label,
@@ -685,6 +691,7 @@ const ScrollableTimeDropdown = ({
   const [open, setOpen] = useState(false);
   const [manualMode, setManualMode] = useState(false);
   const [manualValue, setManualValue] = useState("");
+  const listRef = useRef(null);
 
   const generateTimeSlots = () => {
     const slots = [];
@@ -739,6 +746,19 @@ const ScrollableTimeDropdown = ({
 
   const isInvalid = touched && !!error;
 
+  // index of first future (enabled) time – used for auto-scroll
+  const firstFutureIndex = times.findIndex((t) => !isPastTimeToday(t));
+
+  useEffect(() => {
+    if (!open || firstFutureIndex === -1 || !listRef.current) return;
+    const el = listRef.current.querySelector(
+      `[data-index="${firstFutureIndex}"]`
+    );
+    if (el) {
+      el.scrollIntoView({ block: "center" });
+    }
+  }, [open, firstFutureIndex]);
+
   const handleManualAdd = () => {
     if (!manualValue.trim()) {
       toast?.({
@@ -785,8 +805,10 @@ const ScrollableTimeDropdown = ({
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto bg-white border rounded-xl shadow-lg">
-
+        <div
+          ref={listRef}
+          className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto bg-white border rounded-xl shadow-lg"
+        >
           {/* Manual Entry Mode */}
           <div
             onClick={() => setManualMode(true)}
@@ -829,12 +851,13 @@ const ScrollableTimeDropdown = ({
           )}
 
           {/* Time Slots */}
-          {times.map((time) => {
+          {times.map((time, index) => {
             const disabled = isPastTimeToday(time);
 
             return (
               <div
                 key={time}
+                data-index={index}
                 onClick={() => {
                   if (!disabled) {
                     onChange({ target: { name, value: time } });
@@ -857,4 +880,4 @@ const ScrollableTimeDropdown = ({
   );
 };
 
-export default CreateAppointmentModal;
+export default CreateAppointmentModal
