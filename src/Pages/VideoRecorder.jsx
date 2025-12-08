@@ -152,11 +152,13 @@ const VideoCallPage = () => {
     );
   };
 
-  const joinAsDoctor = (room) => {
+  const joinAsDoctor = (room, name) => {
+    const typeParam = appointmentType || "online";
+
     navigate(
-      `/meeting-room/${encodeURIComponent(
-        room
-      )}?patient=${encodeURIComponent(selectedAppointment.full_name)}`
+      `/meeting-room/${encodeURIComponent(room)}?patient=${encodeURIComponent(
+        selectedAppointment?.full_name || ""
+      )}&type=${encodeURIComponent(typeParam)}`
     );
   };
 
