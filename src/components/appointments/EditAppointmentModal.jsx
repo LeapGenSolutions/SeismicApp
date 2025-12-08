@@ -12,12 +12,15 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
 
   const [clickedInside, setClickedInside] = useState(false);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     const cleanPayload = {
       original_appointment_date: appointment.appointment_date,
       appointment_date: formData.appointment_date,
@@ -31,6 +34,10 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
       email: formData.email,
       mrn: formData.mrn,
       specialization: formData.specialization,
+
+      // ⭐ REQUIRED FIX — backend needs these to update correctly
+      id: appointment.id,
+      doctor_email: appointment.doctor_email,
     };
 
     cleanPayload.appointment_date = new Date(cleanPayload.appointment_date)
@@ -72,7 +79,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
       JSON.stringify(appointment) !== JSON.stringify(formData);
 
     if (changed) {
-      // ⭐ ADDED: Use custom modal instead of browser confirm
       setShowConfirmClose(true);
     } else {
       onClose();
@@ -121,14 +127,12 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                 value={formData.appointment_date}
                 onChange={handleChange}
               />
-
               <Input
                 label="Time"
                 name="time"
                 value={formData.time}
                 onChange={handleChange}
               />
-
               <Input
                 label="Specialization"
                 name="specialization"
@@ -216,7 +220,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
         </form>
       </div>
 
-      {/* ⭐ ADDED CUSTOM CONFIRMATION MODAL */}
       {showConfirmClose && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-80 text-center">
