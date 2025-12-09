@@ -7,7 +7,7 @@ import LongitudinalSentiment from "./longitudinal_sentiment";
 
 const EmotionalConnect = (props) => {
     const [selectTab, setSelectTab] = useState("Emotional Empathy");
-    const { username, appointmentId, appointment} = props;
+    const { username, appointmentId, patientId} = props;
   return (
     <>
         <Card className="mt-8">
@@ -35,7 +35,7 @@ const EmotionalConnect = (props) => {
                     ))}
                 </div>
                 {selectTab === "Emotional Empathy" && (
-                    <EmotionalEmpathy username={username} appointmentId={appointmentId} appointment={appointment} />
+                    <EmotionalEmpathy username={username} appointmentId={appointmentId} patientId={patientId} />
                 )}
 
                 {selectTab === "Sentiment Analysis" && (

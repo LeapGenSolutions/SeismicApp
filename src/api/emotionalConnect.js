@@ -1,15 +1,7 @@
 import { BACKEND_URL } from "../constants"; 
 
-export const fetchEmotionalEmpathy = async (data, userID) => {
-  const response = await fetch(`${BACKEND_URL}api/emotional-connect/emotional-empathy/${userID}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    }
-  );
+export const fetchEmotionalEmpathy = async (appId, userID) => {
+  const response = await fetch(`${BACKEND_URL}api/emotional-connect/emotional-empathy/${userID}/${appId}`);
   if (!response.ok) {
     throw new Error("Failed to fetch emotional empathy data");
   }
