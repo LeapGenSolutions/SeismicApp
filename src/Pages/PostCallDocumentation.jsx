@@ -90,17 +90,16 @@ const dob = rawDob
   return (
     <>
       {prevPage !== "video-call" && (
-        <div className="mb-4">
-          <button
-            onClick={handleback}
-            className="inline-flex items-center px-3 py-1.5 text-sm font-medium 
-           text-white bg-blue-600 border border-blue-700 rounded-lg 
-           hover:bg-blue-700 transition-colors duration-200"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1.5" />
-            Back
-          </button>
-        </div>
+        <button
+          onClick={handleback}
+          className="inline-flex items-center px-3 py-1.5 text-sm font-medium 
+                    text-white bg-blue-600 border border-blue-700 rounded-lg 
+                    hover:bg-blue-700 transition-colors duration-200 mt-2"
+          style={{ marginLeft: "16px", marginTop: "11px" }}
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </button>
       )}
 
       <Card className="mt-8">
