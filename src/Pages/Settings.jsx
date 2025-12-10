@@ -98,7 +98,7 @@ function Settings() {
 
   useEffect(() => {
     document.title = "Settings - Seismic Connect";
-    
+
     // Check if user is returning from Athena integration
     const urlParams = new URLSearchParams(window.location.search);
     const fromAthena = urlParams.get('fromAthena');
@@ -139,166 +139,171 @@ function Settings() {
   const athenaStatusInfo = getAthenaStatusDisplay();
 
   return (
-    <div className="space-y-6">
-      <PageNavigation 
-        title="Settings"
-      />
-      
-      {/* Main Integration Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Athena Health Integration Card */}
-        <Card 
-          className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group"
-          onClick={() => handleCardClick('/athena-integration')}
-        >
-          <CardHeader className="bg-gradient-to-r from-blue-600 via-blue-700 to-purple-700 text-white p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm group-hover:bg-white/30 transition-colors">
-                  <AthenaLogo size={32} />
-                </div>
-                <div className="flex-1">
-                  <CardTitle className="text-2xl font-bold text-white mb-1">
-                    Athena Health Integration
-                  </CardTitle>
-                  <p className="text-blue-100 text-sm leading-relaxed">
-                    Connect and configure your Athena Health system for seamless data synchronization
-                  </p>
-                </div>
-              </div>
-              <ChevronRight className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" />
-            </div>
-          </CardHeader>
-          <CardContent className="p-6 bg-white">
-            <div className="space-y-6">
-              <div>
-                <h4 className="font-bold text-gray-900 mb-3 text-lg">Key Features</h4>
-                <ul className="space-y-2">
-                  <li className="flex items-center gap-3 text-sm text-gray-700">
-                    <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
-                    <span>Portal Authentication</span>
-                  </li>
-                  <li className="flex items-center gap-3 text-sm text-gray-700">
-                    <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
-                    <span>API Key Management</span>
-                  </li>
-                </ul>
-              </div>
-              <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
-                <span className="text-sm font-medium text-gray-600">Status:</span>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 ${athenaStatusInfo.dotColor} rounded-full`}></div>
-                  <span className="text-sm text-gray-600">{athenaStatusInfo.text}</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="px-4 pb-6">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <PageNavigation
+          showBackButton={true}
+          title="Settings"
+          subtitle="Manage integrations, billing, and configuration"
+          showDate={false}
+        />
 
-        {/* Payment & Billing Management Card */}
-        <Card 
-          className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group"
-          onClick={() => handleCardClick('/payment-billing')}
-        >
-          <CardHeader className="bg-gradient-to-r from-blue-600 via-blue-700 to-purple-700 text-white p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm group-hover:bg-white/30 transition-colors">
-                  <div className="w-6 h-6 bg-white rounded-sm flex items-center justify-center">
-                    <div className="w-3 h-3 bg-blue-600 rounded-sm"></div>
+        {/* Main Integration Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Athena Health Integration Card */}
+          <Card
+            className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group"
+            onClick={() => handleCardClick('/athena-integration')}
+          >
+            <CardHeader className="bg-gradient-to-r from-blue-600 via-blue-700 to-purple-700 text-white p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm group-hover:bg-white/30 transition-colors">
+                    <AthenaLogo size={32} />
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="text-2xl font-bold text-white mb-1">
+                      Athena Health Integration
+                    </CardTitle>
+                    <p className="text-blue-100 text-sm leading-relaxed">
+                      Connect and configure your Athena Health system for seamless data synchronization
+                    </p>
                   </div>
                 </div>
-                <div className="flex-1">
-                  <CardTitle className="text-2xl font-bold text-white mb-1">
-                    Payment & Billing Management
-                  </CardTitle>
-                  <p className="text-blue-100 text-sm leading-relaxed">
-                    Configure secure payment processing and billing preferences with PCI-DSS compliance
-                  </p>
-                </div>
+                <ChevronRight className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" />
               </div>
-              <ChevronRight className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" />
-            </div>
-          </CardHeader>
-          <CardContent className="p-6 bg-white">
-            <div className="space-y-6">
-              <div>
-                <h4 className="font-bold text-gray-900 mb-3 text-lg">Key Features</h4>
-                <ul className="space-y-2">
-                  <li className="flex items-center gap-3 text-sm text-gray-700">
-                    <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
-                    <span>Credit Card Processing</span>
-                  </li>
-                  <li className="flex items-center gap-3 text-sm text-gray-700">
-                    <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
-                    <span>Venmo Integration</span>
-                  </li>
-                  <li className="flex items-center gap-3 text-sm text-gray-700">
-                    <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
-                    <span>PayPal Setup</span>
-                  </li>
-                </ul>
-              </div>
-              <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
-                <span className="text-sm font-medium text-gray-600">Status:</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                  <span className="text-sm text-gray-600">Configuration Required</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Additional Configuration Section */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold text-gray-900">Additional Configuration</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Security Settings */}
-          <Card className="border border-gray-200 hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <Shield className="w-5 h-5 text-gray-600" />
-                </div>
+            </CardHeader>
+            <CardContent className="p-6 bg-white">
+              <div className="space-y-6">
                 <div>
-                  <h3 className="font-semibold text-gray-900">Security Settings</h3>
-                  <p className="text-sm text-gray-600">Manage access controls</p>
+                  <h4 className="font-bold text-gray-900 mb-3 text-lg">Key Features</h4>
+                  <ul className="space-y-2">
+                    <li className="flex items-center gap-3 text-sm text-gray-700">
+                      <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+                      <span>Portal Authentication</span>
+                    </li>
+                    <li className="flex items-center gap-3 text-sm text-gray-700">
+                      <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+                      <span>API Key Management</span>
+                    </li>
+                  </ul>
+                </div>
+                <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+                  <span className="text-sm font-medium text-gray-600">Status:</span>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 ${athenaStatusInfo.dotColor} rounded-full`}></div>
+                    <span className="text-sm text-gray-600">{athenaStatusInfo.text}</span>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Data Management */}
-          <Card className="border border-gray-200 hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <Database className="w-5 h-5 text-gray-600" />
+          {/* Payment & Billing Management Card */}
+          <Card
+            className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group"
+            onClick={() => handleCardClick('/payment-billing')}
+          >
+            <CardHeader className="bg-gradient-to-r from-blue-600 via-blue-700 to-purple-700 text-white p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm group-hover:bg-white/30 transition-colors">
+                    <div className="w-6 h-6 bg-white rounded-sm flex items-center justify-center">
+                      <div className="w-3 h-3 bg-blue-600 rounded-sm"></div>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="text-2xl font-bold text-white mb-1">
+                      Payment & Billing Management
+                    </CardTitle>
+                    <p className="text-blue-100 text-sm leading-relaxed">
+                      Configure secure payment processing and billing preferences with PCI-DSS compliance
+                      </p>
+                  </div>
                 </div>
+                <ChevronRight className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 bg-white">
+              <div className="space-y-6">
                 <div>
-                  <h3 className="font-semibold text-gray-900">Data Management</h3>
-                  <p className="text-sm text-gray-600">Backup and sync options</p>
+                  <h4 className="font-bold text-gray-900 mb-3 text-lg">Key Features</h4>
+                  <ul className="space-y-2">
+                    <li className="flex items-center gap-3 text-sm text-gray-700">
+                      <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+                      <span>Credit Card Processing</span>
+                    </li>
+                    <li className="flex items-center gap-3 text-sm text-gray-700">
+                      <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+                      <span>Venmo Integration</span>
+                    </li>
+                    <li className="flex items-center gap-3 text-sm text-gray-700">
+                      <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+                      <span>PayPal Setup</span>
+                    </li>
+                  </ul>
+                </div>
+                <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+                  <span className="text-sm font-medium text-gray-600">Status:</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <span className="text-sm text-gray-600">Configuration Required</span>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
+        </div>
 
-          {/* System Preferences */}
-          <Card className="border border-gray-200 hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <SettingsIcon className="w-5 h-5 text-gray-600" />
+        {/* Additional Configuration Section */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold text-gray-900">Additional Configuration</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Security Settings */}
+            <Card className="border border-gray-200 hover:shadow-md transition-shadow cursor-pointer">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <Shield className="w-5 h-5 text-gray-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Security Settings</h3>
+                    <p className="text-sm text-gray-600">Manage access controls</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">System Preferences</h3>
+              </CardContent>
+            </Card>
+
+            {/* Data Management */}
+            <Card className="border border-gray-200 hover:shadow-md transition-shadow cursor-pointer">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <Database className="w-5 h-5 text-gray-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Data Management</h3>
+                    <p className="text-sm text-gray-600">Backup and sync options</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* System Preferences */}
+            <Card className="border border-gray-200 hover:shadow-md transition-shadow cursor-pointer">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <SettingsIcon className="w-5 h-5 text-gray-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">System Preferences</h3>
                   <p className="text-sm text-gray-600">General configuration</p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
