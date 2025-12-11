@@ -89,7 +89,6 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
 
     const start = new Date(`${appt.appointment_date}T00:00:00`);
     start.setHours(hours, minutes, 0);
-
     const end = new Date(start.getTime() + 30 * 60000);
 
     const seismicLabel = appt.seismified ? "Seismified" : "Not Seismified";
@@ -121,9 +120,6 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     };
   };
 
-  /* ------------------------------------------------------------------
-    EVENT CELL WITH RADIO ICON + VIEW-SPECIFIC LAYOUT + STATUS CAPITALIZATION
-  ------------------------------------------------------------------ */
   const EventCell = ({ event, currentView }) => {
     const status = capitalizeFirst(event.status || "Unknown");
     const startTime = format(event.start, "h:mm");
@@ -221,7 +217,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
   };
 
   return (
-    <div style={{ height: "650px", margin: "20px" }}>
+    <div style={{ height: "80vh", minHeight: "600px", margin: "20px" }}>
       <Calendar
         localizer={localizer}
         events={events}
