@@ -25,13 +25,10 @@ const PatientReports = () => {
   const [summaryOfSummariesData, setSummaryOfSummariesData] = useState(null);
   const [callHistory, setCallHistory] = useState([]);
 
-  // Patient always available for hooks
   const patient = useMemo(
     () => patients.find((p) => String(p.patient_id) === patientId),
     [patients, patientId]
   );
-
-  // Summary of summaries
   const { data: summaryData } = useQuery({
     queryKey: ["summaryOfSummaries", patientId],
     queryFn: () => fetchSummaryofSummaries(patientId),
@@ -42,7 +39,6 @@ const PatientReports = () => {
     if (summaryData) setSummaryOfSummariesData(summaryData);
   }, [summaryData]);
 
-  // Load call history (completed calls)
   useEffect(() => {
     if (doctorEmail) {
       fetchCallHistory([doctorEmail])
@@ -58,7 +54,6 @@ const PatientReports = () => {
     appt.created_at ||
     null;
 
-  // Get all appointments
   const sortedAppointments = useMemo(() => {
     return appointments
       .filter((a) => String(a.patient_id) === String(patientId))
@@ -68,7 +63,6 @@ const PatientReports = () => {
       );
   }, [appointments, patientId]);
 
-  // Merge appointments + call history
   const mergedAppointments = useMemo(() => {
     return sortedAppointments.map((appt) => {
       const match = callHistory.find(
@@ -103,10 +97,8 @@ const PatientReports = () => {
     });
   }, [sortedAppointments, callHistory]);
 
-  // Memoized now
   const now = useMemo(() => new Date(), []);
 
-  // Upcoming appointment
   const nextUpcoming = useMemo(() => {
     return (
       mergedAppointments
@@ -131,7 +123,6 @@ const PatientReports = () => {
     );
   }, [mergedAppointments, now]);
 
-  // Can join?
   const canJoin = useMemo(() => {
     if (!nextUpcoming) return false;
 
@@ -143,22 +134,16 @@ const PatientReports = () => {
     return isToday(dt) && dt > now && !cancelled && !meta.isCompleted;
   }, [nextUpcoming, now]);
 
-  // Format patient info
   const firstName = patient?.firstname || patient?.first_name || "";
   const lastName = patient?.lastname || patient?.last_name || "";
-
   const maskedPhone = patient?.phone
     ? `XXX-XXX-${String(patient.phone).slice(-4)}`
     : "Not Available";
-
   const maskedEmail = patient?.email
     ? `${patient.email[0]}***@${patient.email.split("@")[1]}`
     : "Not Available";
-
   const insuranceProvider = patient?.insurance_provider || "N/A";
   const insuranceId = patient?.insurance_id || "N/A";
-
-  // Last visit
   const lastVisit = useMemo(() => {
     const completed = mergedAppointments
       .filter((m) => m.isCompleted && m.apptDateObj)
@@ -173,7 +158,6 @@ const PatientReports = () => {
     return "Not Available";
   }, [mergedAppointments]);
 
-  // DOB formatting
   const rawDOB =
     patient?.dob ||
     patient?.date_of_birth ||
@@ -187,146 +171,133 @@ const PatientReports = () => {
     const d = new Date(rawDOB);
     if (!isNaN(d.getTime())) formattedDob = format(d, "MMM yyyy");
   }
-
-  // --------------------------
-  // SAFEST PLACE TO REDIRECT (after all hooks)
-  // --------------------------
   if (!patient) {
     navigate("/patients");
     return null;
   }
 
   return (
-    <div className="px-4 pb-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <PageNavigation
-          title="Patient Reports"
-          subtitle={`${firstName} ${lastName}`}
-          customTrail={[
-            { href: "/patients", label: "Patients" },
-            { href: `/patients/${patientId}`, label: "Patient Details" },
-            { href: `/patients/${patientId}/reports`, label: "Reports", isLast: true },
-          ]}
+    <div className="p-6 w-full space-y-6">
+      <PageNavigation
+        title="Patient Reports"
+        subtitle={`${firstName} ${lastName}`}
+        customTrail={[
+          { href: "/patients", label: "Patients" },
+          { href: `/patients/${patientId}`, label: "Patient Details" },
+          { href: `/patients/${patientId}/reports`, label: "Reports", isLast: true },
+        ]}
+      />
+
+      {/* Patient Info */}
+      <div className="bg-white border rounded-xl shadow p-6">
+        <PatientInfoComponent
+          firstName={firstName}
+          lastName={lastName}
+          phone={maskedPhone}
+          email={maskedEmail}
+          insuranceProvider={insuranceProvider}
+          insuranceId={insuranceId}
+          lastVisit={lastVisit}
+          totalAppointments={mergedAppointments.length}
+          dob={formattedDob}
         />
 
-        {/* Patient Info */}
+        <SummaryOfPatient summaryDataProp={summaryOfSummariesData} />
+      </div>
+
+      {nextUpcoming && (
         <div className="bg-white border rounded-xl shadow p-6">
-          <PatientInfoComponent
-            firstName={firstName}
-            lastName={lastName}
-            patientID={patientId}
-            phone={maskedPhone}
-            email={maskedEmail}
-            insuranceProvider={insuranceProvider}
-            insuranceId={insuranceId}
-            lastVisit={lastVisit}
-            totalAppointments={mergedAppointments.length}
-            dob={formattedDob}
-          />
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-xl font-semibold">Upcoming Appointment</h3>
 
-          <SummaryOfPatient summaryDataProp={summaryOfSummariesData} />
+            {canJoin && (
+              <button
+                onClick={() =>
+                  setSelectedAppointment(nextUpcoming.meta.appt)
+                }
+                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+              >
+                Join Call
+              </button>
+            )}
+          </div>
+
+          <div className="text-sm text-gray-800 space-y-1">
+            <p>
+              <strong>Date:</strong>{" "}
+              {format(nextUpcoming.dt, "MMM dd, yyyy")}
+            </p>
+            <p>
+              <strong>Time:</strong>{" "}
+              {nextUpcoming.meta.appt.time ?? "N/A"}
+            </p>
+            <p>
+              <strong>Status:</strong>{" "}
+              <span className="px-2 py-1 bg-gray-100 border rounded text-xs">
+                {nextUpcoming.meta.appt.status}
+              </span>
+            </p>
+          </div>
         </div>
+      )}
 
-        {/* Upcoming Appointment */}
-        {nextUpcoming && (
-          <div className="bg-white border rounded-xl shadow p-6">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-xl font-semibold">Upcoming Appointment</h3>
+      <AppointmentModal
+        selectedAppointment={selectedAppointment}
+        setSelectedAppointment={setSelectedAppointment}
+      />
 
-              {canJoin && (
+      <div className="space-y-4">
+        {mergedAppointments.map((m) => {
+          const { appt, apptDateObj, isCompleted, durationMinutes } = m;
+
+          const dateLabel =
+            apptDateObj && !isNaN(apptDateObj.getTime())
+              ? format(apptDateObj, "MMM dd, yyyy")
+              : "N/A";
+
+          return (
+            <div
+              key={appt.id}
+              className="bg-white border rounded-xl shadow p-5 flex justify-between items-center"
+            >
+              <div>
+                <p className="font-medium">
+                  {dateLabel} at {appt.time ?? "N/A"}
+                </p>
+
+                <p className="text-sm text-gray-600">
+                  Doctor:{" "}
+                  <span className="font-medium">
+                    {appt.doctor_name ||
+                      appt.doctor_email?.split("@")[0]}
+                  </span>
+                </p>
+
+               
+                {isCompleted && (
+                  <span className="inline-block mt-1 px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded">
+                    Completed
+                  </span>
+                )}
+                {durationMinutes != null && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Duration: {durationMinutes} min
+                  </p>
+                )}
+              </div>
+
+              {isCompleted && (
                 <button
-                  onClick={() =>
-                    setSelectedAppointment(nextUpcoming.meta.appt)
-                  }
-                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+                  title="View Documentation"
+                  onClick={() => navigate(`/post-call/${appt.id}`)}
+                  className="text-blue-600 hover:text-blue-800"
                 >
-                  Join Call
+                  <Eye className="w-5 h-5" />
                 </button>
               )}
             </div>
-
-            <div className="text-sm text-gray-800 space-y-1">
-              <p>
-                <strong>Date:</strong>{" "}
-                {format(nextUpcoming.dt, "MMM dd, yyyy")}
-              </p>
-              <p>
-                <strong>Time:</strong>{" "}
-                {nextUpcoming.meta.appt.time ?? "N/A"}
-              </p>
-              <p>
-                <strong>Status:</strong>{" "}
-                <span className="px-2 py-1 bg-gray-100 border rounded text-xs">
-                  {nextUpcoming.meta.appt.status}
-                </span>
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Join Modal */}
-        <AppointmentModal
-          selectedAppointment={selectedAppointment}
-          setSelectedAppointment={setSelectedAppointment}
-        />
-
-        {/* All Appointments */}
-        <div className="space-y-4">
-          {mergedAppointments.map((m) => {
-            const { appt, apptDateObj, isCompleted, durationMinutes } = m;
-
-            const dateLabel =
-              apptDateObj && !isNaN(apptDateObj.getTime())
-                ? format(apptDateObj, "MMM dd, yyyy")
-                : "N/A";
-
-            return (
-              <div
-                key={appt.id}
-                className="bg-white border rounded-xl shadow p-5 flex justify-between items-center"
-              >
-                <div>
-                  <p className="font-medium">
-                    {dateLabel} at {appt.time ?? "N/A"}
-                  </p>
-
-                  <p className="text-sm text-gray-600">
-                    Doctor:{" "}
-                    <span className="font-medium">
-                      {appt.doctor_name ||
-                        appt.doctor_email?.split("@")[0]}
-                    </span>
-                  </p>
-
-                  {/* Completed Badge */}
-                  {isCompleted && (
-                    <span className="inline-block mt-1 px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded">
-                      Completed
-                    </span>
-                  )}
-
-                  {/* Duration */}
-                  {durationMinutes != null && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Duration: {durationMinutes} min
-                    </p>
-                  )}
-                </div>
-
-                {/* Eye Icon (Post-call Documentation) */}
-                {isCompleted && (
-                  <button
-                    title="View Documentation"
-                    onClick={() => navigate(`/post-call/${appt.id}`)}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    <Eye className="w-5 h-5" />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+          );
+        })}
       </div>
     </div>
   );
