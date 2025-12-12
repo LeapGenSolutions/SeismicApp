@@ -39,7 +39,7 @@ function Router() {
   const role = queryParams.get("role");
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="h-screen flex flex-col md:flex-row overflow-hidden">
       {role !== "patient" && <Sidebar />}
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
@@ -59,10 +59,10 @@ function Router() {
             <Route path="/patients" component={Patients} />
             <Route path="/patients/:patientId" component={PatientReports} />
             <Route path="/reports" component={Reports} />
-             <Route path="/billing-reports" component={BillingReports} />
-              <Route path="/billing-history" component={BillingHistory} />
-              <Route path="/bill-calculation" component={BillCalculation} />
-              <Route path="/invoice/:invoiceId" component={InvoicePreview} />
+            <Route path="/billing-reports" component={BillingReports} />
+            <Route path="/billing-history" component={BillingHistory} />
+            <Route path="/bill-calculation" component={BillCalculation} />
+            <Route path="/invoice/:invoiceId" component={InvoicePreview} />
             <Route path="/settings" component={Settings} />
             <Route path="/athena-integration" component={AthenaIntegration} />
             <Route path="/payment-billing" component={PaymentBilling} />
