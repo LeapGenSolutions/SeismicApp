@@ -26,8 +26,8 @@ import DoctorMultiSelect from "../components/DoctorMultiSelect";
 import { Link } from "wouter";
 import { PageNavigation } from "../components/ui/page-navigation";
 import CreateAppointmentModal from "../components/appointments/CreateAppointmentModal";
-import { checkAppointments } from "../api/callHistory";  
-import { formatUsDate } from "../lib/dateUtils";
+import { checkAppointments } from "../api/callHistory";   /* ✅ ADDED */
+
 
 const maskInsuranceId = (id) => {
   if (!id || typeof id !== "string") return "Not Available";
@@ -103,6 +103,8 @@ function Patients() {
     }
   }, [appointmentFilters.selectedDoctors, dispatch]);
 
+
+  /* ✅ FETCH SEISMIFIED APPOINTMENTS */
   useEffect(() => {
     if (!appointments.length) return;
 
@@ -399,8 +401,14 @@ function Patients() {
                     p.lastname || p.last_name
                   }`.trim();
 
-                 const rawDob = getPatientDob(p);
-                 const formattedDob = formatUsDate(rawDob);
+                  const rawDob = getPatientDob(p);
+                  let formattedDob = "N/A";
+                  if (rawDob) {
+                    const d = new Date(rawDob);
+                    if (!isNaN(d.getTime())) {
+                      formattedDob = format(d, "MMM yyyy");
+                    }
+                  }
 
                   return (
                     <TableRow key={p.patient_id}>
@@ -435,6 +443,8 @@ function Patients() {
                                 "MMM dd, yyyy"
                               )}
                             </span>
+
+                            {/* ✅ SEISMIFIED BADGE */}
                             {p.appointment?.id &&
                               seismifiedIds.includes(p.appointment.id) && (
                                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded mt-1 inline-block">
