@@ -16,11 +16,12 @@ const Billing = ({ appointmentId, username }) => {
   });
 
 
-  useEffect(() => {
-    if (data?.data?.billing_codes) {
-      setBillingCodes(data.data.billing_codes);
-    }
-  }, [data]);
+useEffect(() => {
+  setBillingCodes(
+    data?.data?.engine_v1_gpt || data?.data?.billing_codes || ""
+  );
+}, [data]);
+
 
   const mutation = useMutation({
     mutationFn: (updatedCodes) =>
