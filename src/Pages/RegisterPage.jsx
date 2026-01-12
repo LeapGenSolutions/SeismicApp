@@ -656,13 +656,6 @@ const RegisterPage = () => {
 
       const data = await response.json();
       
-      // Store user data locally
-      localStorage.setItem("registrationData", JSON.stringify({
-        email: formData.primaryEmail,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        userId: data.userId,
-      }));
 
       // Mark registration as complete
       sessionStorage.setItem("standaloneRegistrationComplete", "true");
