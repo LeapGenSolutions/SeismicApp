@@ -6,18 +6,8 @@ import { Checkbox } from "../components/ui/checkbox";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "../components/ui/select";
 import { Input } from "../components/ui/input";
 import { BACKEND_URL } from "../constants";
-
-// US States list
-const US_STATES = [
-  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", 
-  "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", 
-  "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", 
-  "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", 
-  "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", 
-  "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", 
-  "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", 
-  "Wisconsin", "Wyoming"
-];
+import { US_STATES } from "../components/ui/us-states";
+import { useToast } from "../hooks/use-toast";
 
 // Helper to safely decode a JWT without validating it (backend must still verify)
 const decodeIdToken = (token) => {
@@ -43,7 +33,7 @@ const initialFormData = {
   npiNumber: "",
   specialty: "",
   subSpecialty: "",
-  statesOfLicense: "",
+  statesOfLicense: [],
   licenseNumber: "",
   clinicName: "",
   practiceAddress: {
@@ -75,11 +65,13 @@ const initialErrors = {
 };
 
 const RegisterPage = () => {
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [signupType, setSignupType] = useState("standalone"); // "standalone" or "clinic"
   const [isNpiVerified, setIsNpiVerified] = useState(false);
   const [isVerifyingNpi, setIsVerifyingNpi] = useState(false);
+  const [isStatesDropdownOpen, setIsStatesDropdownOpen] = useState(false);
 
   const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState(initialErrors);
@@ -105,10 +97,16 @@ const RegisterPage = () => {
     if (idToken) {
       const payload = decodeIdToken(idToken);
       if (!payload) {
+        const errorMsg = "Invalid token. Please try logging in again.";
         setErrors((prev) => ({
           ...prev,
-          general: "Invalid token. Please try logging in again.",
+          general: errorMsg,
         }));
+        toast({
+          title: "Authentication Error",
+          description: errorMsg,
+          variant: "destructive",
+        });
         return;
       }
 
@@ -147,9 +145,14 @@ const RegisterPage = () => {
             return res.json();
           })
           .then((data) => {
-            // Email verified - check if this is first time user
-            if (data.isFirstTime === true) {
-              // First time user - navigate to dashboard
+            // Store the backend token for registration
+            if (data.token) {
+              sessionStorage.setItem("backendToken", data.token);
+            }
+            
+            // Check profileComplete status to determine redirect
+            if (data.profileComplete === true) {
+              // Profile is complete - redirect to dashboard
               // Remove hash from URL before navigating
               if (window.history && window.history.replaceState) {
                 window.history.replaceState(
@@ -160,26 +163,39 @@ const RegisterPage = () => {
               }
               navigate("/");
             } else {
-              // Not first time - user can proceed with registration
+              // Profile not complete (isFirstTime: false, profileComplete: false)
+              // Keep user on registration page to complete profile
               // Keep hash in URL for page refresh support
               // Hash will be removed after successful registration
             }
           })
           .catch((err) => {
             console.error("Token verification failed:", err);
+            const errorMsg = "Token verification failed. Please try logging in again.";
             setErrors((prev) => ({
               ...prev,
-              general: "Token verification failed. Please try logging in again.",
+              general: errorMsg,
             }));
+            toast({
+              title: "Verification Failed",
+              description: errorMsg,
+              variant: "destructive",
+            });
           });
       }
     } else if (error) {
       // CIAM reported an error instead of returning a token
       console.error("CIAM login error:", error, errorDescription);
+      const errorMsg = errorDescription || error || "Login failed. Please try again.";
       setErrors((prev) => ({
         ...prev,
-        general: errorDescription || error || "Login failed. Please try again.",
+        general: errorMsg,
       }));
+      toast({
+        title: "Login Error",
+        description: errorMsg,
+        variant: "destructive",
+      });
     }
   }, []);
 
@@ -209,6 +225,20 @@ const RegisterPage = () => {
     setIsNpiVerified(false);
     setIsVerifyingNpi(false);
   }, [signupType]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isStatesDropdownOpen && !event.target.closest('.states-dropdown-container')) {
+        setIsStatesDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isStatesDropdownOpen]);
 
   // Email validation
   const validateEmail = (email) => {
@@ -304,18 +334,49 @@ const RegisterPage = () => {
           const errorMessage = errorData.message || errorData.error || "NPI verification failed";
           setErrors(prev => ({ ...prev, npiNumber: errorMessage }));
           setIsNpiVerified(false);
+          toast({
+            title: "NPI Verification Failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
         } else {
-          // NPI verified successfully
-          setIsNpiVerified(true);
-          setErrors(prev => ({ ...prev, npiNumber: "" }));
+          const data = await response.json();
+          
+          // Check if NPI is valid based on the API response
+          if (data.valid === true) {
+            // NPI verified successfully
+            setIsNpiVerified(true);
+            setErrors(prev => ({ ...prev, npiNumber: "" }));
+            toast({
+              title: "NPI Verified",
+              description: "Your NPI number has been verified successfully.",
+              variant: "default",
+            });
+          } else {
+            // NPI is not valid
+            const errorMessage = data.reason || "NPI not found or invalid";
+            setErrors(prev => ({ ...prev, npiNumber: errorMessage }));
+            setIsNpiVerified(false);
+            toast({
+              title: "NPI Verification Failed",
+              description: errorMessage,
+              variant: "destructive",
+            });
+          }
         }
       } catch (error) {
         console.error("NPI verification error:", error);
+        const errorMessage = error.message || "Failed to verify NPI. Please try again.";
         setErrors(prev => ({ 
           ...prev, 
-          npiNumber: error.message || "Failed to verify NPI. Please try again." 
+          npiNumber: errorMessage
         }));
         setIsNpiVerified(false);
+        toast({
+          title: "NPI Verification Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
       } finally {
         setIsVerifyingNpi(false);
       }
@@ -374,7 +435,23 @@ const RegisterPage = () => {
     }));
   };
 
-
+  // Handle state selection toggle
+  const handleStateToggle = (state) => {
+    setFormData(prev => {
+      const currentStates = prev.statesOfLicense || [];
+      const isSelected = currentStates.includes(state);
+      
+      return {
+        ...prev,
+        statesOfLicense: isSelected
+          ? currentStates.filter(s => s !== state)
+          : [...currentStates, state]
+      };
+    });
+    
+    // Clear error when a state is selected
+    setErrors(prev => ({ ...prev, statesOfLicense: "" }));
+  };
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -437,8 +514,8 @@ const RegisterPage = () => {
       hasError = true;
     }
 
-    if (!formData.statesOfLicense || formData.statesOfLicense.trim() === "") {
-      newErrors.statesOfLicense = "State of license is required";
+    if (!formData.statesOfLicense || formData.statesOfLicense.length === 0) {
+      newErrors.statesOfLicense = "At least one state of license is required";
       hasError = true;
     }
 
@@ -506,14 +583,20 @@ const RegisterPage = () => {
     setIsLoading(true);
     
     try {
-      // Get CIAM id_token from session storage
-      const ciamToken = sessionStorage.getItem("ciamIdToken");
+      // Get backend token from session storage (received from verify endpoint)
+      const backendToken = sessionStorage.getItem("backendToken");
       
-      if (!ciamToken) {
+      if (!backendToken) {
+        const errorMsg = "Authentication token not found. Please log in again.";
         setErrors((prev) => ({
           ...prev,
-          general: "Authentication token not found. Please log in again.",
+          general: errorMsg,
         }));
+        toast({
+          title: "Authentication Required",
+          description: errorMsg,
+          variant: "destructive",
+        });
         setIsLoading(false);
         return;
       }
@@ -556,10 +639,13 @@ const RegisterPage = () => {
         }
       });
 
-      // Call /api/standalone/auth/register with registration data
-      const response = await fetch(`${BACKEND_URL}api/standalone/auth/register`, {
+      // Call /api/standalone/register with registration data
+      const response = await fetch(`${BACKEND_URL}api/standalone/register`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${backendToken}`
+        },
         body: JSON.stringify(payload),
       });
 
@@ -581,6 +667,13 @@ const RegisterPage = () => {
       // Mark registration as complete
       sessionStorage.setItem("standaloneRegistrationComplete", "true");
       
+      // Show success message
+      toast({
+        title: "Registration Successful!",
+        description: `Welcome ${formData.firstName}! Your account has been created successfully.`,
+        variant: "default",
+      });
+      
       // Remove hash from URL before navigating
       if (window.history && window.history.replaceState) {
         window.history.replaceState(
@@ -591,14 +684,22 @@ const RegisterPage = () => {
       }
       
       // Navigate to dashboard after successful registration
-      navigate("/");
+      setTimeout(() => {
+        navigate("/");
+      }, 1500);
       
     } catch (error) {
       console.error("Registration error:", error);
+      const errorMsg = error.message || "Registration failed. Please try again or contact support if the issue persists.";
       setErrors((prev) => ({
         ...prev,
-        general: error.message || "Registration failed. Please try again or contact support if the issue persists.",
+        general: errorMsg,
       }));
+      toast({
+        title: "Registration Failed",
+        description: errorMsg,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -881,28 +982,63 @@ const RegisterPage = () => {
           {/* Row 4: States of License, License Number, Clinic/Practice Name */}
           <div className="grid grid-cols-3 gap-3 mb-3">
             {/* States of License */}
-            <div className="relative">
+            <div className="relative states-dropdown-container">
               <Label htmlFor="statesOfLicense" className="block text-sm font-medium text-gray-700 mb-1">
                 State(s) of License<span className="text-red-500">*</span>
               </Label>
-              <Select 
-                value={formData.statesOfLicense} 
-                onValueChange={(value) => {
-                  setFormData(prev => ({ ...prev, statesOfLicense: value }));
-                  setErrors(prev => ({ ...prev, statesOfLicense: "" }));
-                }}
-              >
-                <SelectTrigger className={`w-full ${errors.statesOfLicense ? "border-red-500" : ""}`}>
-                  <SelectValue placeholder="State(s) of License" />
-                </SelectTrigger>
-                <SelectContent className="z-50 max-h-60 bg-white border border-gray-200 shadow-lg">
-                  {US_STATES.map(state => (
-                    <SelectItem key={state} value={state} className="cursor-pointer hover:bg-gray-100">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsStatesDropdownOpen(!isStatesDropdownOpen)}
+                  className={`w-full flex items-center justify-between px-3 py-2 text-sm border rounded-md bg-white ${errors.statesOfLicense ? "border-red-500" : "border-gray-300"} hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                >
+                  <span className={formData.statesOfLicense.length > 0 ? "text-gray-900" : "text-gray-400"}>
+                    {formData.statesOfLicense.length > 0 
+                      ? `${formData.statesOfLicense.length} state${formData.statesOfLicense.length > 1 ? 's' : ''} selected`
+                      : "Select states"}
+                  </span>
+                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {isStatesDropdownOpen && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    {US_STATES.map(state => (
+                      <label
+                        key={state}
+                        className="flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={formData.statesOfLicense.includes(state)}
+                          onCheckedChange={() => handleStateToggle(state)}
+                          className="w-4 h-4 border-2 border-gray-300 rounded bg-white data-[state=checked]:bg-[#1E40AF] data-[state=checked]:border-[#1E40AF]"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">{state}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {formData.statesOfLicense.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {formData.statesOfLicense.map(state => (
+                    <span
+                      key={state}
+                      className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded"
+                    >
                       {state}
-                    </SelectItem>
+                      <button
+                        type="button"
+                        onClick={() => handleStateToggle(state)}
+                        className="ml-1 hover:text-blue-900"
+                      >
+                        ×
+                      </button>
+                    </span>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              )}
               {errors.statesOfLicense && <p className="mt-1 text-xs text-red-500">{errors.statesOfLicense}</p>}
             </div>
 

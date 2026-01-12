@@ -124,6 +124,7 @@ function Main() {
           <Route path="/standalone/registration" component={RegisterPage} />
           <Route component={AuthPage} />
         </Switch>
+        <Toaster />
       </UnauthenticatedTemplate>
     </>
   )
