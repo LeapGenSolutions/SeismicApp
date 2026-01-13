@@ -28,7 +28,6 @@ import { loginRequest } from "./authConfig";
 import { Provider, useDispatch } from "react-redux";
 import { store } from "./redux/store";
 import AuthPage from "./Pages/AuthPage";
-import RegisterPage from "./Pages/RegisterPage";
 import StreamVideoCoreV3 from "./Pages/StreamVideoCoreV3";
 import setMyDetails from "./redux/me-actions";
 import TimelineDashboard from "./Pages/TimelineDashboard";
@@ -120,10 +119,7 @@ function Main() {
         </AuthenticatedTemplate>
       }
       <UnauthenticatedTemplate>
-        <Switch>
-          <Route path="/standalone/registration" component={RegisterPage} />
-          <Route component={AuthPage} />
-        </Switch>
+        <AuthPage />
       </UnauthenticatedTemplate>
     </>
   )

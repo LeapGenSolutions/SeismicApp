@@ -3,19 +3,17 @@ import { useEffect, useState } from "react";
 import { navigate } from "wouter/use-browser-location";
 import { loginRequest } from "../authConfig";
 import Logo from "../assets/Logo";
-import { CIAM_AUTH_URL, CIAM_CLIENT_ID, CIAM_REDIRECT_URI } from "../constants";
 
 
 const AuthPage = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedType, setSelectedType] = useState("standalone"); // Default to standalone
+  const [isGuestLoading, setIsGuestLoading] = useState(false);
   const [, setShowBranding] = useState(false);
-  // const [isGuestLoading, setIsGuestLoading] = useState(false);
 
   const { instance, accounts } = useMsal();
 
   useEffect(() => {
-    document.title = "Login - Seismic Connect";
+    document.title = "SignUp - Seismic Connect";
     const timer = setTimeout(() => setShowBranding(true), 800);
     return () => clearTimeout(timer);
   }, []);
@@ -29,65 +27,26 @@ const AuthPage = () => {
       .then((response) => console.log(response));
   }
 
-  // MSAL Login (Clinic/Internal Users) - Feature 1.1 & 1.2
-  const handleMSALLogin = () => {
+  const handleLogin = () => {
     setIsLoading(true);
-    // Store auth type for route guards (Feature 1.3)
-    sessionStorage.setItem("authType", "msal");
-    sessionStorage.setItem("authIntent", "clinic");
-    
     instance
       .loginRedirect(loginRequest)
       .then(() => {
         requestProfileData();
         navigate("/");
       })
-      .catch((e) => {
-        console.error("MSAL login error:", e);
-        setIsLoading(false);
-      });
+      .catch((e) => console.log(e))
+      .finally(() => setIsLoading(false));
   };
 
-  // CIAM Login (Standalone Users) - Feature 2.1 & 2.2
-  const handleCIAMLogin = () => {
-    setIsLoading(true);
-    // Store auth type for route guards (Feature 1.3)
-    sessionStorage.setItem("authType", "ciam");
-    sessionStorage.setItem("authIntent", "standalone");
-    
-    // CIAM Authentication URL - redirect to register page after password creation flow
-    // We only need an id_token (no access_token)
-    const params = new URLSearchParams({
-      client_id: CIAM_CLIENT_ID,
-      response_type: "id_token",
-      redirect_uri: CIAM_REDIRECT_URI, // Redirect to register page after account creation
-      scope: "openid profile email",
-      nonce: Math.random().toString(36).substring(7),
-      prompt: "login"
-    });
-
-    // Redirect to CIAM for authentication
-    window.location.href = `${CIAM_AUTH_URL}?${params.toString()}`;
+  const handleGuest = () => {
+    setIsGuestLoading(true);
+    localStorage.setItem("isGuest", "true");
+    setTimeout(() => {
+      setIsGuestLoading(false);
+      navigate("/dashboard");
+    }, 800);
   };
-
-  // Handle Sign In button click based on selected type
-  const handleSignIn = () => {
-    if (selectedType === "standalone") {
-      handleCIAMLogin();
-    } else {
-      handleMSALLogin();
-    }
-  };
-
-  // Guest login handler - commented out
-  // const handleGuest = () => {
-  //   setIsGuestLoading(true);
-  //   localStorage.setItem("isGuest", "true");
-  //   setTimeout(() => {
-  //     setIsGuestLoading(false);
-  //     navigate("/dashboard");
-  //   }, 800);
-  // };
 
   return (
     <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 px-4 overflow-hidden">
@@ -108,92 +67,29 @@ const AuthPage = () => {
         <h2 className="text-3xl font-extrabold text-[#1E3A8A] mb-2 text-center">
           Seismic Connect
         </h2>
-        <p className="mb-6 text-[#1E40AF] font-medium text-center">
+        <p className="mb-8 text-[#1E40AF] font-medium text-center">
             Healthcare Intelligence Platform
-        </p>
-
-        {/* Radio Button Selection - Pill Shaped */}
-        <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-full w-full">
-          {/* Standalone Radio */}
-          <label className="flex-1 cursor-pointer">
-            <input
-              type="radio"
-              name="accessType"
-              value="standalone"
-              checked={selectedType === "standalone"}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="hidden"
-            />
-            <div className={`px-4 py-2.5 rounded-full text-center text-sm font-medium transition-all ${
-              selectedType === "standalone"
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
-            }`}>
-              <div className="flex items-center justify-center gap-2">
-                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                  selectedType === "standalone"
-                    ? "border-white bg-white"
-                    : "border-gray-400 bg-white"
-                }`}>
-                  {selectedType === "standalone" && (
-                    <div className="w-2 h-2 rounded-full bg-blue-600"></div>
-                  )}
-                </div>
-                <span>Standalone</span>
-              </div>
-            </div>
-          </label>
-
-          {/* Clinic Radio */}
-          <label className="flex-1 cursor-pointer">
-            <input
-              type="radio"
-              name="accessType"
-              value="clinic"
-              checked={selectedType === "clinic"}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="hidden"
-            />
-            <div className={`px-4 py-2.5 rounded-full text-center text-sm font-medium transition-all ${
-              selectedType === "clinic"
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
-            }`}>
-              <div className="flex items-center justify-center gap-2">
-                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                  selectedType === "clinic"
-                    ? "border-white bg-white"
-                    : "border-gray-400 bg-white"
-                }`}>
-                  {selectedType === "clinic" && (
-                    <div className="w-2 h-2 rounded-full bg-blue-600"></div>
-                  )}
-                </div>
-                <span>Clinic / LeapGen</span>
-              </div>
-            </div>
-          </label>
-        </div>
+            </p>
        
         {/* Sign In Button */}
         <button
-          onClick={handleSignIn}
-          disabled={isLoading}
+          onClick={handleLogin}
+          disabled={isLoading || isGuestLoading}
           className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#1E40AF] to-[#3B82F6] hover:from-[#1E3A8A] hover:to-[#2563EB] text-white font-semibold py-3 rounded-lg transition-all duration-200 transform hover:scale-[1.02] mb-4"
         >
           {isLoading ? "Signing in..." : "Sign in"}
         </button>
 
-        {/* Continue as Guest Button - commented out */}
-        {/* <button
+        {/* Continue as Guest */}
+        <button
           onClick={handleGuest}
           disabled={isLoading || isGuestLoading}
-          className={`w-full flex items-center justify-center gap-2 bg-white
-            ${isGuestLoading ? "opacity-60 cursor-not-allowed" : ""}
-          `}
+          className={`w-full flex items-center justify-center gap-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-semibold py-3 rounded-lg transition-colors ${
+            isGuestLoading ? "opacity-60 cursor-not-allowed" : ""
+          }`}
         >
           {isGuestLoading ? "Continuing..." : "Continue as Guest"}
-        </button> */}
+        </button>
 
         {/* Footer */}
         <div className="mt-6 text-center text-xs text-gray-400">
