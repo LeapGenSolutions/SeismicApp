@@ -5,7 +5,6 @@ import Summary from "../components/post-call/Summary";
 import Soap from "../components/post-call/Soap";
 import Billing from "../components/post-call/Billing";
 import Reccomendations from "../components/post-call/Reccomendations";
-import UpToDate from "../components/post-call/UpToDate";
 import { useParams } from "wouter";
 import Clusters from "../components/post-call/Clusters";
 import DoctorNotes from "../components/post-call/DoctorNotes";
@@ -181,7 +180,6 @@ const PostCallDocumentation = ({ onSave }) => {
               "billing",
               "clusters",
               "doctor notes",
-              "uptodate",
               "emotional connect",
             ].map((tab) => (
               <button
@@ -234,10 +232,6 @@ const PostCallDocumentation = ({ onSave }) => {
 
           {docTab === "doctor notes" && (
             <DoctorNotes username={username} appointmentId={callId} />
-          )}
-
-          {docTab === "uptodate" && (
-            <UpToDate appId={callId} username={username} />
           )}
 
           {docTab === "emotional connect" && selectedAppointment && (
