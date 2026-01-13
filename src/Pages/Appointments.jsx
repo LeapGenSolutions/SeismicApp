@@ -11,25 +11,21 @@ function Appointments() {
 
   const dispatch = useDispatch();
   const myEmail = useSelector((state) => state.me.me.email);
-  const appointments = useSelector((state) => state.appointments.appointments);
 
   useEffect(() => {
-    if (!appointments?.length && myEmail) {
+    if (myEmail) {
       dispatch(fetchAppointmentDetails(myEmail));
     }
-  }, [dispatch, appointments, myEmail]);
+  }, [dispatch, myEmail]);
 
   return (
     <div className="space-y-6 px-4">
 
-      {/* Centered Header */}
       <PageNavigation
         title="Appointments"
         subtitle="Manage all appointments and schedules"
         showBackButton={true}
       />
-
-      {/* Calendar */}
       <AppointmentCalendar />
     </div>
   );
