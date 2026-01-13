@@ -5,32 +5,24 @@ import Summary from "../components/post-call/Summary";
 import Soap from "../components/post-call/Soap";
 import Billing from "../components/post-call/Billing";
 import Reccomendations from "../components/post-call/Reccomendations";
+import UpToDate from "../components/post-call/UpToDate";
 import { useParams } from "wouter";
 import Clusters from "../components/post-call/Clusters";
 import DoctorNotes from "../components/post-call/DoctorNotes";
 import { navigate } from "wouter/use-browser-location";
 import { useSearchParams } from "wouter";
-import {
-  ArrowLeft,
-  User,
-  Calendar as CalendarIcon,
-  IdCard,
-} from "lucide-react";
+import { ArrowLeft, User, Calendar as CalendarIcon, IdCard } from "lucide-react";
 import EmotionalConnect from "../components/post-call/EmotionalConnect";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
-import CallFeedback from "../components/post-call/PostCallFeedback"; 
 
 const PostCallDocumentation = ({ onSave }) => {
   const [docTab, setDocTab] = useState("summary");
   const { callId } = useParams();
   const [prevPage, setPrevPage] = useState(null);
   const dispatch = useDispatch();
-
-  const appointments = useSelector(
-    (state) => state.appointments.appointments
-  );
-
+  //const myEmail = useSelector((state) => state.me.me.email);
+  const appointments = useSelector((state) => state.appointments.appointments);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const searchParams = useSearchParams()[0];
   const username = searchParams.get("username");
@@ -68,19 +60,19 @@ const PostCallDocumentation = ({ onSave }) => {
       null
     : null;
 
-  const rawDob = selectedAppointment
-    ? selectedAppointment.dob ??
-      selectedAppointment.date_of_birth ??
-      selectedAppointment.birthDate ??
-      null
-    : null;
+const rawDob = selectedAppointment
+  ? selectedAppointment.dob ??
+    selectedAppointment.date_of_birth ??
+    selectedAppointment.birthDate ??
+    null
+  : null;
 
-  const dob = rawDob
-    ? new Date(rawDob).toLocaleString("en-US", {
-        month: "short",
-        year: "numeric",
-      })
-    : null;
+const dob = rawDob
+  ? new Date(rawDob).toLocaleString("en-US", {
+      month: "short",
+      year: "numeric",
+    })
+  : null;
 
   const firstName = selectedAppointment
     ? selectedAppointment.first_name ??
@@ -98,25 +90,19 @@ const PostCallDocumentation = ({ onSave }) => {
 
   return (
     <>
-      {/* Top bar: Back button + Call Feedback */}
-      <div className="flex justify-between items-start mb-4">
-        {prevPage !== "video-call" && (
+      {prevPage !== "video-call" && (
+        <div className="mb-4">
           <button
             onClick={handleback}
             className="inline-flex items-center px-3 py-1.5 text-sm font-medium 
-              text-white bg-blue-600 border border-blue-700 rounded-lg 
-              hover:bg-blue-700 transition-colors duration-200"
+           text-white bg-blue-600 border border-blue-700 rounded-lg 
+           hover:bg-blue-700 transition-colors duration-200"
           >
             <ArrowLeft className="h-4 w-4 mr-1.5" />
             Back
           </button>
-        )}
-
-        {/* Call Feedback entry point (your change) */}
-        <div className="ml-auto">
-          <CallFeedback username={username} appointmentId={callId} />
         </div>
-      </div>
+      )}
 
       <Card className="mt-8">
         <CardHeader>
@@ -130,6 +116,7 @@ const PostCallDocumentation = ({ onSave }) => {
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-gray-800">
+
               <p className="flex items-center gap-2">
                 <IdCard className="w-4 h-4 text-gray-500" />
                 <span className="text-sm text-gray-500">MRN:</span>
@@ -157,6 +144,7 @@ const PostCallDocumentation = ({ onSave }) => {
                   {lastName ?? "—"}
                 </span>
               </p>
+
             </div>
 
             <div className="mt-6 flex justify-end">
@@ -180,6 +168,7 @@ const PostCallDocumentation = ({ onSave }) => {
               "billing",
               "clusters",
               "doctor notes",
+              "uptodate",
               "emotional connect",
             ].map((tab) => (
               <button
@@ -197,9 +186,9 @@ const PostCallDocumentation = ({ onSave }) => {
           </div>
 
           {docTab === "summary" && (
-            <Summary
-              username={username}
-              appointmentId={callId}
+            <Summary 
+              username={username} 
+              appointmentId={callId} 
               patientId={
                 selectedAppointment?.patient_id ||
                 selectedAppointment?.patient_Id ||
@@ -234,6 +223,10 @@ const PostCallDocumentation = ({ onSave }) => {
             <DoctorNotes username={username} appointmentId={callId} />
           )}
 
+          {docTab === "uptodate" && (
+            <UpToDate appId={callId} username={username} />
+          )}
+
           {docTab === "emotional connect" && selectedAppointment && (
             <EmotionalConnect
               username={username}
@@ -247,4 +240,4 @@ const PostCallDocumentation = ({ onSave }) => {
   );
 };
 
-export default PostCallDocumentation;
+export default PostCallDocumentation
