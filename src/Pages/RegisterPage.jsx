@@ -197,7 +197,7 @@ const RegisterPage = () => {
         variant: "destructive",
       });
     }
-  }, []);
+  }, [toast]);
 
   // Clear all fields except email when signup type changes
   const isInitialMount = useRef(true);
@@ -292,12 +292,6 @@ const RegisterPage = () => {
   const handleLastNameBlur = () => {
     if (formData.lastName && !validateName(formData.lastName)) {
       setErrors(prev => ({ ...prev, lastName: "Please enter a valid last name" }));
-    }
-  };
-
-  const handlePrimaryEmailBlur = () => {
-    if (formData.primaryEmail && !validateEmail(formData.primaryEmail)) {
-      setErrors(prev => ({ ...prev, primaryEmail: "Please enter a valid email address" }));
     }
   };
 
@@ -654,7 +648,7 @@ const RegisterPage = () => {
         throw new Error(errorData.message || `Registration failed: ${response.status}`);
       }
 
-      const data = await response.json();
+      await response.json();
       
 
       // Mark registration as complete
