@@ -9,6 +9,7 @@ const Billing = ({ appointmentId, username }) => {
   const queryKey = ["billing-codes", appointmentId, username];
   const [isEditing, setIsEditing] = useState(false);
   const [billingCodes, setBillingCodes] = useState("");
+  const [amaCptCandidates, setAmaCptCandidates] = useState([]);
 
   const { data, isLoading, refetch, error } = useQuery({
     queryKey,
@@ -17,11 +18,24 @@ const Billing = ({ appointmentId, username }) => {
 
 
 useEffect(() => {
-  setBillingCodes(
-    data?.data?.engine_v1_gpt || data?.data?.billing_codes || ""
-  );
+  // Backward compatible: some docs store markdown in billing_codes, others in engine_v1_gpt
+  const combined = data?.data?.billing_codes || data?.data?.engine_v1_gpt || "";
+  setBillingCodes(combined);
+
+  // AMA CPT candidates (ai_search_v1)
+  const candidates = data?.data?.engine_v2_search?.cpt_candidates;
+  setAmaCptCandidates(Array.isArray(candidates) ? candidates : []);
 }, [data]);
 
+  const amaCptMarkdown =
+    Array.isArray(amaCptCandidates) && amaCptCandidates.length > 0
+      ? `CPT codes (AMA):\n\n${amaCptCandidates
+          .filter(c => c?.code)
+          .map(c => `- ${c.code}${c.reason ? `: ${c.reason}` : ""}`)
+          .join("\n")}\n\n`
+      : "";
+
+  const displayBillingCodes = `${amaCptMarkdown}${billingCodes || ""}`;
 
   const mutation = useMutation({
     mutationFn: (updatedCodes) =>
@@ -62,7 +76,7 @@ useEffect(() => {
     <div className="space-y-4">
       {!isEditing && (
         <>
-          <ReactMarkdown>{billingCodes}</ReactMarkdown>
+          <ReactMarkdown>{displayBillingCodes}</ReactMarkdown>
           <button
             onClick={handleEditClick}
             className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
@@ -93,7 +107,7 @@ useEffect(() => {
             <button
               onClick={() => {
                 setIsEditing(false);
-                setBillingCodes(data?.data?.billing_codes || ""); // reset to backend value
+                setBillingCodes(data?.data?.billing_codes || data?.data?.engine_v1_gpt || ""); // reset to backend value
               }}
               className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
             >
