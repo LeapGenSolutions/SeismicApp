@@ -3,6 +3,7 @@ import { fetchRecommendationByAppointment } from "../../api/recommendations";
 import ReactMarkdown from "react-markdown";
 import { useEffect, useState } from "react";
 import LoadingCard from "./LoadingCard";
+import UpToDate from "./UpToDate";
 
 const Reccomendations = ({ appointmentId, username }) => {
   const { data: reccomendations , isLoading, error } = useQuery({
@@ -14,6 +15,7 @@ const Reccomendations = ({ appointmentId, username }) => {
       ),
   });
   const [text, setText] = useState(null);
+  const [active, setActive] = useState("recommendations");
 
   useEffect(() => {
     if (reccomendations) {
@@ -33,12 +35,38 @@ const Reccomendations = ({ appointmentId, username }) => {
     return <LoadingCard message="From symptoms to strategy… aligning recommendations." />;
   }
 
-  if(error){
+  if (error) {
     return <LoadingCard />;
   }
 
   return (
     <>
+      <div className="mb-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setActive("recommendations")}
+            className={`px-4 py-2 rounded-md border ${
+              active === "recommendations"
+                ? "bg-sky-600 text-white border-sky-600"
+                : "bg-white text-slate-700"
+            }`}
+          >
+            Recommendations
+          </button>
+
+          <button
+            onClick={() => setActive("uptodate")}
+            className={`px-4 py-2 rounded-md border ${
+              active === "uptodate"
+                ? "bg-sky-600 text-white border-sky-600"
+                : "bg-white text-slate-700"
+            }`}
+          >
+            UpToDate
+          </button>
+        </div>
+      </div>
+
       <style>
         {`.markdown h1 {
             font-size: 1.5rem;
@@ -57,9 +85,16 @@ const Reccomendations = ({ appointmentId, username }) => {
             margin: 0.5rem 0;
           }`}
       </style>
-      <div className="markdown">
-        <ReactMarkdown>{text}</ReactMarkdown>
-      </div>
+
+      {active === "recommendations" ? (
+        <div className="markdown">
+          <ReactMarkdown>{text}</ReactMarkdown>
+        </div>
+      ) : (
+        <div>
+          <UpToDate appId={appointmentId} username={username} data={reccomendations?.data} />
+        </div>
+      )}
     </>
   );
 };
