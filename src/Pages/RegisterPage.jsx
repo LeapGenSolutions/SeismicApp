@@ -8,6 +8,7 @@ import { Input } from "../components/ui/input";
 import { BACKEND_URL } from "../constants";
 import { US_STATES } from "../components/ui/us-states";
 import { useToast } from "../hooks/use-toast";
+import TermsDialog from "../components/TermsDialog";
 
 // Helper to safely decode a JWT without validating it (backend must still verify)
 const decodeIdToken = (token) => {
@@ -72,6 +73,7 @@ const RegisterPage = () => {
   const [isNpiVerified, setIsNpiVerified] = useState(false);
   const [isVerifyingNpi, setIsVerifyingNpi] = useState(false);
   const [isStatesDropdownOpen, setIsStatesDropdownOpen] = useState(false);
+  const [isTermsDialogOpen, setIsTermsDialogOpen] = useState(false);
 
   const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState(initialErrors);
@@ -1192,11 +1194,17 @@ const RegisterPage = () => {
               />
               <Label htmlFor="terms" className="text-sm text-gray-600 cursor-pointer">
                 I agree to{" "}
-                <button type="button" className="text-[#1E40AF] hover:underline font-medium">Terms</button>
+                <button 
+                  type="button" 
+                  onClick={() => setIsTermsDialogOpen(true)}
+                  className="text-[#1E40AF] hover:underline font-medium"
+                >
+                  Terms
+                </button>
                 {" + "}
-                <button type="button" className="text-[#1E40AF] hover:underline font-medium">Privacy</button>
+                <button type="button"  onClick={() => setIsTermsDialogOpen(true)} className="text-[#1E40AF] hover:underline font-medium">Privacy</button>
                 {" + "}
-                <button type="button" className="text-[#1E40AF] hover:underline font-medium">AI/Clinical responsibility acknowledgements</button><span className="text-red-500">*</span>
+                <button type="button"  onClick={() => setIsTermsDialogOpen(true)} className="text-[#1E40AF] hover:underline font-medium">AI/Clinical responsibility acknowledgements</button><span className="text-red-500">*</span>
               </Label>
             </div>
             {errors.terms && <p className="mt-1 text-xs text-red-500">{errors.terms}</p>}
@@ -1290,6 +1298,9 @@ const RegisterPage = () => {
           }
         `}</style>
       </div>
+
+      {/* Terms Dialog */}
+      <TermsDialog open={isTermsDialogOpen} onOpenChange={setIsTermsDialogOpen} />
     </div>
   );
 };
