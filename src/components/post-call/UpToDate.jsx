@@ -1,152 +1,76 @@
-import { useMemo} from "react";
 import { BookOpen, ExternalLink } from "lucide-react";
-import { fetchUpToDateRecommendation } from "../../api/upToDate";
 import { useQuery } from "@tanstack/react-query";
+import { fetchRecommendationByAppointment } from "../../api/recommendations";
 import LoadingCard from "./LoadingCard";
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from "../ui/accordion";
 
-
-const UpToDate = ({appId, username}) => {
-  const {
-    data,
-    isLoading,
-    error
-  } = useQuery({
-    queryKey: ["uptodate-recommendation", username],
-    queryFn: () => fetchUpToDateRecommendation(appId, username),
+const UpToDate = ({ appId, username, data }) => {
+  // Fetch fallback data if component not provided `data`
+  const { data: upToDate, isLoading, error } = useQuery({
+    queryKey: ["recommendations", appId, username],
+    queryFn: () =>
+      fetchRecommendationByAppointment(
+        `${username}_${appId}_recommendations`,
+        username
+      ),
   });
 
+  const upToDateResult = data?.uptodate_results || upToDate?.data?.uptodate_results;
 
-  const topics = useMemo(() => {
-    if (!data) return [];
-    return Object.entries(data);
-  }, [data]);
+  const cleanSnippet = (s = "") => s.replace(/&hellip;/g, "…").replace(/\s+/g, " ");
 
-  if (!data || topics.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center text-gray-600">
-        No UpToDate results available for this encounter yet.
-      </div>
-    );
+  // If the parent didn't provide `data`, show loading / error states from the query
+  if (!data && isLoading) {
+    return <LoadingCard message="From symptoms to strategy… aligning recommendations." />;
   }
 
-   if (isLoading) {
-        return (
-            <LoadingCard message="Loading UpToDate results..." />
-        );
-    }
-
-    if(error){
-        return <LoadingCard />;
-    }
+  if (!data && error) {
+    return <LoadingCard />;
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 shadow-sm">
-        <div>
-          <p className="text-sm font-semibold text-gray-800">UpToDate insights</p>
-          <p className="text-sm text-gray-500">
-            Evidence-backed guidance grouped by condition.
-          </p>
-        </div>
-        <span className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-          Curated clinical references
-        </span>
+    <div className="w-full">
+      <div className="mb-4 flex items-center gap-2">
+        <BookOpen size={20} />
+        <h2 className="text-lg font-semibold">UpToDate — Recommendations</h2>
       </div>
 
-      <Accordion type="multiple" collapsible="true" className="space-y-4">
-        {topics.map(([topic, payload]) => (
-          <AccordionItem value={topic} key={topic}>
-            <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <AccordionTrigger className="flex items-center justify-between gap-3 border-b border-gray-100 bg-gray-50 px-4 py-3 hover:no-underline">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-blue-600" />
-                  <span className="text-base font-semibold text-gray-800">{topic}</span>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {(upToDateResult?.results || []).map((r, idx) => (
+          <article
+            key={idx}
+            className="border rounded-lg p-4 shadow-sm bg-white dark:bg-slate-800">
+            <div className="flex items-start gap-2">
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  {r.title}
+                </h3>
+                <div className="mt-2 text-sm text-slate-700 dark:text-slate-300">
+                  {cleanSnippet(r.snippet).length > 240
+                    ? `${cleanSnippet(r.snippet).slice(0, 240)}…`
+                    : cleanSnippet(r.snippet)}
                 </div>
-              </AccordionTrigger>
-
-              <AccordionContent className="space-y-4 p-4">
-                <Accordion type="multiple" collapsible="true" className="space-y-3">
-                  {(payload?.results || []).map((article, index) => (
-                    <AccordionItem value={`${topic}-${index}`} key={`${topic}-${index}`}>
-                      <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-                          <div className="flex flex-wrap items-center gap-3 px-4 py-3 hover:no-underline">
-                            <p className="text-lg font-semibold text-gray-900">{article.title}</p>
-                          </div>
-
-                        {article.links?.webapp?.href && (
-                          <a
-                            href={article.links.webapp.href}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="absolute right-4 top-3 inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-800"
-                          >
-                            View topic
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        )}
-
-                          <div className="grid gap-3">
-                            {(article.results || []).map((section) => {
-                              const tags = section.contentMeta?.tags || [];
-                              const contentType = section.contentMeta?.contentType;
-                              return (
-                                <div
-                                  key={section.contentMeta?.id || section.title}
-                                  className="rounded-lg border border-gray-100 bg-gray-50 p-3 transition hover:border-blue-200"
-                                >
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="space-y-1">
-                                      <p className="font-medium text-gray-900">{section.title}</p>
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        {contentType && (
-                                          <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
-                                            {contentType}
-                                          </span>
-                                        )}
-                                        {tags.map((tag) => (
-                                          <span
-                                            key={tag}
-                                            className="rounded-full border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700"
-                                          >
-                                            {tag}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-
-                                    {section.links?.webapp?.href && (
-                                      <a
-                                        href={section.links.webapp.href}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-800"
-                                      >
-                                        Open
-                                        <ExternalLink className="h-4 w-4" />
-                                      </a>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                      </div>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-              </AccordionContent>
-            </section>
-          </AccordionItem>
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
+                      {r.contentMeta?.audience || "patient"}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{r.contentMeta?.contentType}</span>
+                  </div>
+                  <a
+                    href={r.webapp_link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-sm text-sky-600 hover:underline">
+                    Open <ExternalLink size={14} />
+                  </a>
+                </div>
+              </div>
+            </div>
+          </article>
         ))}
-      </Accordion>
+      </div>
     </div>
   );
 };
 
-export default UpToDate; 
+export default UpToDate;
