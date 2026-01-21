@@ -3,7 +3,7 @@ import {
   StreamVideo,
   StreamVideoClient
 } from '@stream-io/video-react-sdk';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import getUserToken from '../api/UserToken';
 import { useParams, useSearchParams } from 'wouter';
 import { useSelector } from 'react-redux';
@@ -21,6 +21,9 @@ const StreamVideoCoreV3 = () => {
   const { callId } = useParams();
   const searchParams = useSearchParams()[0]
   const patientName = searchParams.get("patient")
+  const type = searchParams.get("type") || "online";
+  const normalizedType = type.toLowerCase().replace(/[\s_-]/g, '');
+  const isInPerson = normalizedType === "inperson";
 
   const role = 'doctor'
   const userName = me.given_name + " " + me.family_name
@@ -28,6 +31,7 @@ const StreamVideoCoreV3 = () => {
 
   const [client, setClient] = useState(null);
   const [call, setCall] = useState(null);
+  const callRef = useRef(null);
   const [showCall, setShowCall] = useState(false);
   const [loading, setLoading] = useState(true);
   const [rejected, setRejected] = useState(false);
@@ -36,7 +40,8 @@ const StreamVideoCoreV3 = () => {
   const [isNotepadOpen, setIsNotepadOpen] = useState(false);
   const [requestingUser, setRequestingUser] = useState(null);
   const [meetingStartTime, setMeetingStartTime] = useState(null);
-
+  const [recordingReminderVisible, setRecordingReminderVisible] = useState(false);
+  const [patientApproved, setPatientApproved] = useState(false);
 
   // Show browser notification
   const showBrowserNotification = (name) => {
@@ -55,18 +60,56 @@ const StreamVideoCoreV3 = () => {
 
   // Approve / Reject handlers
   const handleApprove = () => {
-    if (!call || !requestingUser) return;
-    call.sendCustomEvent({ type: "join-accepted", user: requestingUser });
+    if (!callRef.current || !requestingUser) return;
+    callRef.current.sendCustomEvent({ type: "join-accepted", user: requestingUser });
+    setPopupVisible(false);
+    setRequestingUser(null);
+    setPatientApproved(true);
+  };
+
+  const handleReject = () => {
+    if (!callRef.current || !requestingUser) return;
+    callRef.current.sendCustomEvent({ type: "join-rejected", user: requestingUser });
     setPopupVisible(false);
     setRequestingUser(null);
   };
 
-  const handleReject = () => {
-    if (!call || !requestingUser) return;
-    call.sendCustomEvent({ type: "join-rejected", user: requestingUser });
-    setPopupVisible(false);
-    setRequestingUser(null);
-  };
+  useEffect(() => {
+    if (isInPerson) {
+      setPatientApproved(true);
+    }
+  }, [isInPerson]);
+
+  useEffect(() => {
+    if (!callRef.current || !showCall || !patientApproved) return;
+
+    const call = callRef.current;
+
+    const timer = setTimeout(() => {
+      if (!call.state.recording?.status || call.state.recording.status !== "started") {
+        setRecordingReminderVisible(true);
+        if (Notification.permission === "granted") {
+          new Notification("Recording not started!", {
+            body: "Please click the record button to start recording this session.",
+            icon: "https://cdn-icons-png.flaticon.com/512/483/483947.png",
+          });
+        }
+      }
+    }, 15000);
+
+    const handleRecordingStarted = () => {
+      console.log(">>> call.recording_started fired at", new Date().toISOString());
+      clearTimeout(timer);
+      setRecordingReminderVisible(false);
+    };
+
+    call.on("call.recording_started", handleRecordingStarted);
+
+    return () => {
+      clearTimeout(timer);
+      call.off("call.recording_started", handleRecordingStarted);
+    };
+  }, [showCall, patientApproved]);
 
   useEffect(() => {
     let isMounted = true;
@@ -86,6 +129,8 @@ const StreamVideoCoreV3 = () => {
       });
 
       const videoCall = videoClient.call("default", callId);
+
+      callRef.current = videoCall;
 
       videoCall.on("call.session_participant_joined", (req) => {
         console.log("Session started");
@@ -185,10 +230,10 @@ const StreamVideoCoreV3 = () => {
 
     return () => {
       isMounted = false;
-      if (call) call.leave();
+       callRef.current?.leave().catch(() => {});
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, callId, role]);
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, callId, role, apiKey, myEmail, patientName, userName]); 
 
   return (
     <>
@@ -380,7 +425,10 @@ const StreamVideoCoreV3 = () => {
       {!loading && showCall && client && call && (
         <StreamVideo client={client}>
           <StreamCall call={call}>
-            <StreamVideoLayoutV4 callId={callId} />
+            <StreamVideoLayoutV4
+              callId={callId}
+              onRecordingStarted={() => setRecordingReminderVisible(false)}
+            />
           </StreamCall>
         </StreamVideo>
       )}
@@ -401,6 +449,14 @@ const StreamVideoCoreV3 = () => {
             isVideoCall={true}
           />
         </>
+      )}
+
+      {recordingReminderVisible && role === "doctor" && (
+        <div style={{ position:"fixed", bottom:"2rem", right:"2rem", backgroundColor:"#fff3cd", color:"#856404", border:"1px solid #ffeeba", borderRadius:"10px", padding:"1rem 1.5rem", boxShadow:"0 4px 12px rgba(0,0,0,0.15)", fontFamily:"'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", zIndex:2000, animation:"slideFadeInUp 0.4s ease-out" }}>
+          <strong>⚠️ Recording not started</strong>
+          <div style={{ marginTop:"0.5rem" }}>Please click the <b>Record</b> button to start recording this call.</div>
+          <button style={{ marginTop:"0.75rem", backgroundColor:"#ffc107", border:"none", borderRadius:"6px", padding:"0.5rem 1rem", cursor:"pointer", fontWeight:600 }} onClick={() => setRecordingReminderVisible(false)}>Dismiss</button>
+        </div>
       )}
     </>
   );
