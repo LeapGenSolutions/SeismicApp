@@ -33,25 +33,6 @@ import setMyDetails from "./redux/me-actions";
 import TimelineDashboard from "./Pages/TimelineDashboard";
 import ChatbotWindow from "./components/chatbot/ChatbotWindow";
 
-// Lightweight JWT decoder (no external dependency)
-function decodeJwt(token) {
-  try {
-    const base64Url = token.split(".")[1];
-    if (!base64Url) return null;
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
-    );
-    return JSON.parse(jsonPayload);
-  } catch (e) {
-    console.error("Failed to decode JWT from URL token:", e);
-    return null;
-  }
-}
-
 
 function Router() {
   const queryParams = new URLSearchParams(window.location.search);
@@ -121,37 +102,25 @@ function Main() {
   }
 
   useEffect(() => {
+    // Check if token is provided in query params to bypass authentication
     const queryParams = new URLSearchParams(window.location.search);
-    const tokenFromUrl = queryParams.get("token");
-    const storedToken = sessionStorage.getItem("bypassToken");
-    const activeToken = tokenFromUrl || storedToken;
-    if (activeToken) {
-      if (tokenFromUrl) {
-        sessionStorage.setItem("bypassToken", tokenFromUrl);
-      }
-      const claims = decodeJwt(activeToken);
-      if (claims) {
-        const rolesFromToken = claims.roles || claims["roles"] || claims["role"] || [];
-        const normalizedRoles = Array.isArray(rolesFromToken)
-          ? rolesFromToken
-          : [rolesFromToken].filter(Boolean);
+    const token = queryParams.get("token");
 
-        dispatch(setMyDetails(claims));
-        if (normalizedRoles.includes("SeismicDoctors")) {
-          setHasRole(true);
-        }
-      }
+    if (token) {
+      // Store token and bypass authentication
+      localStorage.setItem("bypassToken", token);
       setTokenBypass(true);
+      // Remove token from URL to keep it hidden
+      window.history.replaceState({}, document.title, window.location.pathname);
+      // Optionally set a default role or user data
+      dispatch(setMyDetails({
+        roles: ["SeismicDoctors"],
+        email: "vasdd@gmail.com",
+        name: "Guest User"
+      }));
+      setHasRole(true);
     } else if (isAuthenticated) {
       requestProfileData()
-    //  window.history.replaceState({}, document.title, window.location.pathname);
-      // Optionally set a default role or user data
-     // dispatch(setMyDetails({
-     //   roles: ["SeismicDoctors"],
-     //   email: "vasdd@gmail.com",
-     //   name: "Guest User"
-     // }));
-     //  setHasRole(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated])
