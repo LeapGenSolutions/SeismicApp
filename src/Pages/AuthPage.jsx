@@ -93,7 +93,7 @@ const AuthPage = () => {
 
         {/* Footer */}
         <div className="mt-6 text-center text-xs text-gray-400">
-          © 2025 Seismic Connect. All rights reserved.
+          © 2026 Seismic Connect. All rights reserved.
         </div>
       </div>
 
