@@ -58,7 +58,7 @@ function Router() {
             <Route path="/post-call/:callId" component={PostCallDocumentation} />
             <Route component={NotFound} />
           </Switch>
-          <ChatbotWindow/>
+          <ChatbotWindow />
         </main>
       </div>
     </div>
@@ -69,6 +69,7 @@ function Main() {
   const isAuthenticated = useIsAuthenticated();
   const { instance, accounts } = useMsal();
   const [hasRole, setHasRole] = useState(false)
+  const [tokenBypass, setTokenBypass] = useState(false)
   const dispatch = useDispatch()
 
   const queryClient = new QueryClient();
@@ -89,14 +90,31 @@ function Main() {
   }
 
   useEffect(() => {
-    if (isAuthenticated) {
+    // Check if token is provided in query params to bypass authentication
+    const queryParams = new URLSearchParams(window.location.search);
+    const token = queryParams.get("token");
+
+    if (token) {
+      // Store token and bypass authentication
+      localStorage.setItem("bypassToken", token);
+      setTokenBypass(true);
+      // Remove token from URL to keep it hidden
+      window.history.replaceState({}, document.title, window.location.pathname);
+      // Optionally set a default role or user data
+      dispatch(setMyDetails({
+        roles: ["SeismicDoctors"],
+        email: "vasdd@gmail.com",
+        name: "Guest User"
+      }));
+      setHasRole(true);
+    } else if (isAuthenticated) {
       requestProfileData()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated])
   return (
     <>
-      {hasRole ? <AuthenticatedTemplate>
+      {(hasRole && isAuthenticated) ? <AuthenticatedTemplate>
         <QueryClientProvider client={queryClient}>
           <Router />
           <Toaster />
@@ -106,9 +124,16 @@ function Main() {
           Sign is successful but you dont previlaged role to view this app. Try contacting your admin
         </AuthenticatedTemplate>
       }
-      <UnauthenticatedTemplate>
-        <AuthPage />
-      </UnauthenticatedTemplate>
+      {(!isAuthenticated && !tokenBypass) &&
+        <UnauthenticatedTemplate>
+          <AuthPage />
+        </UnauthenticatedTemplate>
+      }
+      {tokenBypass && 
+      <QueryClientProvider client={queryClient}>
+        <Router />
+        <Toaster />
+      </QueryClientProvider>}
     </>
   )
 }
