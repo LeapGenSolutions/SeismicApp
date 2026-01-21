@@ -1,99 +1,97 @@
 import { Textarea } from "../../ui/textarea";
 
-const AssessmentPlanSection = ({ isEditing, soapNotes, setSoapNotes, patientLine, reasonLine }) => {
-  if (isEditing) {
-    return (
-      <>
-        <Textarea
-          value={soapNotes.Assessment}
-          onChange={(e) => setSoapNotes({ ...soapNotes, Assessment: e.target.value })}
-          rows={4}
-        />
-        <Textarea
-          value={soapNotes.Plan}
-          onChange={(e) => setSoapNotes({ ...soapNotes, Plan: e.target.value })}
-          rows={4}
-        />
-      </>
-    );
-  }
+const AssessmentPlanSection = ({ soapNotes, setSoapNotes, isEditing }) => {
+  const ap = soapNotes.assessmentAndPlan || { problems: [], follow_up: "" };
 
-  // --- Combine and parse ---
-  const combined = `${soapNotes.Assessment}\n${soapNotes.Plan}`.trim();
-  const lines = combined.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const setProblems = (problems) =>
+    setSoapNotes({
+      ...soapNotes,
+      assessmentAndPlan: { ...ap, problems },
+    });
 
-  const sections = new Map();
-  let currentHeading = null;
+  const setFollowUp = (value) =>
+    setSoapNotes({
+      ...soapNotes,
+      assessmentAndPlan: { ...ap, follow_up: value },
+    });
 
-  lines.forEach((line) => {
-    const headingMatch = line.match(/^\[?([A-Za-z][\w\s\-()]+)\]?:$/i);
-    const inlineHeaderMatch = line.match(/^\[?([A-Za-z][\w\s\-()]+)\]?:\s*(.+)/i);
-    const numberedHeadingMatch = line.match(/^(\d+\.\s*)([A-Za-z][\w\s\-()]+):\s*(.+)?$/i);
-
-    if (/^Assessment\s+Plan[:]?$/i.test(line)) {
-      currentHeading = "Assessment & Plan";
-      if (!sections.has(currentHeading)) sections.set(currentHeading, []);
-      return;
-    }
-
-    if (headingMatch && !inlineHeaderMatch) {
-      currentHeading = headingMatch[1].trim();
-      if (!sections.has(currentHeading)) sections.set(currentHeading, []);
-    } else if (inlineHeaderMatch) {
-      const heading = inlineHeaderMatch[1].trim();
-      const content = inlineHeaderMatch[2].trim();
-      if (!sections.has(heading)) sections.set(heading, []);
-      sections.get(heading).push(content);
-      currentHeading = heading;
-    } else if (numberedHeadingMatch) {
-      const heading = numberedHeadingMatch[2].trim();
-      const content = numberedHeadingMatch[3]?.trim() || "";
-      currentHeading = heading;
-      if (!sections.has(currentHeading)) sections.set(currentHeading, []);
-      if (content) sections.get(currentHeading).push(content);
-    } else if (currentHeading) {
-      sections.get(currentHeading).push(line.replace(/^[•/-]\s*/, ""));
-    } else {
-      if (!sections.has("Notes")) sections.set("Notes", []);
-      sections.get("Notes").push(line);
-    }
-  });
+  const handleChange = (idx, field, value) => {
+    const copy = [...(ap.problems || [])];
+    copy[idx] = { ...(copy[idx] || {}), [field]: value };
+    setProblems(copy);
+  };
 
   return (
-    <div className="space-y-4">
-      {patientLine && reasonLine && (
-        <p className="font-semibold">
-          {(() => {
-            const match = patientLine.match(/(.*?),\s*(\d+)\s*years old,\s*(F|M)/i);
-            if (match) {
-              const name = match[1];
-              const age = match[2];
-              const gender = match[3];
-              const cleanedReason = reasonLine
-                .replace(/^Patient presents with\s*/i, "")
-                .replace(/^Patient reports\s*/i, "")
-                .trim();
-              return `${name} is a ${age}-year-old ${gender} with a chief complaint of ${cleanedReason}`;
-            }
-            const cleanedReason = reasonLine
-              .replace(/^Patient presents with\s*/i, "")
-              .replace(/^Patient reports\s*/i, "")
-              .trim();
-            return `${patientLine} with a chief complaint of ${cleanedReason}`;
-          })()}
-        </p>
-      )}
+    <div className="pt-2 text-gray-900 leading-relaxed space-y-2">
+      <p className="font-semibold text-blue-700 text-lg">Assessment & Plan</p>
 
-      {[...sections.entries()].map(([heading, bullets], idx) => (
-        <div key={idx} className="space-y-1">
-          <p className="font-semibold text-black">{heading}:</p>
-          <ul className="list-disc ml-5 text-sm space-y-1">
-            {bullets.map((b, i) => (
-              <li key={i}>{b}</li>
-            ))}
-          </ul>
+      {(ap.problems || []).map((p, idx) => (
+        <div key={idx} className="space-y-0.5">
+          {!isEditing ? (
+            <>
+              <p className="font-semibold text-black">
+                Problem #{idx + 1}: {p.problem}
+              </p>
+              <p>
+                <b>Assessment:</b> {p.assessment}
+              </p>
+              <p>
+                <b>Plan:</b>
+              </p>
+              <ul className="list-disc ml-6">
+                {(p.plan || "")
+                  .split(/(?<=\.)\s+/)
+                  .filter(Boolean)
+                  .map((line, i) => (
+                    <li key={i}>{line}</li>
+                  ))}
+              </ul>
+            </>
+          ) : (
+            <div className="p-3 border rounded space-y-2">
+              <input
+                className="border rounded px-2 py-1 w-full"
+                placeholder="Problem"
+                value={p.problem || ""}
+                onChange={(e) => handleChange(idx, "problem", e.target.value)}
+              />
+              <Textarea
+                rows={2}
+                placeholder="Assessment..."
+                value={p.assessment || ""}
+                onChange={(e) =>
+                  handleChange(idx, "assessment", e.target.value)
+                }
+              />
+              <Textarea
+                rows={3}
+                placeholder="Plan..."
+                value={p.plan || ""}
+                onChange={(e) => handleChange(idx, "plan", e.target.value)}
+              />
+            </div>
+          )}
         </div>
       ))}
+
+      {/* --- Follow-up --- */}
+      {!isEditing ? (
+        ap.follow_up && (
+          <p className="mt-2">
+            <b>Follow-up:</b> {ap.follow_up}
+          </p>
+        )
+      ) : (
+        <div className="mt-3">
+          <p className="font-semibold">Follow-up</p>
+          <Textarea
+            rows={2}
+            placeholder="Follow-up plan..."
+            value={ap.follow_up || ""}
+            onChange={(e) => setFollowUp(e.target.value)}
+          />
+        </div>
+      )}
     </div>
   );
 };
