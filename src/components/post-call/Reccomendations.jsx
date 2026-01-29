@@ -42,12 +42,15 @@ const Reccomendations = ({ appointmentId, username }) => {
   return (
     <>
       <div className="mb-4">
-        <div className="flex items-center gap-3">
+        <h2 className="text-2xl font-semibold text-slate-900">Recommendations</h2>
+
+          <div className="mt-4 flex items-center gap-3">
           <button
             onClick={() => setActive("recommendations")}
-            className={`px-4 py-2 rounded-md border ${
+            aria-pressed={active === "recommendations"}
+            className={`px-6 py-2 rounded-md border shadow-sm text-sm font-medium ${
               active === "recommendations"
-                ? "bg-sky-600 text-white border-sky-600"
+                ? "bg-blue-600 text-white"
                 : "bg-white text-slate-700"
             }`}
           >
@@ -56,9 +59,10 @@ const Reccomendations = ({ appointmentId, username }) => {
 
           <button
             onClick={() => setActive("uptodate")}
-            className={`px-4 py-2 rounded-md border ${
+            aria-pressed={active === "uptodate"}
+            className={`px-6 py-2 rounded-md border shadow-sm text-sm font-medium ${
               active === "uptodate"
-                ? "bg-sky-600 text-white border-sky-600"
+                ? "bg-blue-600 text-white"
                 : "bg-white text-slate-700"
             }`}
           >
