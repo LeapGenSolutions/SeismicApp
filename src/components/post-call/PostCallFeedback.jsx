@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { updatePostCallFeedbackByAppointment } from "../../api/postCallFeedback";
@@ -17,9 +17,43 @@ const CallFeedback = ({ username, appointmentId }) => {
   const [error, setError] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [showThankYou, setShowThankYou] = useState(false);
-  const [dialogMode, setDialogMode] = useState(null); // null, "select", "view", "edit"
+  const [dialogMode, setDialogMode] = useState(null);
+
+  // Resize State
+  const [dimensions, setDimensions] = useState({ width: 384, height: 500 });
 
   const ratingOptions = [1, 2, 3, 4, 5];
+
+  // Manual Resizing Logic for Bottom-Left
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = dimensions.width;
+    const startHeight = dimensions.height;
+
+    const onMouseMove = (moveEvent) => {
+      // Horizontal resize: Increasing width when dragging LEFT, limited to 50% screen width
+      const deltaX = startX - moveEvent.clientX; 
+      const newWidth = Math.min(window.innerWidth / 2, Math.max(350, startWidth + deltaX));
+      
+      // Vertical resize: Increasing height when dragging DOWN
+      const deltaY = moveEvent.clientY - startY;
+      const newHeight = Math.max(300, startHeight + deltaY);
+
+      setDimensions({ width: newWidth, height: newHeight });
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  };
+
+  const resizableContainerClass = "absolute top-0 right-0 bg-white border border-gray-300 rounded-xl shadow-lg z-50 overflow-hidden flex flex-col";
 
   const renderRatingButtons = (field, editable = true) => (
     <div className="flex items-center space-x-2 mt-1">
@@ -31,7 +65,7 @@ const CallFeedback = ({ username, appointmentId }) => {
             form[field] === num
               ? "bg-blue-600 text-white"
               : "bg-white text-gray-700 border-gray-300"
-          }`}
+          } ${!editable ? "cursor-default" : "hover:border-blue-500"}`}
           onClick={() => {
             if (!editable) return;
             setForm((f) => ({
@@ -75,7 +109,6 @@ const CallFeedback = ({ username, appointmentId }) => {
       setShowForm(false);
       setDialogMode(null);
       setShowThankYou(true);
-
       setTimeout(() => setShowThankYou(false), 3000);
     } catch {
       setError("Failed to save post call feedback. Please try again.");
@@ -94,7 +127,7 @@ const CallFeedback = ({ username, appointmentId }) => {
 
   return (
     <div className="relative">
-      {!showForm && !showThankYou && (
+      {!showForm && !showThankYou && !dialogMode && (
         <Button
           className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 border border-blue-700 rounded-lg hover:bg-blue-700 transition-colors duration-200"
           onClick={handleFeedbackButtonClick}
@@ -103,224 +136,94 @@ const CallFeedback = ({ username, appointmentId }) => {
         </Button>
       )}
 
-      {/* Feedback form */}
-      {showForm && (
-        <div className="absolute top-0 right-0 bg-white border border-gray-300 rounded-xl shadow-lg p-6 w-96 z-50">
-          <h2 className="text-lg font-semibold text-blue-800 mb-4">Call Feedback</h2>
+      {(showForm || dialogMode === "view" || dialogMode === "edit" || dialogMode === "select") && (
+        <div 
+          className={resizableContainerClass} 
+          style={{ width: `${dimensions.width}px`, height: dialogMode === "select" ? 'auto' : `${dimensions.height}px` }}
+        >
+          <div className="p-6 flex-1 overflow-y-auto">
+            {/* Logic for Title/Content based on mode */}
+            <h2 className="text-lg font-semibold text-blue-800 mb-4">
+              {dialogMode === "select" ? "Feedback already given" : 
+               dialogMode === "view" ? "View Feedback" : 
+               dialogMode === "edit" ? "Edit Feedback" : "Call Feedback"}
+            </h2>
 
-          <div className="space-y-4">
-            <div>
-              <label className="font-medium text-gray-700 text-sm">
-                How satisfied are you with the overall experience during this call?
-              </label>
-              {renderRatingButtons("overallExperience")}
-            </div>
+            {dialogMode === "select" ? (
+              <div className="flex justify-end space-x-2">
+                <Button size="sm" onClick={() => setDialogMode("view")}>View</Button>
+                <Button size="sm" className="bg-blue-600 text-white" onClick={() => setDialogMode("edit")}>Edit</Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="font-medium text-gray-700 text-sm">Overall Experience</label>
+                  {renderRatingButtons("overallExperience", dialogMode !== "view")}
+                </div>
+                <div>
+                  <label className="font-medium text-gray-700 text-sm">Was summary accurate?</label>
+                  {renderRatingButtons("summaryAccuracy", dialogMode !== "view")}
+                </div>
+                <div>
+                  <label className="font-medium text-gray-700 text-sm">Were SOAP notes accurate?</label>
+                  {renderRatingButtons("soapHelpfulness", dialogMode !== "view")}
+                </div>
+                <div>
+                  <label className="font-medium text-gray-700 text-sm">Were billing codes accurate?</label>
+                  {renderRatingButtons("billingAccuracy", dialogMode !== "view")}
+                </div>
+                <div>
+                  <label className="font-medium text-gray-700 text-sm">Was transcript accurate?</label>
+                  {renderRatingButtons("transcriptAccuracy", dialogMode !== "view")}
+                </div>
+                <div>
+                  <label className="font-medium text-gray-700 text-sm">Features/Improvements</label>
+                  <Textarea
+                    placeholder="Your suggestions..."
+                    value={form.featureSuggestions}
+                    readOnly={dialogMode === "view"}
+                    onChange={(e) => setForm((f) => ({ ...f, featureSuggestions: e.target.value }))}
+                    rows={3}
+                    className={`${dialogMode === "view" ? "bg-gray-50" : "bg-white"} border border-gray-300 mt-1 w-full rounded`}
+                  />
+                </div>
+                {error && dialogMode !== "view" && <div className="text-red-600 font-medium text-sm">{error}</div>}
+                <div className="flex justify-end space-x-2 mt-4">
+                  {dialogMode !== "view" && (
+                    <Button size="sm" onClick={handleSave} disabled={saving}>
+                      {saving ? "Saving..." : "Submit"}
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => { setShowForm(false); setDialogMode(null); }}>
+                    {dialogMode === "view" ? "Close" : "Cancel"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
 
-            <div>
-              <label className="font-medium text-gray-700 text-sm">Was summary accurate?</label>
-              {renderRatingButtons("summaryAccuracy")}
-            </div>
-
-            <div>
-              <label className="font-medium text-gray-700 text-sm">Were SOAP notes accurate?</label>
-              {renderRatingButtons("soapHelpfulness")}
-            </div>
-
-            <div>
-              <label className="font-medium text-gray-700 text-sm">Were billing codes accurate?</label>
-              {renderRatingButtons("billingAccuracy")}
-            </div>
-
-            <div>
-              <label className="font-medium text-gray-700 text-sm">Was transcript accurate?</label>
-              {renderRatingButtons("transcriptAccuracy")}
-            </div>
-
-            <div>
-              <label className="font-medium text-gray-700 text-sm">
-                Are there any features or improvements you would like us to add?
-              </label>
-              <Textarea
-                placeholder="Your suggestions..."
-                value={form.featureSuggestions}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, featureSuggestions: e.target.value }))
-                }
-                rows={3}
-                className="bg-white border border-gray-300 mt-1 w-full rounded"
-              />
-            </div>
-
-            {error && <div className="text-red-600 font-medium">{error}</div>}
-
-            <div className="flex justify-end space-x-2 mt-4">
-              <Button
-                size="sm"
-                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 border border-blue-700 rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                onClick={handleSave} // Only Submit saves
-                disabled={saving}
-              >
-                {saving ? "Saving..." : "Submit"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowForm(false)} // Cancel just closes
-              >
-                Cancel
-              </Button>
-            </div>
+          {/* RESIZE HANDLE: Double Sided Arrow Icon */}
+          <div 
+            onMouseDown={handleMouseDown} 
+            className="absolute bottom-0 left-0 w-8 h-8 cursor-nesw-resize flex items-center justify-center group"
+            title="Drag to resize"
+          >
+            <svg 
+              className="w-4 h-4 text-gray-400 group-hover:text-blue-600 rotate-90 transition-colors" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor" 
+              strokeWidth={3}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7l4-4m0 0l4 4m-4-4v18m0 0l-4-4m4 4l4 4" />
+            </svg>
           </div>
         </div>
       )}
 
-      {/* Thank you message */}
       {showThankYou && (
         <div className="absolute top-0 right-0 bg-white border border-gray-300 rounded-xl shadow-lg p-6 w-96 z-50 flex items-center justify-center">
-          <span className="text-green-600 font-medium">
-            Thank you for your feedback! We appreciate your input.
-          </span>
-        </div>
-      )}
-
-      {/* Dialog for already given feedback */}
-      {dialogMode === "select" && (
-        <div className="absolute top-0 right-0 bg-white border border-gray-300 rounded-xl shadow-lg p-6 w-96 z-50 flex flex-col space-y-4">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-gray-700 font-medium">Feedback already given</span>
-            <button
-              className="text-gray-400 hover:text-gray-700 font-bold text-xl"
-              onClick={() => setDialogMode(null)}
-            >
-              ✕
-            </button>
-          </div>
-          <div className="flex justify-end space-x-2">
-            <Button size="sm" onClick={() => setDialogMode("view")}>View</Button>
-            <Button
-              size="sm"
-              className="bg-blue-600 text-white hover:bg-blue-700"
-              onClick={() => setDialogMode("edit")}
-            >
-              Edit
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* View Mode */}
-      {dialogMode === "view" && (
-        <div className="absolute top-0 right-0 bg-white border border-gray-300 rounded-xl shadow-lg p-6 w-96 z-50">
-          <button
-            className="self-end text-gray-400 hover:text-gray-700 font-bold text-xl"
-            onClick={() => setDialogMode(null)} // Cancel closes dialog, no save
-          >
-            ✕
-          </button>
-          <h2 className="text-lg font-semibold text-blue-800 mb-4">View Feedback</h2>
-
-          <div className="space-y-4">
-            <div>
-              <label className="font-medium text-gray-700 text-sm">Overall Experience</label>
-              {renderRatingButtons("overallExperience", false)}
-            </div>
-            <div>
-              <label className="font-medium text-gray-700 text-sm">Summary Accuracy</label>
-              {renderRatingButtons("summaryAccuracy", false)}
-            </div>
-            <div>
-              <label className="font-medium text-gray-700 text-sm">SOAP Helpfulness</label>
-              {renderRatingButtons("soapHelpfulness", false)}
-            </div>
-            <div>
-              <label className="font-medium text-gray-700 text-sm">Billing Accuracy</label>
-              {renderRatingButtons("billingAccuracy", false)}
-            </div>
-            <div>
-              <label className="font-medium text-gray-700 text-sm">Transcript Accuracy</label>
-              {renderRatingButtons("transcriptAccuracy", false)}
-            </div>
-            <div>
-              <label className="font-medium text-gray-700 text-sm"> Are there any features or improvements you would like us to add?</label>
-              <Textarea
-                value={form.featureSuggestions}
-                readOnly
-                rows={3}
-                className="bg-white border border-gray-300 mt-1 w-full rounded"
-              />
-            </div>
-            <div className="flex justify-end mt-4">
-              <Button size="sm" variant="outline" onClick={() => setDialogMode(null)}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Mode */}
-      {dialogMode === "edit" && (
-        <div className="absolute top-0 right-0 bg-white border border-gray-300 rounded-xl shadow-lg p-6 w-96 z-50">
-          <button
-            className="self-end text-gray-400 hover:text-gray-700 font-bold text-xl"
-            onClick={() => setDialogMode(null)} // Cancel closes dialog, no save
-          >
-            
-          </button>
-          <h2 className="text-lg font-semibold text-blue-800 mb-4">Edit Feedback</h2>
-
-          <div className="space-y-4">
-            <div>
-              <label className="font-medium text-gray-700 text-sm">How satisfied are you with the overall experience during this call?</label>
-              {renderRatingButtons("overallExperience")}
-            </div>
-            <div>
-              <label className="font-medium text-gray-700 text-sm">Was summary accurate?</label>
-              {renderRatingButtons("summaryAccuracy")}
-            </div>
-            <div>
-              <label className="font-medium text-gray-700 text-sm">Were SOAP notes accurate?</label>
-              {renderRatingButtons("soapHelpfulness")}
-            </div>
-            <div>
-              <label className="font-medium text-gray-700 text-sm">Were billing codes accurate?</label>
-              {renderRatingButtons("billingAccuracy")}
-            </div>
-            <div>
-              <label className="font-medium text-gray-700 text-sm">Was transcript accurate?</label>
-              {renderRatingButtons("transcriptAccuracy")}
-            </div>
-            <div>
-              <label className="font-medium text-gray-700 text-sm"></label>
-              <Textarea
-                placeholder="Your suggestions..."
-                value={form.featureSuggestions}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, featureSuggestions: e.target.value }))
-                }
-                rows={3}
-                className="bg-white border border-gray-300 mt-1 w-full rounded"
-              />
-            </div>
-            {error && <div className="text-red-600 font-medium">{error}</div>}
-            <div className="flex justify-end space-x-2 mt-4">
-              <Button
-                size="sm"
-                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 border border-blue-700 rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                onClick={handleSave} // Only Submit saves
-                disabled={saving}
-              >
-                {saving ? "Saving..." : "Submit"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setDialogMode(null)} // Cancel closes dialog, no save
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
+          <span className="text-green-600 font-medium">Thank you for your feedback!</span>
         </div>
       )}
     </div>
