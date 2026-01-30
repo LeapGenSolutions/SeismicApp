@@ -29,13 +29,9 @@ const VideoCallPage = () => {
   const { toast } = useToast();
 
   const today = format(new Date(), "yyyy-MM-dd");
-
-  // ✅ used to gate dropdown selection
   const isAppointmentSelected = Boolean(appointmentId);
-
-  // ✅ NEW: online-only video controls
   const isOnlineAppointment = appointmentType === "online";
-  const canShowVideoControls = isAppointmentSelected && isOnlineAppointment;
+  const canStartVideoCall = isAppointmentSelected, canShowVideoControls = isAppointmentSelected && isOnlineAppointment;
 
   useEffect(() => {
     document.title = "VideoCall - Seismic Connect";
@@ -155,8 +151,6 @@ const VideoCallPage = () => {
     setAppointmentId(selectedAppointmentId);
     setRoom(selectedAppointmentId);
     setAppointmentDetails(appointment);
-
-    // ✅ UPDATED: generate link ONLY if Online
     if (appointmentType === "online") {
       generateJoinLink(selectedAppointmentId);
     } else {
@@ -288,7 +282,7 @@ const VideoCallPage = () => {
                       htmlFor="appointment"
                       className="text-sm font-medium text-gray-700"
                     >
-                      Select an appointment
+                      Select An Appointment
                     </label>
                     <div className="relative">
                       <select
@@ -296,7 +290,7 @@ const VideoCallPage = () => {
                         onChange={(e) => handleAppointmentSelect(e.target.value)}
                         className="flex h-10 w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        <option value="">Select an appointment</option>
+                        <option value="">Select An Appointment</option>
                         {isLoadingUpcoming ? (
                           <option disabled>Loading appointments...</option>
                         ) : sortedAppointments.length > 0 ? (
@@ -414,7 +408,8 @@ const VideoCallPage = () => {
                       )}
                     </div>
                   </div>
-                  {canShowVideoControls && (
+
+                  {canStartVideoCall && (
                     <div className="flex justify-end space-x-2 mt-4">
                       <button
                         onClick={() => joinAsDoctor(room)}
@@ -425,6 +420,7 @@ const VideoCallPage = () => {
                       </button>
                     </div>
                   )}
+
                   {showShareLink && canShowVideoControls && (
                     <div className="mt-6 w-full flex justify-center">
                       <div className="bg-gray-100 rounded-lg px-6 py-4 w-full max-w-xl shadow-sm">
