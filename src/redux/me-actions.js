@@ -12,23 +12,13 @@ const setMyDetails = (details) => {
     } catch (err) {
       console.error("Failed to load doctor metadata:", err);
     }
+
     // find doctor by email
     const doctorDoc = doctors.find(
       (doc) =>
         doc.doctor_email?.toLowerCase() === email ||
         doc.id?.toLowerCase() === email
     );
-    // If no doctorDoc found, fall back to just details (existing flow)
- 
-
-    const fullNameFromDoc = `${doctorDoc?.firstName || ""} ${doctorDoc?.lastName || ""}`.trim();
-    const displayName =
-      doctorDoc?.doctor_name ||
-      fullNameFromDoc ||
-      details?.name ||
-      details?.given_name ||
-      details?.email?.split("@")?.[0] ||
-      "";
 
     // store final doctor metadata into Redux
     if(doctorDoc?.profileComplete===true){
@@ -36,15 +26,15 @@ const setMyDetails = (details) => {
         myActions.setMyself({
           ...details,
           email,
-          
+
           doctor_name: doctorDoc?.doctor_name || doctorDoc?.firstName + " " + doctorDoc?.lastName,
           doctor_id: doctorDoc?.doctor_id || doctorDoc?.id,
           doctor_email: doctorDoc?.doctor_email,
           specialization: doctorDoc?.specialization || doctorDoc?.specialty,
-          given_name: displayName,
-          family_name: displayName,
-          name: displayName,
-          fullName: displayName,
+          given_name: doctorDoc?.firstName + " " + doctorDoc?.lastName,
+          family_name: doctorDoc?.firstName + " " + doctorDoc?.lastName,
+          name: doctorDoc?.firstName + " " + doctorDoc?.lastName,
+          fullName: doctorDoc?.firstName + " " + doctorDoc?.lastName,
           role:[ doctorDoc?.role],
           roles:[ doctorDoc?.roles],
           specialty: doctorDoc?.specialty || doctorDoc?.specialization,
@@ -55,20 +45,15 @@ const setMyDetails = (details) => {
         myActions.setMyself({
           ...details,
           email,
-  
+
           doctor_name: doctorDoc?.doctor_name,
           doctor_id: doctorDoc?.doctor_id,
           doctor_email: doctorDoc?.doctor_email,
           specialization: doctorDoc?.specialization,
-          specialty: doctorDoc?.specialty || doctorDoc?.specialization,
-          given_name: displayName,
-          name: displayName,
-          fullName: displayName,
-          role: doctorDoc?.role || details?.role,
         })
       );
     }
   };
 };
 
-export default setMyDetails
+export default setMyDetails;
