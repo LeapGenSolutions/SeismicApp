@@ -21,6 +21,15 @@ const setMyDetails = (details) => {
     // If no doctorDoc found, fall back to just details (existing flow)
  
 
+    const fullNameFromDoc = `${doctorDoc?.firstName || ""} ${doctorDoc?.lastName || ""}`.trim();
+    const displayName =
+      doctorDoc?.doctor_name ||
+      fullNameFromDoc ||
+      details?.name ||
+      details?.given_name ||
+      details?.email?.split("@")?.[0] ||
+      "";
+
     // store final doctor metadata into Redux
     if(doctorDoc?.profileComplete===true){
       dispatch( 
@@ -32,10 +41,10 @@ const setMyDetails = (details) => {
           doctor_id: doctorDoc?.doctor_id || doctorDoc?.id,
           doctor_email: doctorDoc?.doctor_email,
           specialization: doctorDoc?.specialization || doctorDoc?.specialty,
-          given_name: doctorDoc?.firstName + " " + doctorDoc?.lastName,
-          family_name: doctorDoc?.firstName + " " + doctorDoc?.lastName,
-          name: doctorDoc?.firstName + " " + doctorDoc?.lastName,
-          fullName: doctorDoc?.firstName + " " + doctorDoc?.lastName,
+          given_name: displayName,
+          family_name: displayName,
+          name: displayName,
+          fullName: displayName,
           role:[ doctorDoc?.role],
           roles:[ doctorDoc?.roles],
           specialty: doctorDoc?.specialty || doctorDoc?.specialization,
@@ -51,10 +60,15 @@ const setMyDetails = (details) => {
           doctor_id: doctorDoc?.doctor_id,
           doctor_email: doctorDoc?.doctor_email,
           specialization: doctorDoc?.specialization,
+          specialty: doctorDoc?.specialty || doctorDoc?.specialization,
+          given_name: displayName,
+          name: displayName,
+          fullName: displayName,
+          role: doctorDoc?.role || details?.role,
         })
       );
     }
   };
 };
 
-export default setMyDetails;
+export default setMyDetails
