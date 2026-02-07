@@ -5,6 +5,13 @@ import { Link, useLocation } from "wouter";
 const Header = () => {
   const [location] = useLocation();
   const user = useSelector((state) => state.me.me);
+  const displayName =
+    user?.given_name ||
+    user?.doctor_name ||
+    user?.name ||
+    user?.fullName ||
+    user?.email?.split("@")?.[0] ||
+    "User";
 
   const isActive = (path) => location === path;
 
@@ -97,7 +104,7 @@ const Header = () => {
 
             <div className="ml-2">
               <p className="text-xs sm:text-sm font-medium text-neutral-800">
-                {user?.given_name || "Loading..."}
+                {displayName}
               </p>
               {/* Hide role on very small screens to save height */}
               <p className="text-xs text-neutral-500">
@@ -112,4 +119,3 @@ const Header = () => {
 };
 
 export default Header
-
