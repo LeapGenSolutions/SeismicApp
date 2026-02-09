@@ -95,6 +95,9 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
   ];
 
   const norm = (str) => (str || "").toLowerCase().trim();
+  const sanitizeNameInput = (value) =>
+    String(value || "").replace(/[^a-zA-Z\s'-]/g, "");
+  const isValidName = (value) => /^[A-Za-z][A-Za-z\s'-]*$/.test((value || "").trim());
   const getFirstName = (d) => d.first_name || d.firstname || "";
   const getMiddleName = (d) => d.middle_name || d.middlename || "";
   const getLastName = (d) => d.last_name || d.lastname || "";
@@ -123,13 +126,18 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
     setNameMatches([]);
   };
 
+  const resetPatientSearchOnly = () => {
+    setExistingPatient(null);
+    setNameMatches([]);
+  };
+
   const handleNameInputChange = (e) => {
     const value = e.target.value;
     setNameSearchTerm(value);
 
     const term = norm(value);
     if (!term) {
-      resetPatientAndForm();
+      resetPatientSearchOnly();
       return;
     }
 
@@ -173,7 +181,12 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    const rawValue = e.target.value;
+    const value =
+      name === "first_name" || name === "middle_name" || name === "last_name"
+        ? sanitizeNameInput(rawValue)
+        : rawValue;
 
     setFormData((p) => ({ ...p, [name]: value }));
     setTouched((p) => ({ ...p, [name]: true }));
@@ -225,6 +238,14 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
         errs.phone = "Required";
       } else if (formData.phone.length !== 10) {
         errs.phone = "Invalid phone number";
+      }
+
+      if (formData.first_name && !isValidName(formData.first_name)) {
+        errs.first_name = "Only letters allowed";
+      }
+
+      if (formData.last_name && !isValidName(formData.last_name)) {
+        errs.last_name = "Only letters allowed";
       }
     }
 
