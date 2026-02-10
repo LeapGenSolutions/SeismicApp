@@ -23,7 +23,7 @@ const CopyIconButton = ({ text, label }) => {
       title={label ? `Copy ${label}` : "Copy"}
       className={`inline-flex items-center justify-center h-7 rounded-md border transition-all whitespace-nowrap ${
         copied
-          ? "bg-blue-50 text-blue-700 border-blue-200"
+          ? "bg-green-50 text-green-700 border-green-300"
           : "bg-white text-blue-500 border-blue-200 hover:text-blue-700 hover:border-blue-400"
       } ${copied ? "px-2 gap-1.5" : "w-7"}`}
     >
