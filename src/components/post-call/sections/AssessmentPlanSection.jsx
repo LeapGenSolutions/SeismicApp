@@ -24,7 +24,7 @@ const CopyIconButton = ({ text, label }) => {
       title={label ? `Copy ${label}` : "Copy"}
       className={`inline-flex items-center justify-center h-7 rounded-md border transition-all whitespace-nowrap ${
         copied
-          ? "bg-blue-50 text-blue-700 border-blue-200"
+          ? "bg-green-50 text-green-700 border-green-300"
           : "bg-white text-blue-500 border-blue-200 hover:text-blue-700 hover:border-blue-400"
       } ${copied ? "px-2 gap-1.5" : "w-7"}`}
     >
@@ -32,6 +32,29 @@ const CopyIconButton = ({ text, label }) => {
       {copied && <span className="text-[10px] font-semibold uppercase tracking-wide">Copied</span>}
     </button>
   );
+};
+
+const getPlanPointers = (planText = "") => {
+  if (!planText) return [];
+
+  const cleanBullet = (line) =>
+    line
+      .trim()
+      .replace(/^[-*•]\s*/, "")
+      .replace(/^\d+[.)]\s*/, "")
+      .trim();
+
+  const newlinePointers = planText
+    .split("\n")
+    .map(cleanBullet)
+    .filter(Boolean);
+
+  if (newlinePointers.length > 1) return newlinePointers;
+
+  return planText
+    .split(/(?<=[.!?])\s+/)
+    .map(cleanBullet)
+    .filter(Boolean);
 };
 
 const AssessmentPlanSection = ({ soapNotes, setSoapNotes, isEditing }) => {
@@ -59,63 +82,65 @@ const AssessmentPlanSection = ({ soapNotes, setSoapNotes, isEditing }) => {
     <div className="pt-2 text-gray-900 leading-relaxed space-y-2">
       <p className="font-semibold text-blue-700 text-lg">Assessment & Plan</p>
 
-      {(ap.problems || []).map((p, idx) => (
-        <div key={idx} className="space-y-0.5">
-          {!isEditing ? (
-            <>
-              <div className="flex items-center justify-between gap-3">
-                <p className="font-semibold text-black">
-                  Problem #{idx + 1}: {p.problem}
-                </p>
-                <CopyIconButton text={p.problem} label={`Problem ${idx + 1}`} />
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <p>
-                  <b>Assessment:</b> {p.assessment}
-                </p>
-                <CopyIconButton text={p.assessment} label="Assessment" />
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <p>
-                  <b>Plan:</b>
-                </p>
-                <CopyIconButton text={p.plan} label="Plan" />
-              </div>
-              <ul className="list-disc ml-6">
-                {(p.plan || "")
-                  .split(/(?<=\.)\s+/)
-                  .filter(Boolean)
-                  .map((line, i) => (
+      {(ap.problems || []).map((p, idx) => {
+        const planPointers = getPlanPointers(p.plan || "");
+        const planCopyText = planPointers.map((line) => `• ${line}`).join("\n");
+
+        return (
+          <div key={idx} className="space-y-0.5">
+            {!isEditing ? (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-semibold text-black">
+                    Problem #{idx + 1}: {p.problem}
+                  </p>
+                  <CopyIconButton text={p.problem} label={`Problem ${idx + 1}`} />
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <p>
+                    <b>Assessment:</b> {p.assessment}
+                  </p>
+                  <CopyIconButton text={p.assessment} label="Assessment" />
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <p>
+                    <b>Plan:</b>
+                  </p>
+                  <CopyIconButton text={planCopyText} label="Plan" />
+                </div>
+                <ul className="list-disc ml-6">
+                  {planPointers.map((line, i) => (
                     <li key={i}>{line}</li>
                   ))}
-              </ul>
-            </>
-          ) : (
-            <div className="p-3 border rounded space-y-2">
-              <input
-                className="border rounded px-2 py-1 w-full"
-                placeholder="Problem"
-                value={p.problem || ""}
-                onChange={(e) => handleChange(idx, "problem", e.target.value)}
-              />
-              <Textarea
-                rows={2}
-                placeholder="Assessment..."
-                value={p.assessment || ""}
-                onChange={(e) =>
-                  handleChange(idx, "assessment", e.target.value)
-                }
-              />
-              <Textarea
-                rows={3}
-                placeholder="Plan..."
-                value={p.plan || ""}
-                onChange={(e) => handleChange(idx, "plan", e.target.value)}
-              />
-            </div>
-          )}
-        </div>
-      ))}
+                </ul>
+              </>
+            ) : (
+              <div className="p-3 border rounded space-y-2">
+                <input
+                  className="border rounded px-2 py-1 w-full"
+                  placeholder="Problem"
+                  value={p.problem || ""}
+                  onChange={(e) => handleChange(idx, "problem", e.target.value)}
+                />
+                <Textarea
+                  rows={2}
+                  placeholder="Assessment..."
+                  value={p.assessment || ""}
+                  onChange={(e) =>
+                    handleChange(idx, "assessment", e.target.value)
+                  }
+                />
+                <Textarea
+                  rows={3}
+                  placeholder="Plan..."
+                  value={p.plan || ""}
+                  onChange={(e) => handleChange(idx, "plan", e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {/* --- Follow-up --- */}
       {!isEditing ? (
