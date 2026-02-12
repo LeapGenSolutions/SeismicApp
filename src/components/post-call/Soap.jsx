@@ -8,6 +8,7 @@ import ObjectiveSection from "./sections/ObjectiveSection";
 import AssessmentPlanSection from "./sections/AssessmentPlanSection";
 import OrdersSection from "./sections/OrdersSection";
 import { X } from "lucide-react";
+import { postVisitReason, putAssessment, putHPI, putPhysicalExam, putReviewOfSystems } from "../../api/athena";
 
 const SECTION_TITLES = [
   "Procedure Information",
@@ -21,20 +22,39 @@ const SECTION_TITLES = [
 
 // --- 1. Local function to handle posting to Athena ---
 const postToAthena = async (data) => {
-  // Replace this URL with your actual API endpoint
-  const response = await fetch("/api/athena/post", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  });
+  try {
+    let response = null;
+    if (data.type === "Chief Complaint") {
+      response = await postVisitReason(data.username, data.encounterID, data.content, data.practiceID);
+    } else if (data.type === "History of Present Illness") {
+      response = await putHPI(data.username, data.encounterID, data.content, data.practiceID);
+    } else if (data.type === "Review of Systems") {
+      response = await putReviewOfSystems(data.username, data.encounterID, data.content, data.practiceID);
+    } else if (data.type === "Physical Exam") {
+      response = await putPhysicalExam(data.username, data.encounterID, data.content, data.practiceID);
+    } else if (data.type === "Assessment & Plan") {
+      response = await putAssessment(data.username, data.encounterID, data.content, data.practiceID);
+    }
 
-  if (!response.ok) {
-    throw new Error("Failed to post to Athena");
+    // The functions in `src/api/athena.js` return parsed JSON objects (not a Fetch Response).
+    // Check the returned JSON for success/failure instead of using `response.ok`.
+    if (!response) {
+      throw new Error("No response from Athena");
+    }
+
+    if (response.success === false || response.error) {
+      const msg = response.error || response.message || "Failed to post to Athena";
+      throw new Error(msg);
+    }
+
+    // Return the parsed JSON object to callers
+    return response;
+  } catch (err) {
+    console.error("postToAthena error:", err);
+    throw err;
   }
-  return response.json();
 };
+
 
 // --- 2. MODAL Component (Overlay) ---
 const ConfirmationModal = ({ onCancel, onConfirm, isPosting }) => {
@@ -141,19 +161,21 @@ const ProcedureNotesSection = ({ content, procedureMeta }) => {
   );
 };
 
-const Soap = ({ appointmentId, username }) => {
+const Soap = ({ appointmentId, username, appointment}) => {
   const [soapNotes, setSoapNotes] = useState({
     patient: "",
     subjective: {},
     objective: {},
     assessmentAndPlan: {},
   });
-
   const [procedureNotes, setProcedureNotes] = useState("");
   const [ordersData, setOrdersData] = useState({ orders: [], confirmed: false });
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("soap");
   const [, setRawFromServer] = useState("");
+
+  const practiceID = appointment?.athena_practice_id || null;
+  const encounterID = appointment?.athena_encounter_id || null;
 
   // --- 3. State for Post Confirmation Object ---
   // We store the data AND the callbacks (resolve/reject) here
@@ -281,6 +303,7 @@ const Soap = ({ appointmentId, username }) => {
 
   // --- 4. Handler: Recieves data AND callbacks from child ---
   const handleInitiatePost = (data, onSuccess, onError) => {
+    data = { ...data, username, encounterID, practiceID };
     setPendingPost({ data, onSuccess, onError });
   };
 

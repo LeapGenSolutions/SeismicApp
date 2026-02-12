@@ -217,7 +217,7 @@ const PostCallDocumentation = ({ onSave }) => {
           )}
 
           {docTab === "soap" && (
-            <Soap username={username} appointmentId={callId} />
+            <Soap username={username} appointmentId={callId} appointment={selectedAppointment} />
           )}
 
           {docTab === "recommendations" && (
