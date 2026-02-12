@@ -3,7 +3,7 @@ import { Copy, Check, Send, AlertCircle, CheckCircle2 } from "lucide-react";
 
 // --- REUSABLE POST BUTTON ---
 const PostIconButton = ({ onClick, disabled }) => {
-  const [status, setStatus] = useState("idle"); // idle | success | error
+  const [status, setStatus] = useState("idle"); 
 
   const handleClick = () => {
     if (status !== "idle") return;
@@ -100,23 +100,9 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) => {
       {/* --- Vital Signs --- */}
       {obj.vital_signs && (
         <div>
-          <div className="flex items-center gap-2 mt-1 mb-1">
-            <p className="font-bold text-black">Vital Signs:</p>
-            {/* Single Post Button for all Vitals */}
-            {!isEditing && (
-              <PostIconButton 
-                onClick={(onSuccess, onError) => 
-                  onPost({ 
-                    type: "Vital Signs", 
-                    content: Object.entries(obj.vital_signs).map(([k, v]) => `${k}: ${v}`).join("\n") 
-                  }, onSuccess, onError)
-                }
-                disabled={Object.keys(obj.vital_signs).length === 0}
-              />
-            )}
-          </div>
-
-          <table className="border border-gray-300 text-sm">
+          <p className="font-bold text-black mt-1">Vital Signs:</p>
+          {/* Reverted table to original compact style (removed w-full) */}
+          <table className="border border-gray-300 mt-1 text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="border px-3 py-1 text-left font-bold text-black-800">
@@ -152,7 +138,7 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) => {
         </div>
       )}
 
-      {/* --- Physical Exam --- */}
+      {/* --- Physical Exam - HAS POST --- */}
       {obj.physical_exams && (
         <div>
           <div className="flex items-center justify-between gap-3 mt-3">
@@ -204,7 +190,7 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) => {
         </div>
       )}
 
-      {/* --- Labs --- */}
+      {/* --- Labs - NO POST --- */}
       {obj.laboratory_data?.length > 0 && (
         <div>
           <p className="font-bold text-black mt-3">Laboratory Data:</p>
@@ -214,12 +200,6 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) => {
                 <span>{item}</span>
                 <div className="flex items-center">
                   <CopyIconButton text={item} label="Lab item" />
-                  <PostIconButton 
-                    onClick={(onSuccess, onError) => 
-                      onPost({ type: "Lab Result", content: item }, onSuccess, onError)
-                    }
-                    disabled={!item}
-                  />
                 </div>
               </li>
             ))}
@@ -227,7 +207,7 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) => {
         </div>
       )}
 
-      {/* --- Imaging --- */}
+      {/* --- Imaging - NO POST --- */}
       {obj.imaging_studies?.length > 0 && (
         <div>
           <div className="flex items-center justify-between gap-3 mt-3">
@@ -236,12 +216,6 @@ const ObjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) => {
               <CopyIconButton
                 text={(obj.imaging_studies || []).join("\n")}
                 label="Imaging Studies"
-              />
-              <PostIconButton 
-                onClick={(onSuccess, onError) => 
-                  onPost({ type: "Imaging Studies", content: (obj.imaging_studies || []).join("\n") }, onSuccess, onError)
-                }
-                disabled={!obj.imaging_studies?.length}
               />
             </div>
           </div>

@@ -2,22 +2,20 @@ import { Textarea } from "../../ui/textarea";
 import { useState } from "react";
 import { Copy, Check, Send, AlertCircle, CheckCircle2 } from "lucide-react";
 
-// --- UPDATED Post Button Component ---
+// --- REUSABLE POST BUTTON ---
 const PostIconButton = ({ onClick, disabled }) => {
-  const [status, setStatus] = useState("idle"); // idle | success | error
+  const [status, setStatus] = useState("idle");
 
   const handleClick = () => {
-    if (status !== "idle") return; // Prevent clicking while showing status
+    if (status !== "idle") return;
     
-    // We pass callbacks to the parent (Soap.js)
-    // The parent calls these AFTER the modal confirms and API finishes
     onClick(
-      // onSuccess callback
+      // onSuccess
       () => {
         setStatus("success");
-        setTimeout(() => setStatus("idle"), 3000); // Reset after 3s
+        setTimeout(() => setStatus("idle"), 3000);
       },
-      // onError callback
+      // onError
       () => {
         setStatus("error");
         setTimeout(() => setStatus("idle"), 3000);
@@ -25,7 +23,6 @@ const PostIconButton = ({ onClick, disabled }) => {
     );
   };
 
-  // Styles based on status
   let bgClass = "bg-white text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-400";
   let icon = <Send className="w-3.5 h-3.5" />;
   let label = null;
@@ -115,9 +112,38 @@ const AssessmentPlanSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) =
     setProblems(copy);
   };
 
+  // --- Helper to compile all content into one string ---
+  const compileFullAP = () => {
+    let fullText = "";
+    (ap.problems || []).forEach((p, idx) => {
+      fullText += `Problem #${idx + 1}: ${p.problem || ""}\n`;
+      fullText += `Assessment: ${p.assessment || ""}\n`;
+      fullText += `Plan: ${p.plan || ""}\n\n`;
+    });
+    if (ap.follow_up) {
+      fullText += `Follow-up: ${ap.follow_up}`;
+    }
+    return fullText.trim();
+  };
+
   return (
     <div className="pt-2 text-gray-900 leading-relaxed space-y-2">
-      <p className="font-semibold text-blue-700 text-lg">Assessment & Plan</p>
+      <div className="flex items-center justify-between">
+        <p className="font-semibold text-blue-700 text-lg">Assessment & Plan</p>
+        
+        {/* --- SINGLE POST BUTTON FOR ALL CONTENT --- */}
+        {!isEditing && (
+          <PostIconButton 
+            onClick={(onSuccess, onError) => 
+              onPost({ 
+                type: "Assessment & Plan", 
+                content: compileFullAP() 
+              }, onSuccess, onError)
+            }
+            disabled={(!ap.problems || ap.problems.length === 0) && !ap.follow_up}
+          />
+        )}
+      </div>
 
       {(ap.problems || []).map((p, idx) => {
         const planPointers = getPlanPointers(p.plan || "");
@@ -133,10 +159,6 @@ const AssessmentPlanSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) =
                   </p>
                   <div className="flex items-center">
                     <CopyIconButton text={p.problem} label={`Problem ${idx + 1}`} />
-                    <PostIconButton 
-                      onClick={(onSuccess, onError) => onPost({ type: "Problem", content: p.problem }, onSuccess, onError)} 
-                      disabled={!p.problem}
-                    />
                   </div>
                 </div>
 
@@ -146,10 +168,6 @@ const AssessmentPlanSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) =
                   </p>
                   <div className="flex items-center">
                     <CopyIconButton text={p.assessment} label="Assessment" />
-                    <PostIconButton 
-                      onClick={(onSuccess, onError) => onPost({ type: "Assessment", content: p.assessment }, onSuccess, onError)} 
-                      disabled={!p.assessment}
-                    />
                   </div>
                 </div>
 
@@ -159,10 +177,6 @@ const AssessmentPlanSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) =
                   </p>
                   <div className="flex items-center">
                     <CopyIconButton text={planCopyText} label="Plan" />
-                    <PostIconButton 
-                      onClick={(onSuccess, onError) => onPost({ type: "Plan", content: planCopyText }, onSuccess, onError)} 
-                      disabled={!planCopyText}
-                    />
                   </div>
                 </div>
                 
@@ -204,10 +218,6 @@ const AssessmentPlanSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) =
             </p>
             <div className="flex items-center">
               <CopyIconButton text={ap.follow_up} label="Follow-up" />
-              <PostIconButton 
-                onClick={(onSuccess, onError) => onPost({ type: "Follow-up", content: ap.follow_up }, onSuccess, onError)} 
-                disabled={!ap.follow_up}
-              />
             </div>
           </div>
         )

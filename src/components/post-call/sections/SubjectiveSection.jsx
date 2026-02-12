@@ -85,7 +85,6 @@ const CopyIconButton = ({ text, label }) => {
   );
 };
 
-// --- Added onPost to props ---
 const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) => {
   const subj = soapNotes.subjective || {};
 
@@ -123,7 +122,7 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) => {
 
       {!isEditing ? (
         <>
-          {/* Chief Complaint */}
+          {/* Chief Complaint - HAS POST */}
           {subj.chief_complaint && (
             <>
               <div className="flex items-center justify-between gap-3">
@@ -142,7 +141,7 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) => {
             </>
           )}
 
-          {/* HPI */}
+          {/* HPI - HAS POST */}
           {subj.hpi && (
             <>
               <div className="flex items-center justify-between gap-3 mt-2">
@@ -161,19 +160,13 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) => {
             </>
           )}
 
-          {/* Family History */}
+          {/* Family History - NO POST */}
           {subj.family_history && (
             <>
               <div className="flex items-center justify-between gap-3 mt-3">
                 <p className="font-bold text-black">Family History Discussed:</p>
                 <div className="flex items-center">
                   <CopyIconButton text={subj.family_history} label="Family History" />
-                  <PostIconButton 
-                    onClick={(onSuccess, onError) => 
-                      onPost({ type: "Family History", content: subj.family_history }, onSuccess, onError)
-                    }
-                    disabled={!subj.family_history}
-                  />
                 </div>
               </div>
               <p className="ml-4 italic text-[15px]">
@@ -182,19 +175,13 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) => {
             </>
           )}
 
-          {/* Surgical History */}
+          {/* Surgical History - NO POST */}
           {subj.surgical_history && (
             <>
               <div className="flex items-center justify-between gap-3 mt-3">
                 <p className="font-bold text-black">Surgical History Discussed:</p>
                 <div className="flex items-center">
                   <CopyIconButton text={subj.surgical_history} label="Surgical History" />
-                  <PostIconButton 
-                    onClick={(onSuccess, onError) => 
-                      onPost({ type: "Surgical History", content: subj.surgical_history }, onSuccess, onError)
-                    }
-                    disabled={!subj.surgical_history}
-                  />
                 </div>
               </div>
               <p className="ml-4 italic text-[15px]">
@@ -203,19 +190,13 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) => {
             </>
           )}
 
-          {/* Social History */}
+          {/* Social History - NO POST */}
           {subj.social_history && (
             <>
               <div className="flex items-center justify-between gap-3 mt-3">
                 <p className="font-bold text-black">Social History Discussed:</p>
                 <div className="flex items-center">
                   <CopyIconButton text={subj.social_history} label="Social History" />
-                  <PostIconButton 
-                    onClick={(onSuccess, onError) => 
-                      onPost({ type: "Social History", content: subj.social_history }, onSuccess, onError)
-                    }
-                    disabled={!subj.social_history}
-                  />
                 </div>
               </div>
               <p className="ml-4 italic text-[15px]">
@@ -224,7 +205,7 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) => {
             </>
           )}
 
-          {/* Review of Systems */}
+          {/* Review of Systems - HAS POST */}
           {subj.ros && (
             <>
               <div className="flex items-center justify-between gap-3 mt-3">
@@ -245,6 +226,7 @@ const SubjectiveSection = ({ soapNotes, setSoapNotes, isEditing, onPost }) => {
         </>
       ) : (
         <div className="space-y-2">
+          {/* Editing Textareas */}
           <Textarea
             rows={2}
             placeholder="Chief Complaint..."
