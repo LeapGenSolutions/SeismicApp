@@ -1,13 +1,14 @@
 import {
   StreamCall,
   StreamVideo,
-  StreamVideoClient
+  StreamVideoClient,
 } from '@stream-io/video-react-sdk';
 import { useEffect, useState, useRef } from 'react';
 import getUserToken from '../api/UserToken';
 import { useParams, useSearchParams } from 'wouter';
 import { useSelector } from 'react-redux';
 import StreamVideoLayoutV4 from '../components/video/StreamVideoLayoutV4';
+import RightPanel from '../components/video/RightPanel';
 import { insertCallHistory } from '../api/callHistory';
 import { STREAM_API_KEY } from '../constants';
 import { NotesTrigger } from "../components/ui/notes-trigger";
@@ -425,10 +426,16 @@ const StreamVideoCoreV3 = () => {
       {!loading && showCall && client && call && (
         <StreamVideo client={client}>
           <StreamCall call={call}>
-            <StreamVideoLayoutV4
-              callId={callId}
-              onRecordingStarted={() => setRecordingReminderVisible(false)}
-            />
+            <div className="flex">
+              <div className="flex-1 md:mr-[345px]">
+                <StreamVideoLayoutV4
+                  callId={callId}
+                  onRecordingStarted={() => setRecordingReminderVisible(false)}
+                />
+              </div>
+
+              <RightPanel />
+            </div>
           </StreamCall>
         </StreamVideo>
       )}
