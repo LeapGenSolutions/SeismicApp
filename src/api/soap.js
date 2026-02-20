@@ -34,3 +34,23 @@ export const updateSoapNotes = async (apptId, username, updatedNotes) => {
 
   return response.json();
 };
+
+// --- THIS IS THE MISSING FUNCTION ---
+export const postToAthena = async (data) => {
+  // Replace 'api/athena/post' with your actual backend endpoint
+  const response = await fetch(`${BACKEND_URL}api/athena/post`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error("Failed to post to Athena:", error);
+    throw new Error("Failed to post to Athena");
+  }
+
+  return response.json();
+};
