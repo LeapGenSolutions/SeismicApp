@@ -51,7 +51,13 @@ const RightPanel = ({ lines = [] }) => {
   useEffect(() => {
     try {
       if (containerRef.current) {
-        containerRef.current.scrollTop = containerRef.current.scrollHeight;
+        const el = containerRef.current;
+        // only auto-scroll if user is already near the bottom
+        const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+        const THRESHOLD = 80; // px tolerance to consider "at bottom"
+        if (distanceFromBottom < THRESHOLD) {
+          el.scrollTop = el.scrollHeight;
+        }
       }
     } catch (e) {}
   }, [displayLines]);
@@ -70,7 +76,7 @@ const RightPanel = ({ lines = [] }) => {
         <p className="text-xs text-neutral-500">Live captions & call data</p>
       </div>
 
-      <div className="p-4 flex-1">
+      <div className="p-4 flex-1 min-h-0">
         <div ref={containerRef} className="h-full bg-neutral-50 rounded p-3 text-sm text-neutral-700 overflow-y-auto">
           {(!displayLines || displayLines.length === 0) ? (
             <div className="w-full h-full flex items-center justify-center text-sm text-neutral-500 text-center px-4">
