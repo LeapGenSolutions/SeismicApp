@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  RefreshCcw,
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 import TeamsDatePicker from "../TeamsDatePicker";
@@ -26,6 +27,8 @@ const CustomToolbar = ({
   setDropdownOpen,
   onAddAppointment,
   onAddBulkAppointment,
+  onRefresh,
+  isRefreshing,
 }) => {
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -177,7 +180,20 @@ const CustomToolbar = ({
         />
       </div>
 
-      <div className="relative flex justify-end" ref={addMenuRef}>
+      <div className="relative flex items-center justify-end gap-2" ref={addMenuRef}>
+        <button
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          className={`flex items-center gap-1 text-sm px-3 py-1.5 rounded-md border ${
+            isRefreshing
+              ? "bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed"
+              : "bg-white text-blue-700 border-blue-200 hover:bg-blue-50"
+          }`}
+        >
+          <RefreshCcw size={14} className={isRefreshing ? "animate-spin" : ""} />
+          {isRefreshing ? "Refreshing..." : "Refresh"}
+        </button>
+
         <button
           disabled={isPastDate()}
          title={isPastDate() ? "Appointments cannot be added for past dates" : ""}
