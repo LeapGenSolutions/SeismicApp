@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { format, parse, startOfWeek, getDay } from "date-fns";
@@ -35,15 +35,17 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
   const [showBulkCreateModal, setShowBulkCreateModal] = useState(false);
 
   const [currentView, setCurrentView] = useState("day");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loggedInDoctor = useSelector((state) => state.me.me);
+  const fallbackDoctorEmail = (loggedInDoctor?.email || "").trim().toLowerCase();
 
   useEffect(() => {
     if (onAdd) onAdd(() => setShowCreateModal(true));
     if (onAddBulk) onAddBulk(() => setShowBulkCreateModal(true));
   }, [onAdd, onAddBulk]);
 
-  const applySeismified = async (list) => {
+  const applySeismified = useCallback(async (list) => {
     const ids = (Array.isArray(list) ? list : [])
       .map((a) => a?.id)
       .filter(Boolean);
@@ -64,22 +66,34 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
         seismified: false,
       }));
     }
-  };
+  }, []);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (selectedDoctors.length === 0) {
-        setAppointments([]);
-        return;
-      }
+  const refreshAppointments = useCallback(async ({ showLoader = false } = {}) => {
+    const doctorsToFetch =
+      selectedDoctors.length > 0
+        ? selectedDoctors
+        : fallbackDoctorEmail
+          ? [fallbackDoctorEmail]
+          : [];
 
-      const data = await fetchAppointmentsByDoctorEmails(selectedDoctors);
+    if (doctorsToFetch.length === 0) {
+      setAppointments([]);
+      return;
+    }
+
+    if (showLoader) setIsRefreshing(true);
+    try {
+      const data = await fetchAppointmentsByDoctorEmails(doctorsToFetch);
       const merged = await applySeismified(data);
       setAppointments(merged);
-    };
+    } finally {
+      if (showLoader) setIsRefreshing(false);
+    }
+  }, [selectedDoctors, fallbackDoctorEmail, applySeismified]);
 
-    fetchData();
-  }, [selectedDoctors]);
+  useEffect(() => {
+    refreshAppointments({ showLoader: false });
+  }, [refreshAppointments]);
 
   const events = appointments.map((appt) => {
     const doctorKey = (appt.doctor_email || "").trim().toLowerCase();
@@ -140,7 +154,9 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
         <div title={tooltip}>
           <span style={{ marginRight: 6 }}>{icon}</span>
           <b>{event.full_name}</b>
-          <span style={{ marginLeft: 6 }}>({seismiText})</span>
+          <span style={{ marginLeft: 6 }}>
+            ({status} • {seismiText})
+          </span>
           <div style={{ fontSize: "11px", opacity: 0.9 }}>{timeRange}</div>
         </div>
       );
@@ -151,6 +167,9 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
         <div title={tooltip}>
           <span style={{ marginRight: 6 }}>{icon}</span>
           <b>{event.full_name}</b>
+          <span style={{ marginLeft: 6, fontSize: "11px", opacity: 0.95 }}>
+            ({status} • {seismiText})
+          </span>
         </div>
       );
     }
@@ -159,7 +178,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
       return (
         <div title={tooltip}>
           <span style={{ marginRight: 6 }}>{icon}</span>
-          {event.full_name}
+          {event.full_name} ({status} • {seismiText})
         </div>
       );
     }
@@ -168,6 +187,9 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
       <div title={tooltip}>
         <span style={{ marginRight: 6 }}>{icon}</span>
         <b>{event.full_name}</b>
+        <span style={{ marginLeft: 6 }}>
+          ({status} • {seismiText})
+        </span>
       </div>
     );
   };
@@ -250,6 +272,8 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
               setDropdownOpen={setDropdownOpen}
               onAddAppointment={() => setShowCreateModal(true)}
               onAddBulkAppointment={() => setShowBulkCreateModal(true)}
+              onRefresh={() => refreshAppointments({ showLoader: true })}
+              isRefreshing={isRefreshing}
             />
           ),
         }}
