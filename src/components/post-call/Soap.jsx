@@ -70,7 +70,15 @@ const InitialPostModal = ({ onCancel, onEdit, onProceed }) => {
 // --- 3. REVIEW PAGE MODAL ---
 const ReviewPage = ({ soapNotes, onCancel, onPost, onIndividualPost, status, sectionStatuses }) => {
   const noOp = () => {};
+  const KEY_LABELS = {
+    reason: "Reason",
+    subjective: "Subjective",
+    ros: "Review of Systems",
+    objective: "Objective",
+    assessmentPlan: "Assessment & Plan",
+  };
   const failedSections = Object.keys(sectionStatuses).filter((k) => sectionStatuses[k] === "error");
+  const failedSectionsLabels = failedSections.map((k) => KEY_LABELS[k] || k);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -93,23 +101,27 @@ const ReviewPage = ({ soapNotes, onCancel, onPost, onIndividualPost, status, sec
               )}
 
               <div className="space-y-8 divide-y divide-gray-100">
-                  <div className="pt-2">
+                  <div className="pt-2 relative">
                     <SubjectiveSection 
                       soapNotes={soapNotes} setSoapNotes={noOp} isEditing={false}
                       onPost={onIndividualPost} sectionStatuses={sectionStatuses} 
                     />
                   </div>
                   <div className="pt-8">
-                    <ObjectiveSection 
-                      soapNotes={soapNotes} setSoapNotes={noOp} isEditing={false}
-                      onPost={onIndividualPost} sectionStatuses={sectionStatuses} 
-                    />
+                    <div className="relative">
+                      <ObjectiveSection 
+                        soapNotes={soapNotes} setSoapNotes={noOp} isEditing={false}
+                              onPost={onIndividualPost} sectionStatuses={sectionStatuses} 
+                            />
+                    </div>
                   </div>
                   <div className="pt-8">
-                    <AssessmentPlanSection 
-                      soapNotes={soapNotes} setSoapNotes={noOp} isEditing={false}
-                      onPost={onIndividualPost} sectionStatuses={sectionStatuses} 
-                    />
+                    <div className="relative">
+                      <AssessmentPlanSection 
+                        soapNotes={soapNotes} setSoapNotes={noOp} isEditing={false}
+                        onPost={onIndividualPost} sectionStatuses={sectionStatuses} 
+                      />
+                    </div>
                   </div>
               </div>
            </div>
@@ -125,7 +137,7 @@ const ReviewPage = ({ soapNotes, onCancel, onPost, onIndividualPost, status, sec
              <div className="flex items-center gap-4 bg-orange-50 border border-orange-200 px-4 py-3 rounded-md w-full justify-between">
                <div className="flex items-center gap-2 text-orange-700 font-medium">
                  <AlertCircle className="w-5 h-5" />
-                 <span>Failed to post: <b>{failedSections.join(", ")}</b>. Please try again.</span>
+                 <span>Failed to post: <b>{failedSectionsLabels.join(", ")}</b>. Please try again.</span>
                </div>
                <div className="flex gap-2">
                  <Button onClick={onCancel} variant="outline" className="bg-white text-gray-700">Cancel</Button>
@@ -203,7 +215,7 @@ const ProcedureNotesSection = ({ content, procedureMeta }) => {
   );
 };
 
-const Soap = ({ appointmentId, username }) => {
+const Soap = ({ appointmentId, username, appointment}) => {
   const [soapNotes, setSoapNotes] = useState({ patient: "", subjective: {}, objective: {}, assessmentAndPlan: {} });
   const [procedureNotes, setProcedureNotes] = useState("");
   const [ordersData, setOrdersData] = useState({ orders: [], confirmed: false });
@@ -312,20 +324,37 @@ const Soap = ({ appointmentId, username }) => {
   const mainPostMutation = useMutation({
     mutationFn: (fullData) => postToAthena(fullData),
     onSuccess: (responseData) => {
-      // IF the backend returns partial failures, we handle it here:
-      if (responseData?.section_results) {
-        setSectionStatuses(responseData.section_results);
-        const hasErrors = Object.values(responseData.section_results).includes("error");
-        setMainPostStatus(hasErrors ? 'partial_error' : 'success');
-      } else {
-        // Default behavior: EVERYTHING succeeded
-        setSectionStatuses((prev) => {
-          const next = { ...prev };
-          Object.keys(next).forEach(k => { if (next[k] === 'posting') next[k] = 'success'; });
-          return next;
+      // Accept multiple response shapes. Preferred: { section_results: { ... } }
+      const results = responseData?.section_results || responseData?.data || responseData;
+      // If the response contains section keys from middleware, normalize and merge them
+      if (results && (results.reason !== undefined || results.subjective !== undefined || results.ros !== undefined || results.objective !== undefined || results.assessmentPlan !== undefined)) {
+        const mapped = {};
+        Object.keys(results).forEach((k) => {
+          const v = results[k];
+          if (v === true) mapped[k] = 'success';
+          else if (v === false) mapped[k] = 'error';
+          else mapped[k] = v;
         });
-        setMainPostStatus('success');
+        // Also create human-readable keys so child Post buttons (which expect names like "Chief Complaint") update
+        const humanMapped = {};
+        if (mapped.reason) humanMapped["Chief Complaint"] = mapped.reason;
+        if (mapped.subjective) humanMapped["History of Present Illness"] = mapped.subjective;
+        if (mapped.ros) humanMapped["Review of Systems"] = mapped.ros;
+        if (mapped.objective) humanMapped["Physical Exam"] = mapped.objective;
+        if (mapped.assessmentPlan) humanMapped["Assessment & Plan"] = mapped.assessmentPlan;
+
+        setSectionStatuses((prev) => ({ ...prev, ...mapped, ...humanMapped }));
+        const hasErrors = Object.values(mapped).includes('error');
+        setMainPostStatus(hasErrors ? 'partial_error' : 'success');
+        return;
       }
+      // Default behavior: EVERYTHING succeeded
+      setSectionStatuses((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach(k => { if (next[k] === 'posting') next[k] = 'success'; });
+        return next;
+      });
+      setMainPostStatus('success');
     },
     onError: () => {
       // Default behavior: EVERYTHING failed
@@ -339,6 +368,7 @@ const Soap = ({ appointmentId, username }) => {
   });
 
   const handleInitiatePost = (data, onSuccess, onError) => {
+    data = { ...data, username, athena_encounter_id: appointment?.athena_encounter_id, practiceID:  appointment?.athena_practice_id};
     setPendingPost({ data, onSuccess, onError });
   };
   const handleConfirmPost = () => { if (pendingPost) postMutation.mutate(pendingPost.data); };
@@ -352,20 +382,28 @@ const Soap = ({ appointmentId, username }) => {
   const handleReviewPost = () => {
     setMainPostStatus('posting');
     
-    // Mark only the sections that have content as "posting"
+    // Mark only the sections that have content as "posting" using middleware keys
     const activeStatuses = {};
-    if (soapNotes.subjective.chief_complaint) activeStatuses["Chief Complaint"] = "posting";
-    if (soapNotes.subjective.hpi) activeStatuses["History of Present Illness"] = "posting";
-    if (soapNotes.subjective.ros) activeStatuses["Review of Systems"] = "posting";
-    if (soapNotes.objective.physical_exams) activeStatuses["Physical Exam"] = "posting";
+    if (soapNotes.subjective.chief_complaint) activeStatuses["reason"] = "posting";
+    if (soapNotes.subjective.hpi) activeStatuses["subjective"] = "posting";
+    if (soapNotes.subjective.ros) activeStatuses["ros"] = "posting";
+    if (soapNotes.objective && Object.keys(soapNotes.objective).length) activeStatuses["objective"] = "posting";
     const ap = soapNotes.assessmentAndPlan;
     if ((ap?.problems && ap.problems.length > 0) || ap?.follow_up) {
-      activeStatuses["Assessment & Plan"] = "posting";
+      activeStatuses["assessmentPlan"] = "posting";
     }
-    setSectionStatuses(activeStatuses);
+    // Also mark the corresponding human-readable keys so per-section Post buttons reflect 'posting'
+    const humanMap = {};
+    if (activeStatuses.reason) humanMap["Chief Complaint"] = activeStatuses.reason;
+    if (activeStatuses.subjective) humanMap["History of Present Illness"] = activeStatuses.subjective;
+    if (activeStatuses.ros) humanMap["Review of Systems"] = activeStatuses.ros;
+    if (activeStatuses.objective) humanMap["Physical Exam"] = activeStatuses.objective;
+    if (activeStatuses.assessmentPlan) humanMap["Assessment & Plan"] = activeStatuses.assessmentPlan;
+
+    setSectionStatuses({ ...activeStatuses, ...humanMap });
 
     const fullRaw = buildFullRaw(soapNotes);
-    mainPostMutation.mutate({ full_soap_note: fullRaw }); 
+    mainPostMutation.mutate({ content: fullRaw, username, athena_encounter_id: appointment?.athena_encounter_id, practiceID: appointment?.athena_practice_id }); 
   };
 
   const handleReviewCancel = () => {

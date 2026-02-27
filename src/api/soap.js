@@ -1,4 +1,5 @@
 import { BACKEND_URL } from "../constants";
+import { postAll, postVisitReason, putAssessment, putHPI, putPhysicalExam, putReviewOfSystems } from "./athena";
 
 // GET works with ?userID=
 export const fetchSoapNotes = async (apptId, userID) => {
@@ -35,22 +36,19 @@ export const updateSoapNotes = async (apptId, username, updatedNotes) => {
   return response.json();
 };
 
-// --- THIS IS THE MISSING FUNCTION ---
 export const postToAthena = async (data) => {
-  // Replace 'api/athena/post' with your actual backend endpoint
-  const response = await fetch(`${BACKEND_URL}api/athena/post`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error("Failed to post to Athena:", error);
-    throw new Error("Failed to post to Athena");
+  if(data.type === "Chief Complaint") {
+    return await postVisitReason(data.username, data.athena_encounter_id, data.content, data.practiceID);
+  }else if(data.type === "Physical Exam") {
+    return await putPhysicalExam(data.username, data.athena_encounter_id, data.content, data.practiceID);
+  }else if(data.type === "History of Present Illness") {
+    return await putHPI(data.username, data.athena_encounter_id, data.content, data.practiceID);
+  }else if(data.type === "Review of Systems") {
+    return await putReviewOfSystems(data.username, data.athena_encounter_id, data.content, data.practiceID);
+  }else if(data.type === "Assessment & Plan") {
+    return await putAssessment(data.username, data.athena_encounter_id, data.content, data.practiceID);
+  }else{
+    console.log(data);
+    return await postAll(data.username, data.athena_encounter_id, data.content, data.practiceID);
   }
-
-  return response.json();
 };

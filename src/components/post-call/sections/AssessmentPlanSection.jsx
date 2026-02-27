@@ -5,6 +5,11 @@ import { Copy, Check, Send, AlertCircle, CheckCircle2 } from "lucide-react";
 const PostIconButton = ({ onClick, disabled, globalStatus }) => {
   const [localStatus, setLocalStatus] = useState("idle");
 
+  // normalize boolean statuses coming from middleware to string values
+  let normalizedGlobal = globalStatus;
+  if (normalizedGlobal === true) normalizedGlobal = "success";
+  if (normalizedGlobal === false) normalizedGlobal = "error";
+
   const handleClick = () => {
     if (localStatus !== "idle" || globalStatus === "posting") return;
     onClick(
@@ -14,15 +19,15 @@ const PostIconButton = ({ onClick, disabled, globalStatus }) => {
   };
 
   let effectiveStatus = localStatus;
-  if (globalStatus === "success" || globalStatus === "error" || globalStatus === "posting") {
-    effectiveStatus = globalStatus;
+  if (normalizedGlobal === "success" || normalizedGlobal === "error" || normalizedGlobal === "posting") {
+    effectiveStatus = normalizedGlobal;
   }
 
   let bgClass = "bg-white text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-400";
   let icon = <Send className="w-3.5 h-3.5" />;
   let label = null;
 
-  if (disabled || globalStatus === "posting") {
+  if (disabled || normalizedGlobal === "posting") {
     bgClass = "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed";
   } else if (effectiveStatus === "success") {
     bgClass = "bg-green-50 text-green-700 border-green-300 w-auto px-2";
