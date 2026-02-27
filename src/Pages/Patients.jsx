@@ -48,6 +48,42 @@ const getPatientDob = (p) => {
   );
 };
 
+const normalizeSearchText = (value) =>
+  (value || "").toLowerCase().replace(/\s+/g, " ").trim();
+
+const compactSearchText = (value) => normalizeSearchText(value).replace(/\s+/g, "");
+const normalizeEmail = (value) => normalizeSearchText(value);
+const normalizePhone = (value) => (value || "").replace(/\D/g, "");
+
+const getPatientFullName = (patient) =>
+  `${patient.firstname || patient.first_name || ""} ${
+    patient.lastname || patient.last_name || ""
+  }`
+    .replace(/\s+/g, " ")
+    .trim();
+
+const filterPatientsByQuery = (patientList, query) => {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return patientList;
+
+  const compactQuery = compactSearchText(normalizedQuery);
+
+  return patientList.filter((p) => {
+    const fullName = getPatientFullName(p);
+    const normalizedFullName = normalizeSearchText(fullName);
+    const compactFullName = compactSearchText(fullName);
+    const firstName = normalizeSearchText(p.firstname || p.first_name || "");
+    const lastName = normalizeSearchText(p.lastname || p.last_name || "");
+
+    return (
+      normalizedFullName.includes(normalizedQuery) ||
+      compactFullName.includes(compactQuery) ||
+      firstName.includes(normalizedQuery) ||
+      lastName.includes(normalizedQuery)
+    );
+  });
+};
+
 
 
 function Patients() {
@@ -62,6 +98,7 @@ function Patients() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+  const [basePatients, setBasePatients] = useState([]);
   const [showPatients, setShowPatients] = useState([]);
 
   const PAGE_SIZE = 20;
@@ -210,8 +247,9 @@ function Patients() {
       }
     );
 
-    setShowPatients(results);
-  }, [patients, appointments, appointmentFilters]);
+    setBasePatients(results);
+    setShowPatients(filterPatientsByQuery(results, searchQuery));
+  }, [patients, appointments, appointmentFilters, searchQuery]);
 
   useEffect(() => {
     if (patients.length && appointments.length) enrichPatients();
@@ -219,24 +257,10 @@ function Patients() {
 
 
   const handleSearchChange = (e) => {
-    const q = e.target.value.toLowerCase().trim();
+    const q = e.target.value;
     setSearchQuery(q);
     setVisibleCount(PAGE_SIZE);
-
-    if (!q) {
-      enrichPatients();
-      return;
-    }
-
-    setShowPatients((prev) =>
-      prev.filter((p) => {
-        const full =
-          `${p.firstname || p.first_name} ${p.lastname || p.last_name}`
-            .trim()
-            .toLowerCase();
-        return full.includes(q);
-      })
-    );
+    setShowPatients(filterPatientsByQuery(basePatients, q));
   };
 
   const handleToggleAdvanced = () => setShowAdvancedSearch((s) => !s);
@@ -296,20 +320,21 @@ function Patients() {
                 }
 
                 setShowPatients(
-                  patients.filter((p) => {
+                  basePatients.filter((p) => {
                     const dobMatch = query.dateOfBirth
-                      ? p.dob === query.dateOfBirth
+                      ? getPatientDob(p) === query.dateOfBirth
                       : true;
 
-                    const emailMatch = query.email
-                      ? (p.email || "")
-                          .toLowerCase()
-                          .includes(query.email.toLowerCase())
+                    const emailMatch = normalizeEmail(query.email)
+                      ? normalizeEmail(p.email).includes(normalizeEmail(query.email))
                       : true;
 
-                    const phone = p.contactmobilephone || p.phone || "";
-                    const phoneMatch = query.phoneNumber
-                      ? phone.includes(query.phoneNumber)
+                    const phone = normalizePhone(
+                      p.contactmobilephone || p.phone || ""
+                    );
+                    const queryPhone = normalizePhone(query.phoneNumber);
+                    const phoneMatch = queryPhone
+                      ? phone.includes(queryPhone)
                       : true;
 
                     return dobMatch && emailMatch && phoneMatch;
