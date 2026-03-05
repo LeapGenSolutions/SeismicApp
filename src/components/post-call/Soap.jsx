@@ -19,8 +19,8 @@ const SECTION_TITLES = [
   "Provider Attestation",
 ];
 
-// --- 1. EXISTING INDIVIDUAL POST MODAL ---
-const ConfirmationModal = ({ onCancel, onConfirm, isPosting, itemName }) => {
+// --- 1. EXISTING INDIVIDUAL POST MODAL (With Repost Warning) ---
+const ConfirmationModal = ({ onCancel, onConfirm, isPosting, itemName, alreadyPosted }) => {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-200 max-w-sm w-full mx-4 relative">
@@ -28,15 +28,25 @@ const ConfirmationModal = ({ onCancel, onConfirm, isPosting, itemName }) => {
           <X className="w-4 h-4" />
         </button>
         <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Post</h3>
+        
         <p className="text-gray-600 mb-6 text-sm">
-          Are you sure you want to post <span className="font-semibold text-gray-900">{itemName || "this item"}</span> to Athena?
+          {alreadyPosted ? (
+            <span className="font-medium text-orange-600">
+              {itemName} already posted, do you want to post again?
+            </span>
+          ) : (
+            <>
+              Are you sure you want to post <span className="font-semibold text-gray-900">{itemName || "this item"}</span> to Athena?
+            </>
+          )}
         </p>
+
         <div className="flex gap-3 justify-end">
           <Button onClick={onCancel} variant="outline" size="sm" className="border-gray-300 text-gray-700" disabled={isPosting}>
             Cancel
           </Button>
           <Button onClick={onConfirm} size="sm" className="bg-blue-600 text-white hover:bg-blue-700" disabled={isPosting}>
-            {isPosting ? "Posting..." : "Confirm Post"}
+            {isPosting ? "Posting..." : "Post"}
           </Button>
         </div>
       </div>
@@ -111,8 +121,8 @@ const ReviewPage = ({ soapNotes, onCancel, onPost, onIndividualPost, status, sec
                     <div className="relative">
                       <ObjectiveSection 
                         soapNotes={soapNotes} setSoapNotes={noOp} isEditing={false}
-                              onPost={onIndividualPost} sectionStatuses={sectionStatuses} 
-                            />
+                        onPost={onIndividualPost} sectionStatuses={sectionStatuses} 
+                      />
                     </div>
                   </div>
                   <div className="pt-8">
@@ -215,7 +225,7 @@ const ProcedureNotesSection = ({ content, procedureMeta }) => {
   );
 };
 
-const Soap = ({ appointmentId, username, appointment}) => {
+const Soap = ({ appointmentId, username, appointment }) => {
   const [soapNotes, setSoapNotes] = useState({ patient: "", subjective: {}, objective: {}, assessmentAndPlan: {} });
   const [procedureNotes, setProcedureNotes] = useState("");
   const [ordersData, setOrdersData] = useState({ orders: [], confirmed: false });
@@ -225,13 +235,15 @@ const Soap = ({ appointmentId, username, appointment}) => {
   const [pendingPost, setPendingPost] = useState(null);
   const [postFlowStage, setPostFlowStage] = useState('idle'); 
   const [mainPostStatus, setMainPostStatus] = useState('idle'); 
-  
-  // NEW: Track the status of every individual section during a main post
   const [sectionStatuses, setSectionStatuses] = useState({});
+
+  // NEW: State to track if the current version of the SOAP has been fully posted
+  const [isFullyPosted, setIsFullyPosted] = useState(false);
 
   const navState = window.history.state || {};
   const encounterStart = navState?.startTime;
   const encounterEnd = navState?.endTime;
+  
   // eslint-disable-next-line no-control-regex
   const controlCharRegex = useMemo(() => new RegExp("[\\x00-\\x1F]+", "g"), []);
 
@@ -306,27 +318,22 @@ const Soap = ({ appointmentId, username, appointment}) => {
 
   const mutation = useMutation({
     mutationFn: (updatedNotes) => updateSoapNotes(`${username}_${appointmentId}_soap`, username, updatedNotes),
-    onSuccess: () => { refetch(); setIsEditing(false); },
+    onSuccess: () => { 
+      refetch(); 
+      setIsEditing(false); 
+      // Reset the "fully posted" status when the doctor edits and saves the note
+      setIsFullyPosted(false);
+    },
   });
 
   const postMutation = useMutation({
-    mutationFn: (itemToPost) => postToAthena(itemToPost),
-    onSuccess: () => {
-      if (pendingPost?.onSuccess) pendingPost.onSuccess();
-      setPendingPost(null); 
-    },
-    onError: () => {
-      if (pendingPost?.onError) pendingPost.onError();
-      setPendingPost(null);
-    },
+    mutationFn: (itemToPost) => postToAthena(itemToPost)
   });
 
   const mainPostMutation = useMutation({
     mutationFn: (fullData) => postToAthena(fullData),
     onSuccess: (responseData) => {
-      // Accept multiple response shapes. Preferred: { section_results: { ... } }
       const results = responseData?.section_results || responseData?.data || responseData;
-      // If the response contains section keys from middleware, normalize and merge them
       if (results && (results.reason !== undefined || results.subjective !== undefined || results.ros !== undefined || results.objective !== undefined || results.assessmentPlan !== undefined)) {
         const mapped = {};
         Object.keys(results).forEach((k) => {
@@ -335,7 +342,7 @@ const Soap = ({ appointmentId, username, appointment}) => {
           else if (v === false) mapped[k] = 'error';
           else mapped[k] = v;
         });
-        // Also create human-readable keys so child Post buttons (which expect names like "Chief Complaint") update
+        
         const humanMapped = {};
         if (mapped.reason) humanMapped["Chief Complaint"] = mapped.reason;
         if (mapped.subjective) humanMapped["History of Present Illness"] = mapped.subjective;
@@ -344,10 +351,17 @@ const Soap = ({ appointmentId, username, appointment}) => {
         if (mapped.assessmentPlan) humanMapped["Assessment & Plan"] = mapped.assessmentPlan;
 
         setSectionStatuses((prev) => ({ ...prev, ...mapped, ...humanMapped }));
+        
         const hasErrors = Object.values(mapped).includes('error');
         setMainPostStatus(hasErrors ? 'partial_error' : 'success');
+        
+        // If there are no errors, mark as fully posted
+        if (!hasErrors) {
+          setIsFullyPosted(true);
+        }
         return;
       }
+      
       // Default behavior: EVERYTHING succeeded
       setSectionStatuses((prev) => {
         const next = { ...prev };
@@ -355,9 +369,9 @@ const Soap = ({ appointmentId, username, appointment}) => {
         return next;
       });
       setMainPostStatus('success');
+      setIsFullyPosted(true); // Mark as fully posted
     },
     onError: () => {
-      // Default behavior: EVERYTHING failed
       setSectionStatuses((prev) => {
         const next = { ...prev };
         Object.keys(next).forEach(k => { if (next[k] === 'posting') next[k] = 'error'; });
@@ -368,10 +382,25 @@ const Soap = ({ appointmentId, username, appointment}) => {
   });
 
   const handleInitiatePost = (data, onSuccess, onError) => {
-    data = { ...data, username, athena_encounter_id: appointment?.athena_encounter_id, practiceID:  appointment?.athena_practice_id};
+    data = { ...data, username, athena_encounter_id: appointment?.athena_encounter_id, practiceID: appointment?.athena_practice_id};
     setPendingPost({ data, onSuccess, onError });
   };
-  const handleConfirmPost = () => { if (pendingPost) postMutation.mutate(pendingPost.data); };
+
+  const handleConfirmPost = () => { 
+    if (!pendingPost) return;
+    
+    postMutation.mutate(pendingPost.data, {
+      onSuccess: () => {
+        if (pendingPost.onSuccess) pendingPost.onSuccess();
+        setPendingPost(null);
+      },
+      onError: () => {
+        if (pendingPost.onError) pendingPost.onError();
+        setPendingPost(null);
+      }
+    });
+  };
+
   const handleCancelPost = () => { setPendingPost(null); };
 
   const handleMainPostClick = () => { setPostFlowStage('confirming'); };
@@ -382,7 +411,6 @@ const Soap = ({ appointmentId, username, appointment}) => {
   const handleReviewPost = () => {
     setMainPostStatus('posting');
     
-    // Mark only the sections that have content as "posting" using middleware keys
     const activeStatuses = {};
     if (soapNotes.subjective.chief_complaint) activeStatuses["reason"] = "posting";
     if (soapNotes.subjective.hpi) activeStatuses["subjective"] = "posting";
@@ -392,7 +420,7 @@ const Soap = ({ appointmentId, username, appointment}) => {
     if ((ap?.problems && ap.problems.length > 0) || ap?.follow_up) {
       activeStatuses["assessmentPlan"] = "posting";
     }
-    // Also mark the corresponding human-readable keys so per-section Post buttons reflect 'posting'
+    
     const humanMap = {};
     if (activeStatuses.reason) humanMap["Chief Complaint"] = activeStatuses.reason;
     if (activeStatuses.subjective) humanMap["History of Present Illness"] = activeStatuses.subjective;
@@ -455,8 +483,9 @@ const Soap = ({ appointmentId, username, appointment}) => {
         <ConfirmationModal
           onCancel={handleCancelPost}
           onConfirm={handleConfirmPost}
-          isPosting={postMutation.isLoading}
+          isPosting={postMutation.isLoading || postMutation.isPending}
           itemName={pendingPost.data?.type} 
+          alreadyPosted={pendingPost.data?.alreadyPosted}
         />
       )}
 
@@ -509,21 +538,21 @@ const Soap = ({ appointmentId, username, appointment}) => {
               setSoapNotes={setSoapNotes}
               isEditing={isEditing}
               onPost={handleInitiatePost}
-              sectionStatuses={sectionStatuses} // Pass dictionary
+              sectionStatuses={sectionStatuses} 
             />
             <ObjectiveSection
               soapNotes={soapNotes}
               setSoapNotes={setSoapNotes}
               isEditing={isEditing}
               onPost={handleInitiatePost}
-              sectionStatuses={sectionStatuses} // Pass dictionary
+              sectionStatuses={sectionStatuses} 
             />
             <AssessmentPlanSection
               soapNotes={soapNotes}
               setSoapNotes={setSoapNotes}
               isEditing={isEditing}
               onPost={handleInitiatePost}
-              sectionStatuses={sectionStatuses} // Pass dictionary
+              sectionStatuses={sectionStatuses} 
             />
           </div>
 
@@ -533,8 +562,18 @@ const Soap = ({ appointmentId, username, appointment}) => {
                 <Button onClick={() => setIsEditing(true)} className="bg-yellow-600 text-white hover:bg-yellow-700">
                   Edit
                 </Button>
-                <Button onClick={handleMainPostClick} className="bg-blue-600 text-white hover:bg-blue-700">
-                  Post SOAP to Athena
+                {/* Dynamically styled button based on isFullyPosted status */}
+                <Button 
+                  onClick={handleMainPostClick} 
+                  disabled={isFullyPosted}
+                  className={
+                    isFullyPosted 
+                      ? "bg-gray-400 text-white cursor-not-allowed hover:bg-gray-400" 
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }
+                  title={isFullyPosted ? "SOAP already posted. Edit the note to repost." : ""}
+                >
+                  {isFullyPosted ? "SOAP Already Posted" : "Post SOAP to Athena"}
                 </Button>
               </>
             ) : (
