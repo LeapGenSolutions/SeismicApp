@@ -1,281 +1,491 @@
 import { useState, useEffect } from "react";
-import PostOrdersButton from "./PostOrdersButton";
+import {
+  Send,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  Loader2,
+} from "lucide-react";
 
-/**
- * Utility helpers
- */
-const splitLabNames = (name = "") =>
-  name
-    .split(",")
-    .map((n) => n.trim())
-    .filter(Boolean);
+/* -------------------------------------------------------
+   INLINE POST BUTTON
+------------------------------------------------------- */
+const PostIconButton = ({ onClick, disabled }) => {
+  const [status, setStatus] = useState("idle");
 
-const toTitleCase = (str = "") =>
-  str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  const handleClick = () => {
+    if (status !== "idle" || disabled) return;
 
-/**
- * OrdersSection
- */
+    onClick(
+      () => {
+        setStatus("success");
+        setTimeout(() => setStatus("idle"), 3000);
+      },
+      () => {
+        setStatus("error");
+        setTimeout(() => setStatus("idle"), 3000);
+      }
+    );
+  };
+
+  let bgClass =
+    "bg-white text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-400";
+  let icon = <Send className="w-3.5 h-3.5" />;
+  let label = null;
+
+  if (disabled) {
+    bgClass =
+      "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed";
+  } else if (status === "success") {
+    bgClass =
+      "bg-green-50 text-green-700 border-green-300 w-auto px-2";
+    icon = <CheckCircle2 className="w-3.5 h-3.5 mr-1" />;
+    label = <span className="text-xs font-medium">Success</span>;
+  } else if (status === "error") {
+    bgClass =
+      "bg-red-50 text-red-700 border-red-300 w-auto px-2";
+    icon = <AlertCircle className="w-3.5 h-3.5 mr-1" />;
+    label = <span className="text-xs font-medium">Failed</span>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={disabled || status !== "idle"}
+      className={`inline-flex items-center justify-center h-7 rounded-md border transition-all ${bgClass} ${
+        status === "idle" ? "w-7" : ""
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+};
+
+/* -------------------------------------------------------
+   ORDERS SECTION
+------------------------------------------------------- */
+
 const OrdersSection = ({ ordersData, onOrdersUpdate }) => {
-  const confirmed = ordersData?.confirmed;
-
   const [editableOrders, setEditableOrders] = useState([]);
   const [removedKeys, setRemovedKeys] = useState({});
-  const [postedItems, setPostedItems] = useState({});
-  const [toast, setToast] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+
+  const [confirmModal, setConfirmModal] = useState({
+    open: false,
+    type: null,
+    order: null,
+    onSuccess: null,
+    onError: null,
+  });
+
+  const [batchModal, setBatchModal] = useState({
+    open: false,
+    statusMap: {},
+    posting: false,
+  });
 
   useEffect(() => {
     setEditableOrders(ordersData?.orders || []);
-    setIsPosted(false); // reset when new data loads
   }, [ordersData]);
 
-  const showToast = (type, message) => {
-    setToast({ type, message });
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  /**
-   * Normalize orders
-   */
-  const normalizedOrders = editableOrders.flatMap((order, orderIdx) => {
-    if (order.order_type === "Lab") {
-      return splitLabNames(order.name).map((labName, idx) => ({
-        ...order,
-        name: toTitleCase(labName),
-        __key: `lab-${orderIdx}-${idx}`,
-        __index: orderIdx,
-      }));
-    }
-
-    return {
-      ...order,
-      name: toTitleCase(order.name),
-      __key: `${order.order_type}-${orderIdx}`,
-      __index: orderIdx,
-    };
-  });
-
-  /**
-   * Orders that are still visible
-   */
-  const visibleOrders = normalizedOrders.filter(
-    (o) => !removedKeys[o.__key]
-  );
-
-  /**
-   * Group by type (for display only)
-   */
-  const grouped = visibleOrders.reduce((acc, order) => {
-    const type = order.order_type || "Other";
-    acc[type] = acc[type] || [];
-    acc[type].push(order);
-    return acc;
-  }, {});
+  /* ---------------- Remove Logic ---------------- */
 
   const handleRemove = (key) => {
+    if (!isEditing) return;
     setRemovedKeys((prev) => ({ ...prev, [key]: true }));
   };
 
-  const handleSaveOrders = () => {
-    if (typeof onOrdersUpdate === "function") {
-      onOrdersUpdate(editableOrders);
-    }
-    setIsEditing(false);
-    showToast("success", "Orders updated");
+  /* ---------------- API ---------------- */
+
+  const postOrder = async (order) => {
+    const res = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(order),
+    });
+
+    if (!res.ok) throw new Error();
   };
 
-  return (
-    <div className="border rounded-lg bg-white p-6 space-y-10 relative">
-      
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-6 right-6 px-4 py-3 rounded-md shadow bg-white border">
-          {toast.message}
-        </div>
-      )}
+  /* ================= BATCH ================= */
 
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-xl font-semibold text-blue-600">Orders</h2>
-          <p className="text-sm text-gray-600">
-            {`${visibleOrders.length} orders`}
-          </p>
-          {typeof confirmed === "boolean" && (
-            <p className="text-sm">
-              <strong>Orders Confirmed:</strong> {confirmed ? "Yes" : "No"}
-            </p>
-          )}
-        </div>
+  const openBatchModal = () => {
+    const initialStatus = {};
 
-        <button
-          onClick={() =>
-            isEditing ? handleSaveOrders() : setIsEditing(true)
-          }
-          className="px-4 py-1 text-sm rounded border border-blue-600 text-blue-600"
-        >
-          {isEditing ? "Save Orders" : "Edit Orders"}
-        </button>
-      </div>
+    editableOrders.forEach((_, index) => {
+      if (!removedKeys[index]) {
+        initialStatus[index] = "idle";
+      }
+    });
 
-      {/* Orders by Group */}
-      {Object.entries(grouped).map(([type, items]) => (
-        <div key={type}>
-          <h3 className="font-semibold mb-3">
-            {type} ({items.length})
+    setBatchModal({
+      open: true,
+      statusMap: initialStatus,
+      posting: false,
+    });
+  };
+
+  const updateBatchStatus = (index, status) => {
+    setBatchModal((prev) => ({
+      ...prev,
+      statusMap: {
+        ...prev.statusMap,
+        [index]: status,
+      },
+    }));
+  };
+
+  const handleBatchPost = async () => {
+    if (batchModal.posting) return;
+
+    setBatchModal((prev) => ({ ...prev, posting: true }));
+
+    const indexes = Object.keys(batchModal.statusMap);
+
+    for (const indexStr of indexes) {
+      const index = Number(indexStr);
+      const order = editableOrders[index];
+
+      try {
+        updateBatchStatus(index, "loading");
+        await postOrder(order);
+        updateBatchStatus(index, "success");
+      } catch {
+        updateBatchStatus(index, "failed");
+      }
+    }
+
+    setBatchModal((prev) => ({ ...prev, posting: false }));
+  };
+
+  const retrySingle = async (index) => {
+    try {
+      updateBatchStatus(index, "loading");
+      await postOrder(editableOrders[index]);
+      updateBatchStatus(index, "success");
+    } catch {
+      updateBatchStatus(index, "failed");
+    }
+  };
+
+  /* ================= CONFIRM MODAL ================= */
+
+  const ConfirmModal = () => {
+    if (!confirmModal.open) return null;
+    const isPost = confirmModal.type === "post";
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="bg-white rounded-lg shadow-xl w-[400px] p-6 relative">
+          <button
+            onClick={() =>
+              setConfirmModal({
+                open: false,
+                type: null,
+                order: null,
+                onSuccess: null,
+                onError: null,
+              })
+            }
+            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+          >
+            <X size={18} />
+          </button>
+
+          <h3 className="text-lg font-semibold mb-4">
+            {isPost ? "Confirm Post" : "Confirm Removal"}
           </h3>
 
-          <ul className="space-y-2">
-            {items.map((item) => {
-              const isItemPosted = postedItems[item.__key];
+          <p className="text-sm text-gray-600 mb-6">
+            Are you sure you want to {isPost ? "post" : "remove"}{" "}
+            <span className="font-semibold">
+              {confirmModal.order?.name}
+            </span>
+            ?
+          </p>
 
-        return (
-          <div key={type} className="space-y-4">
+          <div className="flex justify-end gap-3">
             <button
               onClick={() =>
-                setCollapsed((prev) => ({
-                  ...prev,
-                  [type]: !prev[type],
-                }))
+                setConfirmModal({
+                  open: false,
+                  type: null,
+                  order: null,
+                  onSuccess: null,
+                  onError: null,
+                })
               }
-              className="w-full flex justify-between items-center text-left text-lg font-semibold border-b pb-2"
+              className="px-4 py-1 text-sm border rounded-md"
             >
-              <span>
-                {type} ({visibleItems.length})
-              </span>
-              <span className="text-sm text-gray-500">
-                {collapsed[type] ? "Show" : "Hide"}
-              </span>
+              Cancel
             </button>
 
-            {!collapsed[type] && (
-              <>
-                {/* Reason */}
-                <div>
-                  <p className="text-sm font-medium mb-1">Reason</p>
-                  {isEditing ? (
-                    <textarea
-                      value={group.reason}
-                      onChange={(e) =>
-                        setEditableOrders((prev) =>
-                          prev.map((o) =>
-                            o.order_type === type
-                              ? { ...o, reason: e.target.value }
-                              : o
-                          )
-                        )
-                      }
-                      className="w-full border rounded p-2 text-sm"
-                      rows={2}
-                    />
-                  ) : (
-                    <p className="text-sm">{group.reason || "—"}</p>
-                  )}
-                </div>
+            <button
+              onClick={async () => {
+                if (isPost) {
+                  try {
+                    await postOrder(confirmModal.order);
+                    confirmModal.onSuccess?.();
+                  } catch {
+                    confirmModal.onError?.();
+                  }
+                } else {
+                  handleRemove(confirmModal.order.__key);
+                }
 
-                {/* Orders */}
-                <ul className="space-y-2">
-                  {visibleItems.map((item) => (
-                    <li
-                      key={item.__key}
-                      className="flex justify-between items-center border rounded px-3 py-2 bg-gray-50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span>{item.name}</span>
+                setConfirmModal({
+                  open: false,
+                  type: null,
+                  order: null,
+                  onSuccess: null,
+                  onError: null,
+                });
+              }}
+              className={`px-4 py-1 text-sm rounded-md text-white ${
+                isPost
+                  ? "bg-blue-600 hover:bg-blue-700"
+                  : "bg-red-600 hover:bg-red-700"
+              }`}
+            >
+              {isPost ? "Post" : "Remove"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
-                        {isEditing ? (
-                          <select
-                            value={item.priority || "Routine"}
-                            onChange={(e) =>
-                              setEditableOrders((prev) =>
-                                prev.map((o, i) =>
-                                  i === item.__index
-                                    ? {
-                                        ...o,
-                                        priority: e.target.value,
-                                      }
-                                    : o
-                                )
-                              )
-                            }
-                            className="border rounded px-2 py-1 text-xs"
-                          >
-                            <option value="Routine">Routine</option>
-                            <option value="STAT">STAT</option>
-                          </select>
-                        ) : (
-                          <span className="text-xs text-gray-500">
-                            ({item.priority || "Routine"})
-                          </span>
-                        )}
+  /* ================= BATCH MODAL ================= */
+
+  const BatchModal = () => {
+    if (!batchModal.open) return null;
+
+    const indexes = Object.keys(batchModal.statusMap);
+    const total = indexes.length;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="bg-white rounded-xl shadow-2xl w-[520px] p-6 relative">
+          <button
+            onClick={() =>
+              setBatchModal({
+                open: false,
+                statusMap: {},
+                posting: false,
+              })
+            }
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+          >
+            <X size={18} />
+          </button>
+
+          <h3 className="text-lg font-semibold">Post All Orders</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            Total Orders: {total}
+          </p>
+
+          <div className="space-y-2 max-h-64 overflow-y-auto mb-6">
+            {indexes.map((i) => {
+              const index = Number(i);
+              const status = batchModal.statusMap[index];
+              const order = editableOrders[index];
+
+              return (
+                <div
+                  key={index}
+                  className="flex justify-between items-start border rounded-md p-3"
+                >
+                  <div>
+                    <div className="font-medium">{order.name}</div>
+
+                    {order.order_type && (
+                      <div className="text-sm text-gray-600 mt-1">
+                        <span className="font-medium">Type:</span> {order.order_type}
                       </div>
+                    )}
 
-                      <button
-                        disabled={isPosted}
-                        onClick={() => handleRemove(item.__key)}
-                        className={`text-sm ${
-                          isPosted
-                            ? "text-gray-300 cursor-not-allowed"
-                            : "text-gray-400 hover:text-red-600"
-                        }`}
-                      >
-                        ✕
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                    {order.reason && (
+                      <div className="text-sm text-gray-600 mt-1">
+                        <span className="font-medium">Reason:</span> {order.reason}
+                      </div>
+                    )}
 
-                {/* Instructions */}
-                <div className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded">
-                  <p className="text-sm font-semibold text-blue-700">
-                    Patient Instructions
-                  </p>
+                    {order.additional_instructions && (
+                      <div className="text-sm text-gray-500 mt-1">
+                        <span className="font-medium">Instructions:</span>{" "}
+                        {order.additional_instructions}
+                      </div>
+                    )}
+                  </div>
 
-                  {isEditing ? (
-                    <textarea
-                      value={group.instructions}
-                      onChange={(e) =>
-                        setEditableOrders((prev) =>
-                          prev.map((o) =>
-                            o.order_type === type
-                              ? {
-                                  ...o,
-                                  additional_instructions: e.target.value,
-                                }
-                              : o
-                          )
-                        )
-                      }
-                      className="w-full mt-1 border rounded p-2 text-sm"
-                      rows={2}
-                    />
-                  ) : (
-                    <p className="text-sm text-blue-900">
-                      {group.instructions || "—"}
-                    </p>
-                  )}
+                  <div className="ml-4">
+                    {status === "idle" && (
+                      <span className="text-gray-400 text-sm">Ready</span>
+                    )}
+                    {status === "loading" && (
+                      <Loader2 size={16} className="animate-spin text-blue-600" />
+                    )}
+                    {status === "success" && (
+                      <CheckCircle2 size={16} className="text-green-600" />
+                    )}
+                    {status === "failed" && (
+                      <div className="flex items-center gap-2">
+                        <AlertCircle size={16} className="text-red-600" />
+                        <button
+                          onClick={() => retrySingle(index)}
+                          className="text-xs text-blue-600 underline"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </>
-            )}
+              );
+            })}
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() =>
+                setBatchModal({
+                  open: false,
+                  statusMap: {},
+                  posting: false,
+                })
+              }
+              className="px-4 py-1 text-sm border rounded-md"
+            >
+              Close
+            </button>
+
+            <button
+              onClick={handleBatchPost}
+              disabled={batchModal.posting || !total}
+              className="px-4 py-1 text-sm rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+            >
+              {batchModal.posting ? "Posting..." : "Confirm Post"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /* ================= UI ================= */
+
+  return (
+    <div className="border rounded-lg bg-white p-6 space-y-6 relative">
+      <h2 className="text-xl font-semibold text-blue-600">
+        Orders
+      </h2>
+
+      {editableOrders.map((item, index) => {
+        if (removedKeys[index]) return null;
+
+        return (
+          <div
+            key={index}
+            className="flex justify-between items-start border p-3 rounded"
+          >
+            <div>
+              <div className="font-medium">{item.name}</div>
+
+              {item.order_type && (
+                <div className="text-sm text-gray-600 mt-1">
+                  <span className="font-medium">Type:</span> {item.order_type}
+                </div>
+              )}
+
+              {item.reason && (
+                <div className="text-sm text-gray-600 mt-1">
+                  <span className="font-medium">Reason:</span> {item.reason}
+                </div>
+              )}
+
+              {item.additional_instructions && (
+                <div className="text-sm text-gray-500 mt-1">
+                  <span className="font-medium">Instructions:</span>{" "}
+                  {item.additional_instructions}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <PostIconButton
+                onClick={(onSuccess, onError) =>
+                  setConfirmModal({
+                    open: true,
+                    type: "post",
+                    order: item,
+                    onSuccess,
+                    onError,
+                  })
+                }
+              />
+
+              {isEditing && (
+                <button
+                  onClick={() =>
+                    setConfirmModal({
+                      open: true,
+                      type: "remove",
+                      order: { ...item, __key: index },
+                    })
+                  }
+                  className="text-gray-400 hover:text-red-600"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
         );
       })}
 
-      {/* Post */}
-      <div className="flex justify-end pt-4 border-t">
+      {/* Bottom Action Buttons */}
+      <div className="flex justify-end gap-3 pt-4 border-t border-gray-300">
         <button
-          disabled={isPosted}
-          onClick={handlePostAll}
-          className={`px-5 py-2 rounded text-white ${
-            isPosted
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700"
-          }`}
+          onClick={openBatchModal}
+          disabled={!editableOrders.length}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md disabled:opacity-50"
         >
-          Post Orders
+          Post All Orders
         </button>
+
+        {!isEditing ? (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="bg-yellow-600 text-white hover:bg-yellow-700 px-4 py-2 rounded-md"
+          >
+            Edit Orders
+          </button>
+        ) : (
+          <>
+            <button
+              onClick={() => {
+                onOrdersUpdate?.(editableOrders);
+                setIsEditing(false);
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+            >
+              Save Orders
+            </button>
+
+            <button
+              onClick={() => setIsEditing(false)}
+              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md"
+            >
+              Cancel
+            </button>
+          </>
+        )}
       </div>
+
+      <ConfirmModal />
+      <BatchModal />
     </div>
   );
 };
