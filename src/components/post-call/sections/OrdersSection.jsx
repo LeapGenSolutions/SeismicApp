@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import PostOrdersButton from "./PostOrdersButton";
 
 /**
- * Helpers
+ * Utility helpers
  */
 const splitLabNames = (name = "") =>
   name
@@ -10,26 +11,23 @@ const splitLabNames = (name = "") =>
     .filter(Boolean);
 
 const toTitleCase = (str = "") =>
-  str
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
-const OrdersSection = ({ ordersData }) => {
+/**
+ * OrdersSection
+ */
+const OrdersSection = ({ ordersData, onOrdersUpdate }) => {
   const confirmed = ordersData?.confirmed;
 
-  /**
-   * SOURCE OF TRUTH
-   */
   const [editableOrders, setEditableOrders] = useState([]);
   const [removedKeys, setRemovedKeys] = useState({});
-  const [collapsed, setCollapsed] = useState({});
+  const [postedItems, setPostedItems] = useState({});
   const [toast, setToast] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isPosted, setIsPosted] = useState(false);
 
   useEffect(() => {
     setEditableOrders(ordersData?.orders || []);
-    setIsPosted(Boolean(ordersData?.confirmed));
+    setIsPosted(false); // reset when new data loads
   }, [ordersData]);
 
   const showToast = (type, message) => {
@@ -38,7 +36,7 @@ const OrdersSection = ({ ordersData }) => {
   };
 
   /**
-   * Normalize for rendering
+   * Normalize orders
    */
   const normalizedOrders = editableOrders.flatMap((order, orderIdx) => {
     if (order.order_type === "Lab") {
@@ -59,100 +57,78 @@ const OrdersSection = ({ ordersData }) => {
   });
 
   /**
-   * Group for UI
+   * Orders that are still visible
    */
-  const grouped = normalizedOrders.reduce((acc, order) => {
+  const visibleOrders = normalizedOrders.filter(
+    (o) => !removedKeys[o.__key]
+  );
+
+  /**
+   * Group by type (for display only)
+   */
+  const grouped = visibleOrders.reduce((acc, order) => {
     const type = order.order_type || "Other";
-    acc[type] = acc[type] || {
-      items: [],
-      reason: order.reason || "",
-      instructions: order.additional_instructions || "",
-    };
-    acc[type].items.push(order);
+    acc[type] = acc[type] || [];
+    acc[type].push(order);
     return acc;
   }, {});
 
-  const visibleOrderCount = normalizedOrders.filter(
-    (o) => !removedKeys[o.__key]
-  ).length;
-
   const handleRemove = (key) => {
-    if (isPosted) return;
     setRemovedKeys((prev) => ({ ...prev, [key]: true }));
   };
 
   const handleSaveOrders = () => {
-    ordersData.orders = editableOrders;
+    if (typeof onOrdersUpdate === "function") {
+      onOrdersUpdate(editableOrders);
+    }
     setIsEditing(false);
     showToast("success", "Orders updated");
   };
 
   return (
-  <div className="border rounded-lg bg-white p-6 space-y-10 relative">
-  {toast && (
-    <div
-      className={`fixed bottom-6 right-6 px-4 py-3 rounded-md shadow-md text-sm bg-white border ${
-        toast.type === "error"
-          ? "border-red-300 text-red-700"
-          : "border-gray-300 text-gray-800"
-      }`}
-    >
-      {toast.message}
-    </div>
-  )}
+    <div className="border rounded-lg bg-white p-6 space-y-10 relative">
+      
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 px-4 py-3 rounded-md shadow bg-white border">
+          {toast.message}
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-semibold text-blue-600">Orders</h2>
-
-            <span
-              className={`px-2 py-0.5 rounded text-xs font-medium ${
-                isPosted
-                  ? "bg-gray-100 text-gray-700"
-                  : "bg-gray-100 text-gray700"
-              }`}
-            >
-              {isPosted ? "Placed" : "Pending"}
-            </span>
-          </div>
-
-          <p className="text-sm text-gray-600 mt-1">
-            {visibleOrderCount}{" "}
-            {isPosted ? "orders placed" : "orders to be placed"}
+          <h2 className="text-xl font-semibold text-blue-600">Orders</h2>
+          <p className="text-sm text-gray-600">
+            {`${visibleOrders.length} orders`}
           </p>
-
           {typeof confirmed === "boolean" && (
-            <p className="text-sm mt-1">
-              <span className="font-medium">Orders Confirmed:</span>{" "}
-              {confirmed ? "Yes" : "No"}
+            <p className="text-sm">
+              <strong>Orders Confirmed:</strong> {confirmed ? "Yes" : "No"}
             </p>
           )}
         </div>
 
         <button
-          disabled={isPosted}
           onClick={() =>
             isEditing ? handleSaveOrders() : setIsEditing(true)
           }
-          className={`px-4 py-1 text-sm rounded border ${
-            isPosted
-              ? "border-gray-300 text-gray-400 cursor-not-allowed"
-              : "border-blue-600 text-blue-600 hover:bg-blue-50"
-          }`}
+          className="px-4 py-1 text-sm rounded border border-blue-600 text-blue-600"
         >
           {isEditing ? "Save Orders" : "Edit Orders"}
         </button>
       </div>
 
-      {/* Groups */}
-      {Object.entries(grouped).map(([type, group]) => {
-        const visibleItems = group.items.filter(
-          (item) => !removedKeys[item.__key]
-        );
+      {/* Orders by Group */}
+      {Object.entries(grouped).map(([type, items]) => (
+        <div key={type}>
+          <h3 className="font-semibold mb-3">
+            {type} ({items.length})
+          </h3>
 
-        if (!visibleItems.length) return null;
+          <ul className="space-y-2">
+            {items.map((item) => {
+              const isItemPosted = postedItems[item.__key];
 
         return (
           <div key={type} className="space-y-4">
@@ -286,8 +262,22 @@ const OrdersSection = ({ ordersData }) => {
         );
       })}
 
+      {/* Post */}
+      <div className="flex justify-end pt-4 border-t">
+        <button
+          disabled={isPosted}
+          onClick={handlePostAll}
+          className={`px-5 py-2 rounded text-white ${
+            isPosted
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700"
+          }`}
+        >
+          Post Orders
+        </button>
+      </div>
     </div>
   );
 };
 
-export default OrdersSection
+export default OrdersSection;
