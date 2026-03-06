@@ -1,14 +1,8 @@
-import { useState, useEffect } from "react";
-import {
-  Send,
-  CheckCircle2,
-  AlertCircle,
-  X,
-  Loader2,
-} from "lucide-react";
+import { useState } from "react";
+import { Send, CheckCircle2, AlertCircle, Loader2, X } from "lucide-react";
 
 /* -------------------------------------------------------
-   INLINE POST BUTTON
+   REUSABLE POST BUTTON
 ------------------------------------------------------- */
 const PostIconButton = ({ onClick, disabled }) => {
   const [status, setStatus] = useState("idle");
@@ -34,16 +28,13 @@ const PostIconButton = ({ onClick, disabled }) => {
   let label = null;
 
   if (disabled) {
-    bgClass =
-      "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed";
+    bgClass = "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed";
   } else if (status === "success") {
-    bgClass =
-      "bg-green-50 text-green-700 border-green-300 w-auto px-2";
+    bgClass = "bg-green-50 text-green-700 border-green-300 w-auto px-2";
     icon = <CheckCircle2 className="w-3.5 h-3.5 mr-1" />;
     label = <span className="text-xs font-medium">Success</span>;
   } else if (status === "error") {
-    bgClass =
-      "bg-red-50 text-red-700 border-red-300 w-auto px-2";
+    bgClass = "bg-red-50 text-red-700 border-red-300 w-auto px-2";
     icon = <AlertCircle className="w-3.5 h-3.5 mr-1" />;
     label = <span className="text-xs font-medium">Failed</span>;
   }
@@ -53,9 +44,10 @@ const PostIconButton = ({ onClick, disabled }) => {
       type="button"
       onClick={handleClick}
       disabled={disabled || status !== "idle"}
-      className={`inline-flex items-center justify-center h-7 rounded-md border transition-all ${bgClass} ${
+      title="Post Order"
+      className={`inline-flex items-center justify-center h-7 rounded-md border transition-all ${
         status === "idle" ? "w-7" : ""
-      }`}
+      } ${bgClass}`}
     >
       {icon}
       {label}
@@ -66,19 +58,11 @@ const PostIconButton = ({ onClick, disabled }) => {
 /* -------------------------------------------------------
    ORDERS SECTION
 ------------------------------------------------------- */
-
 const OrdersSection = ({ ordersData, onOrdersUpdate }) => {
-  const [editableOrders, setEditableOrders] = useState([]);
-  const [removedKeys, setRemovedKeys] = useState({});
-  const [isEditing, setIsEditing] = useState(false);
+  const orders = ordersData?.orders || [];
 
-  const [confirmModal, setConfirmModal] = useState({
-    open: false,
-    type: null,
-    order: null,
-    onSuccess: null,
-    onError: null,
-  });
+  const [isEditing, setIsEditing] = useState(false);
+  const [originalOrders, setOriginalOrders] = useState([]);
 
   const [batchModal, setBatchModal] = useState({
     open: false,
@@ -86,71 +70,80 @@ const OrdersSection = ({ ordersData, onOrdersUpdate }) => {
     posting: false,
   });
 
-  useEffect(() => {
-    setEditableOrders(ordersData?.orders || []);
-  }, [ordersData]);
+  /* ---------------- ORDER EDITING ---------------- */
+  const handleChange = (index, field, value) => {
+    const updatedOrders = [...orders];
+    updatedOrders[index] = {
+      ...updatedOrders[index],
+      [field]: value,
+    };
 
-  /* ---------------- Remove Logic ---------------- */
+    if (typeof onOrdersUpdate === "function") {
+      onOrdersUpdate({ ...ordersData, orders: updatedOrders });
+    }
+  };
 
-  const handleRemove = (key) => {
-    if (!isEditing) return;
-    setRemovedKeys((prev) => ({ ...prev, [key]: true }));
+  const handleRemove = (index) => {
+    const updatedOrders = [...orders];
+    updatedOrders.splice(index, 1);
+    if (typeof onOrdersUpdate === "function") {
+      onOrdersUpdate({ ...ordersData, orders: updatedOrders });
+    }
+  };
+
+  const startEditing = () => {
+    setOriginalOrders(orders); // Save current state
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    // Revert to original orders
+    if (typeof onOrdersUpdate === "function") {
+      onOrdersUpdate({ ...ordersData, orders: originalOrders });
+    }
+    setIsEditing(false);
   };
 
   /* ---------------- API ---------------- */
-
   const postOrder = async (order) => {
     const res = await fetch("/api/orders", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(order),
     });
 
-    if (!res.ok) throw new Error();
+    if (!res.ok) throw new Error("Post failed");
   };
 
-  /* ================= BATCH ================= */
-
+  /* ---------------- BATCH POST ---------------- */
   const openBatchModal = () => {
-    const initialStatus = {};
-
-    editableOrders.forEach((_, index) => {
-      if (!removedKeys[index]) {
-        initialStatus[index] = "idle";
-      }
+    const statusMap = {};
+    orders.forEach((_, index) => {
+      statusMap[index] = "idle";
     });
-
-    setBatchModal({
-      open: true,
-      statusMap: initialStatus,
-      posting: false,
-    });
+    setBatchModal({ open: true, statusMap, posting: false });
   };
 
   const updateBatchStatus = (index, status) => {
     setBatchModal((prev) => ({
       ...prev,
-      statusMap: {
-        ...prev.statusMap,
-        [index]: status,
-      },
+      statusMap: { ...prev.statusMap, [index]: status },
     }));
   };
 
   const handleBatchPost = async () => {
     if (batchModal.posting) return;
-
     setBatchModal((prev) => ({ ...prev, posting: true }));
 
     const indexes = Object.keys(batchModal.statusMap);
 
     for (const indexStr of indexes) {
       const index = Number(indexStr);
-      const order = editableOrders[index];
-
       try {
         updateBatchStatus(index, "loading");
-        await postOrder(order);
+        await postOrder(orders[index]);
         updateBatchStatus(index, "success");
       } catch {
         updateBatchStatus(index, "failed");
@@ -163,164 +156,59 @@ const OrdersSection = ({ ordersData, onOrdersUpdate }) => {
   const retrySingle = async (index) => {
     try {
       updateBatchStatus(index, "loading");
-      await postOrder(editableOrders[index]);
+      await postOrder(orders[index]);
       updateBatchStatus(index, "success");
     } catch {
       updateBatchStatus(index, "failed");
     }
   };
 
-  /* ================= CONFIRM MODAL ================= */
-
-  const ConfirmModal = () => {
-    if (!confirmModal.open) return null;
-    const isPost = confirmModal.type === "post";
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div className="bg-white rounded-lg shadow-xl w-[400px] p-6 relative">
-          <button
-            onClick={() =>
-              setConfirmModal({
-                open: false,
-                type: null,
-                order: null,
-                onSuccess: null,
-                onError: null,
-              })
-            }
-            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
-          >
-            <X size={18} />
-          </button>
-
-          <h3 className="text-lg font-semibold mb-4">
-            {isPost ? "Confirm Post" : "Confirm Removal"}
-          </h3>
-
-          <p className="text-sm text-gray-600 mb-6">
-            Are you sure you want to {isPost ? "post" : "remove"}{" "}
-            <span className="font-semibold">
-              {confirmModal.order?.name}
-            </span>
-            ?
-          </p>
-
-          <div className="flex justify-end gap-3">
-            <button
-              onClick={() =>
-                setConfirmModal({
-                  open: false,
-                  type: null,
-                  order: null,
-                  onSuccess: null,
-                  onError: null,
-                })
-              }
-              className="px-4 py-1 text-sm border rounded-md"
-            >
-              Cancel
-            </button>
-
-            <button
-              onClick={async () => {
-                if (isPost) {
-                  try {
-                    await postOrder(confirmModal.order);
-                    confirmModal.onSuccess?.();
-                  } catch {
-                    confirmModal.onError?.();
-                  }
-                } else {
-                  handleRemove(confirmModal.order.__key);
-                }
-
-                setConfirmModal({
-                  open: false,
-                  type: null,
-                  order: null,
-                  onSuccess: null,
-                  onError: null,
-                });
-              }}
-              className={`px-4 py-1 text-sm rounded-md text-white ${
-                isPost
-                  ? "bg-blue-600 hover:bg-blue-700"
-                  : "bg-red-600 hover:bg-red-700"
-              }`}
-            >
-              {isPost ? "Post" : "Remove"}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  /* ================= BATCH MODAL ================= */
-
+  /* ---------------- BATCH MODAL ---------------- */
   const BatchModal = () => {
     if (!batchModal.open) return null;
 
     const indexes = Object.keys(batchModal.statusMap);
-    const total = indexes.length;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div className="bg-white rounded-xl shadow-2xl w-[520px] p-6 relative">
+      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl shadow-xl w-[500px] p-6 relative">
           <button
             onClick={() =>
-              setBatchModal({
-                open: false,
-                statusMap: {},
-                posting: false,
-              })
+              setBatchModal({ open: false, statusMap: {}, posting: false })
             }
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
           >
             <X size={18} />
           </button>
 
-          <h3 className="text-lg font-semibold">Post All Orders</h3>
-          <p className="text-sm text-gray-500 mb-4">
-            Total Orders: {total}
-          </p>
+          <h3 className="text-lg font-semibold mb-4">Post All Orders</h3>
 
           <div className="space-y-2 max-h-64 overflow-y-auto mb-6">
             {indexes.map((i) => {
               const index = Number(i);
+              const order = orders[index];
               const status = batchModal.statusMap[index];
-              const order = editableOrders[index];
 
               return (
                 <div
                   key={index}
-                  className="flex justify-between items-start border rounded-md p-3"
+                  className="flex justify-between items-center border rounded-md p-3"
                 >
                   <div>
                     <div className="font-medium">{order.name}</div>
-
                     {order.order_type && (
-                      <div className="text-sm text-gray-600 mt-1">
-                        <span className="font-medium">Type:</span> {order.order_type}
+                      <div className="text-sm text-gray-600">
+                        Type: {order.order_type}
                       </div>
                     )}
-
                     {order.reason && (
-                      <div className="text-sm text-gray-600 mt-1">
-                        <span className="font-medium">Reason:</span> {order.reason}
-                      </div>
-                    )}
-
-                    {order.additional_instructions && (
-                      <div className="text-sm text-gray-500 mt-1">
-                        <span className="font-medium">Instructions:</span>{" "}
-                        {order.additional_instructions}
+                      <div className="text-sm text-gray-600">
+                        Reason: {order.reason}
                       </div>
                     )}
                   </div>
 
-                  <div className="ml-4">
+                  <div>
                     {status === "idle" && (
                       <span className="text-gray-400 text-sm">Ready</span>
                     )}
@@ -350,11 +238,7 @@ const OrdersSection = ({ ordersData, onOrdersUpdate }) => {
           <div className="flex justify-end gap-3">
             <button
               onClick={() =>
-                setBatchModal({
-                  open: false,
-                  statusMap: {},
-                  posting: false,
-                })
+                setBatchModal({ open: false, statusMap: {}, posting: false })
               }
               className="px-4 py-1 text-sm border rounded-md"
             >
@@ -363,8 +247,8 @@ const OrdersSection = ({ ordersData, onOrdersUpdate }) => {
 
             <button
               onClick={handleBatchPost}
-              disabled={batchModal.posting || !total}
-              className="px-4 py-1 text-sm rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+              disabled={batchModal.posting}
+              className="px-4 py-1 text-sm rounded-md text-white bg-blue-600 hover:bg-blue-700"
             >
               {batchModal.posting ? "Posting..." : "Confirm Post"}
             </button>
@@ -374,109 +258,129 @@ const OrdersSection = ({ ordersData, onOrdersUpdate }) => {
     );
   };
 
-  /* ================= UI ================= */
-
+  /* ---------------- UI ---------------- */
   return (
-    <div className="border rounded-lg bg-white p-6 space-y-6 relative">
-      <h2 className="text-xl font-semibold text-blue-600">
-        Orders
-      </h2>
+    <div className="border rounded-lg bg-white p-6 space-y-6">
+      <h2 className="text-xl font-semibold text-blue-600">Orders</h2>
 
-      {editableOrders.map((item, index) => {
-        if (removedKeys[index]) return null;
-
-        return (
-          <div
-            key={index}
-            className="flex justify-between items-start border p-3 rounded"
-          >
-            <div>
-              <div className="font-medium">{item.name}</div>
-
-              {item.order_type && (
-                <div className="text-sm text-gray-600 mt-1">
-                  <span className="font-medium">Type:</span> {item.order_type}
-                </div>
-              )}
-
-              {item.reason && (
-                <div className="text-sm text-gray-600 mt-1">
-                  <span className="font-medium">Reason:</span> {item.reason}
-                </div>
-              )}
-
-              {item.additional_instructions && (
-                <div className="text-sm text-gray-500 mt-1">
-                  <span className="font-medium">Instructions:</span>{" "}
-                  {item.additional_instructions}
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <PostIconButton
-                onClick={(onSuccess, onError) =>
-                  setConfirmModal({
-                    open: true,
-                    type: "post",
-                    order: item,
-                    onSuccess,
-                    onError,
-                  })
-                }
+      {orders.map((item, index) => (
+        <div
+          key={index}
+          className="flex justify-between items-start border p-3 rounded"
+        >
+          <div className="space-y-2 w-full">
+            {/* NAME */}
+            {isEditing ? (
+              <input
+                className="border rounded px-2 py-1 w-full "
+                value={item.name || ""}
+                onChange={(e) => handleChange(index, "name", e.target.value)}
               />
+            ) : (
+              <div className="font-medium">{item.name}</div>
+            )}
 
-              {isEditing && (
-                <button
-                  onClick={() =>
-                    setConfirmModal({
-                      open: true,
-                      type: "remove",
-                      order: { ...item, __key: index },
-                    })
+            {/* TYPE */}
+            <div className="text-sm text-gray-600">
+              <b>Type:</b>{" "}
+              {isEditing ? (
+                <input
+                  className="border rounded px-2 py-1 ml-1"
+                  value={item.order_type || ""}
+                  onChange={(e) =>
+                    handleChange(index, "order_type", e.target.value)
                   }
-                  className="text-gray-400 hover:text-red-600"
-                >
-                  ✕
-                </button>
+                />
+              ) : (
+                item.order_type
               )}
             </div>
-          </div>
-        );
-      })}
 
-      {/* Bottom Action Buttons */}
-      <div className="flex justify-end gap-3 pt-4 border-t border-gray-300">
+            {/* REASON */}
+            <div className="text-sm text-gray-600">
+              <b>Reason:</b>{" "}
+              {isEditing ? (
+                <input
+                  className="border rounded px-2 py-1 ml-1"
+                  value={item.reason || ""}
+                  onChange={(e) => handleChange(index, "reason", e.target.value)}
+                />
+              ) : (
+                item.reason
+              )}
+            </div>
+
+            {/* PRIORITY */}
+            <div className="text-sm text-gray-600">
+              <b>Priority:</b>{" "}
+              {isEditing ? (
+                <input
+                  className="border rounded px-2 py-1 ml-1"
+                  value={item.priority || ""}
+                  onChange={(e) =>
+                    handleChange(index, "priority", e.target.value)
+                  }
+                />
+              ) : (
+                item.priority
+              )}
+            </div>
+
+            {/* REMOVE BUTTON */}
+            {isEditing && (
+              <button
+                onClick={() => handleRemove(index)}
+                className="text-red-500 text-sm"
+              >
+                Remove Order
+              </button>
+            )}
+          </div>
+
+          {/* POST BUTTON */}
+          {!isEditing && (
+            <PostIconButton
+              onClick={async (onSuccess, onError) => {
+                try {
+                  await postOrder(item);
+                  onSuccess();
+                } catch {
+                  onError();
+                }
+              }}
+            />
+          )}
+        </div>
+      ))}
+
+      {/* EDIT / Save / CANCEL / BATCH POST */}
+      <div className="flex justify-end gap-3 pt-4 border-t">
         <button
           onClick={openBatchModal}
-          disabled={!editableOrders.length}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md disabled:opacity-50"
+          disabled={!orders.length}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
         >
           Post All Orders
         </button>
 
         {!isEditing ? (
           <button
-            onClick={() => setIsEditing(true)}
-            className="bg-yellow-600 text-white hover:bg-yellow-700 px-4 py-2 rounded-md"
+            onClick={startEditing}
+            className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700"
           >
             Edit Orders
           </button>
         ) : (
           <>
             <button
-              onClick={() => {
-                onOrdersUpdate?.(editableOrders);
-                setIsEditing(false);
-              }}
+              onClick={() => setIsEditing(false)}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
             >
-              Save Orders
+              Save orders
             </button>
-
             <button
-              onClick={() => setIsEditing(false)}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md"
+              onClick={handleCancel}
+              className="bg-gray-500 text-white px-4 py-2 rounded-md"
             >
               Cancel
             </button>
@@ -484,7 +388,6 @@ const OrdersSection = ({ ordersData, onOrdersUpdate }) => {
         )}
       </div>
 
-      <ConfirmModal />
       <BatchModal />
     </div>
   );

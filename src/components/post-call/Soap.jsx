@@ -437,7 +437,9 @@ const Soap = ({ appointmentId, username, appointment}) => {
       ) : activeTab === "procedure" ? (
         <ProcedureNotesSection content={procedureNotes} procedureMeta={procedureMeta} />
       ) : (
-        <OrdersSection ordersData={ordersData} />
+        <OrdersSection 
+        ordersData={ordersData}
+        onOrdersUpdate={setOrdersData} />
       )}
     </div>
   );
