@@ -592,7 +592,7 @@ const Soap = ({ appointmentId, username, appointment }) => {
       ) : activeTab === "procedure" ? (
         <ProcedureNotesSection content={procedureNotes} procedureMeta={procedureMeta} />
       ) : (
-        <OrdersSection ordersData={ordersData} />
+        <OrdersSection ordersData={ordersData} doctorEmail={appointment.doctor_email} encounterId={appointment.athena_encounter_id} practiceId={appointment.athena_practice_id} appointmentId={appointment.id} />
       )}
     </div>
   );
