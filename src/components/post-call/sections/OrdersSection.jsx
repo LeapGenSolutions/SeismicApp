@@ -6,6 +6,7 @@ import {
   X,
   Loader2,
 } from "lucide-react";
+import { postDME, postImaging, postLab, postOther, postPatientInfo, postPrescription, postProcedure, postReferral, postVaccine } from "../../../api/orders";
 
 const PostIconButton = ({ onClick, disabled }) => {
   const [status, setStatus] = useState("idle");
@@ -60,7 +61,7 @@ const PostIconButton = ({ onClick, disabled }) => {
 };
 
 
-const OrdersSection = ({ ordersData, onOrdersUpdate }) => {
+const OrdersSection = ({ ordersData, onOrdersUpdate, doctorEmail, encounterId, practiceId, appointmentId }) => {
   const [editableOrders, setEditableOrders] = useState([]);
   const [removedKeys, setRemovedKeys] = useState({});
   const [isEditing, setIsEditing] = useState(false);
@@ -116,12 +117,27 @@ const OrdersSection = ({ ordersData, onOrdersUpdate }) => {
 
   /* ---------------- API ---------------- */
 
-  const postOrder = async (order) => {
-    const res = await fetch("/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(order),
-    });
+  const postOrder = async (order, doctorEmail, encounterId, practiceId) => {
+    let res;
+    if(order.order_type === "Imaging") {
+      res = await postImaging(doctorEmail, encounterId, order, practiceId);
+    } else if(order.order_type === "Lab") {
+      res = await postLab(doctorEmail, encounterId, order, practiceId);
+    } else if(order.order_type === "Procedure") {
+      res = await postProcedure(doctorEmail, encounterId, order, practiceId);
+    } else if(order.order_type === "Other") {
+      res = await postOther(doctorEmail, encounterId, order, practiceId);
+    } else if(order.order_type === "Referral") {
+      res = await postReferral(doctorEmail, encounterId, order, practiceId);
+    } else if(order.order_type === "Vaccine") {
+      res = await postVaccine(doctorEmail, encounterId, order, practiceId);
+    } else if(order.order_type === "PatientInfo") {
+      res = await postPatientInfo(doctorEmail, encounterId, order, practiceId);
+    } else if(order.order_type === "Prescription") {
+      res = await postPrescription(doctorEmail, encounterId, order, practiceId);
+    } else if(order.order_type === "DME") {
+      res = await postDME(doctorEmail, encounterId, order, practiceId);
+    }
 
     if (!res.ok) throw new Error();
   };
@@ -165,7 +181,7 @@ const OrdersSection = ({ ordersData, onOrdersUpdate }) => {
 
       try {
         updateBatchStatus(index, "loading");
-        await postOrder(order);
+        await postOrder(order, doctorEmail, encounterId, practiceId);
         updateBatchStatus(index, "success");
       } catch {
         updateBatchStatus(index, "failed");
@@ -178,7 +194,7 @@ const OrdersSection = ({ ordersData, onOrdersUpdate }) => {
   const retrySingle = async (index) => {
     try {
       updateBatchStatus(index, "loading");
-      await postOrder(editableOrders[index]);
+      await postOrder(editableOrders[index], doctorEmail, encounterId, practiceId);
       updateBatchStatus(index, "success");
     } catch {
       updateBatchStatus(index, "failed");
@@ -241,7 +257,7 @@ const OrdersSection = ({ ordersData, onOrdersUpdate }) => {
               onClick={async () => {
                 if (isPost) {
                   try {
-                    await postOrder(confirmModal.order);
+                    await postOrder(confirmModal.order, doctorEmail, encounterId, practiceId);
                     confirmModal.onSuccess?.();
                   } catch {
                     confirmModal.onError?.();
