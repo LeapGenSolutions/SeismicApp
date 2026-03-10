@@ -5,7 +5,7 @@ const encode = (val) => encodeURIComponent((val || "").toLowerCase());
 export const postImaging = async (doctorEmail, appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
-        data = {...data, practiceId};
+        data = { ...data, practiceId };
         const response = await fetch(
             `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/imaging`,
             {
@@ -22,11 +22,10 @@ export const postImaging = async (doctorEmail, appointmentId, data, practiceId) 
     }
 };
 
-
 export const postLab = async (doctorEmail, appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
-        data = {...data, practiceId};
+        data = { ...data, practiceId };
         const response = await fetch(
             `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/lab`,
             {
@@ -43,11 +42,10 @@ export const postLab = async (doctorEmail, appointmentId, data, practiceId) => {
     }
 };
 
-
 export const postProcedure = async (doctorEmail, appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
-        data = {...data, practiceId};
+        data = { ...data, practiceId };
         const response = await fetch(
             `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/procedure`,
             {
@@ -64,11 +62,10 @@ export const postProcedure = async (doctorEmail, appointmentId, data, practiceId
     }
 };
 
-
 export const postOther = async (doctorEmail, appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
-        data = {...data, practiceId};
+        data = { ...data, practiceId };
         const response = await fetch(
             `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/other`,
             {
@@ -85,11 +82,10 @@ export const postOther = async (doctorEmail, appointmentId, data, practiceId) =>
     }
 };
 
-
 export const postPatientInfo = async (doctorEmail, appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
-        data = {...data, practiceId};
+        data = { ...data, practiceId };
         const response = await fetch(
             `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/patientinfo`,
             {
@@ -106,11 +102,10 @@ export const postPatientInfo = async (doctorEmail, appointmentId, data, practice
     }
 };
 
-
 export const postPrescription = async (doctorEmail, appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
-        data = {...data, practiceId};
+        data = { ...data, practiceId };
         const response = await fetch(
             `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/prescription`,
             {
@@ -127,11 +122,10 @@ export const postPrescription = async (doctorEmail, appointmentId, data, practic
     }
 };
 
-
 export const postReferral = async (doctorEmail, appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
-        data = {...data, practiceId};
+        data = { ...data, practiceId };
         const response = await fetch(
             `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/referral`,
             {
@@ -151,7 +145,7 @@ export const postReferral = async (doctorEmail, appointmentId, data, practiceId)
 export const postVaccine = async (doctorEmail, appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
-        data = {...data, practiceId};
+        data = { ...data, practiceId };
         const response = await fetch(
             `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/vaccine`,
             {
@@ -168,11 +162,10 @@ export const postVaccine = async (doctorEmail, appointmentId, data, practiceId) 
     }
 };
 
-
 export const postDME = async (doctorEmail, appointmentId, data, practiceId) => {
     try {
         const encodedEmail = encode(doctorEmail);
-        data = {...data, practiceId};
+        data = { ...data, practiceId };
         const response = await fetch(
             `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/dme`,
             {
@@ -185,6 +178,28 @@ export const postDME = async (doctorEmail, appointmentId, data, practiceId) => {
         return await response.json();
     } catch (error) {
         console.error("postDME error:", error);
+        throw error;
+    }
+};
+
+export const postAllOrders = async (doctorEmail, appointmentId, orders, practiceId) => {
+    try {
+        const encodedEmail = encode(doctorEmail);
+        const response = await fetch(
+            `${BACKEND_URL}api/orders/${encodedEmail}/encounters/${appointmentId}/orders/all`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    practiceId,
+                    orders,
+                }),
+            }
+        );
+
+        return await response.json();
+    } catch (error) {
+        console.error("postAllOrders error:", error);
         throw error;
     }
 };
