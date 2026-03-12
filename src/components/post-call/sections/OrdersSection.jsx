@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useToast } from "../../../hooks/use-toast";
 import { createPortal } from "react-dom";
 import {
   Send,
@@ -6,21 +7,11 @@ import {
   AlertCircle,
   X,
   Loader2,
+  Copy,
 } from "lucide-react";
-import {
-  postAllOrders,
-  postDME,
-  postImaging,
-  postLab,
-  postOther,
-  postPatientInfo,
-  postPrescription,
-  postProcedure,
-  postReferral,
-  postVaccine,
-} from "../../../api/orders";
-import { useToast } from "../../../hooks/use-toast";
-
+import { postDME, postImaging, postLab, postOther, postPatientInfo, postPrescription, postProcedure, postReferral, postVaccine, 
+  
+ } from "../../../api/orders";
 const normalizeOrderValue = (value) => String(value || "").trim().toLowerCase();
 
 const getOrderKey = (order = {}) => {
@@ -44,8 +35,7 @@ const getOrderLabel = (order = {}) =>
   "Order";
 
 const POSTED_BADGE_DURATION_MS = 3000;
-
-const PostIconButton = ({ onClick, disabled, isPosted = false }) => {
+const PostIconButton = ({ onClick, disabled, isPosted }) => {
   const [status, setStatus] = useState("idle");
 
   const handleClick = () => {
@@ -243,6 +233,13 @@ const OrdersSection = ({
     });
   };
 
+  const copyOrderData = (order) => {
+  const text = JSON.stringify(order, null, 2);
+  navigator.clipboard.writeText(text);
+};
+
+  /* ---------------- API ---------------- */
+
   const postOrder = async (order, doctorEmail, encounterId, practiceId) => {
     let res;
 
@@ -353,114 +350,26 @@ const OrdersSection = ({
   };
 
   const handleBatchPost = async () => {
-    if (batchModal.posting) return;
+  if (batchModal.posting) return;
 
-    const indexes = getActiveIndexes();
-    const ordersToPost = indexes.map((index) => editableOrders[index]);
+    setBatchModal((prev) => ({ ...prev, posting: true }));
 
-    setBatchModal((prev) => ({
-      ...prev,
-      posting: true,
-      statusMap: indexes.reduce((acc, index) => {
-        acc[index] = "loading";
-        return acc;
-      }, {}),
-      resultMap: {},
-    }));
+    const indexes = Object.keys(batchModal.statusMap);
 
-    try {
-      const result = await postAllOrders(
-        doctorEmail,
-        encounterId,
-        ordersToPost,
-        practiceId
-      );
+    for (const indexStr of indexes) {
+      const index = Number(indexStr);
+      const order = editableOrders[index];
 
-      if (result?.error || result?.message || result?.detailedmessage) {
-        throw new Error(
-          result?.error ||
-            result?.message ||
-            result?.detailedmessage ||
-            "Failed to post all orders"
-        );
+      try {
+        updateBatchStatus(index, "loading");
+        await postOrder(order, doctorEmail, encounterId, practiceId);
+        updateBatchStatus(index, "success");
+      } catch {
+        updateBatchStatus(index, "failed");
       }
-
-      const newStatusMap = {};
-      const newResultMap = {};
-      indexes.forEach((index, batchIndex) => {
-        const order = editableOrders[index];
-        const orderResult = getOrderResultFromBatchResponse(
-          result,
-          order,
-          batchIndex
-        );
-
-        if (isBatchItemSuccess(orderResult)) {
-          newStatusMap[index] = "success";
-          markOrderPosted(order);
-        } else {
-          newStatusMap[index] = "failed";
-        }
-
-        newResultMap[index] = orderResult || {
-          success: false,
-          error: "No response for this order",
-        };
-      });
-
-      const failedIndexes = indexes.filter(
-        (index) => newStatusMap[index] === "failed"
-      );
-
-      setBatchModal((prev) => ({
-        ...prev,
-        posting: false,
-        statusMap: newStatusMap,
-        resultMap: newResultMap,
-      }));
-
-      if (failedIndexes.length) {
-        const firstFailedIndex = failedIndexes[0];
-        const firstFailedOrder = editableOrders[firstFailedIndex];
-        const firstFailedMessage = getBatchItemError(
-          newResultMap[firstFailedIndex]
-        );
-
-        toast({
-          title:
-            failedIndexes.length === indexes.length
-              ? "Failed to post orders"
-              : "Some orders failed to post",
-          description:
-            failedIndexes.length === 1
-              ? `${getOrderLabel(firstFailedOrder)}: ${firstFailedMessage}`
-              : `${failedIndexes.length} orders failed. First error: ${firstFailedMessage}`,
-        });
-      }
-    } catch (error) {
-      const failedMap = {};
-      const failedResultMap = {};
-
-      indexes.forEach((index) => {
-        failedMap[index] = "failed";
-        failedResultMap[index] = {
-          success: false,
-          error: error?.message || "Failed to post all orders",
-        };
-      });
-
-      setBatchModal((prev) => ({
-        ...prev,
-        posting: false,
-        statusMap: failedMap,
-        resultMap: failedResultMap,
-      }));
-
-      toast({
-        title: "Failed to post orders",
-        description: error?.message || "Failed to post all orders",
-      });
     }
+
+    setBatchModal((prev) => ({ ...prev, posting: false }));
   };
 
   const retrySingle = async (index) => {
@@ -468,32 +377,12 @@ const OrdersSection = ({
       updateBatchStatus(index, "loading");
       await postOrder(editableOrders[index], doctorEmail, encounterId, practiceId);
       updateBatchStatus(index, "success");
-      markOrderPosted(editableOrders[index]);
-      setBatchModal((prev) => ({
-        ...prev,
-        resultMap: {
-          ...prev.resultMap,
-          [index]: { success: true },
-        },
-      }));
-    } catch (error) {
+    } catch {
       updateBatchStatus(index, "failed");
-      setBatchModal((prev) => ({
-        ...prev,
-        resultMap: {
-          ...prev.resultMap,
-          [index]: {
-            success: false,
-            error: error?.message || "Order post failed",
-          },
-        },
-      }));
-      showOrderFailureToast(
-        editableOrders[index],
-        error?.message || "Order post failed"
-      );
     }
   };
+
+  /* ================= CONFIRM MODAL ================= */
 
   const ConfirmModal = () => {
     if (!confirmModal.open) return null;
@@ -536,13 +425,7 @@ const OrdersSection = ({
               onClick={async () => {
                 if (isPost) {
                   try {
-                    await postOrder(
-                      confirmModal.order,
-                      doctorEmail,
-                      encounterId,
-                      practiceId
-                    );
-                    markOrderPosted(confirmModal.order);
+                    await postOrder(confirmModal.order, doctorEmail, encounterId, practiceId);
                     confirmModal.onSuccess?.();
                   } catch (error) {
                     confirmModal.onError?.(error);
@@ -767,11 +650,33 @@ const OrdersSection = ({
           <div className="divide-y divide-gray-200 border-t border-b border-gray-200">
             {editableOrders.map((item, index) => {
               if (removedKeys[index]) return null;
+              const shouldShowCopy =
+  item.requires_manual_review === true ||
+  item.requires_manual_review === "true" ||
+  !item.selected_order_id ||
+  item.selected_order_id === 0 ||
+  item.selected_order_id === "0";
 
+
+              // Action Buttons block (Post / Delete)
               const actionButtons = (
                 <div className="flex flex-col items-center justify-center gap-3 w-16 px-4 border-l border-gray-100">
-                  {canPostToAthena && (
+              
+                  {/* COPY BUTTON */}
+                  {shouldShowCopy && (
+                    <button
+                      onClick={() => copyOrderData(item)}
+                      className="text-blue-500 hover:text-blue-600 transition-colors bg-white w-7 h-7 flex items-center justify-center border border-gray-200 rounded hover:border-blue-200"
+                      title="Copy Order Data"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  )}
+              
+                  {/* POST BUTTON */}
+                  {!shouldShowCopy && (
                     <PostIconButton
+                    isPosted={postedOrderKeys[getOrderKey(item)]}
                       onClick={(onSuccess, onError) =>
                         setConfirmModal({
                           open: true,
@@ -781,12 +686,9 @@ const OrdersSection = ({
                           onError,
                         })
                       }
-                      isPosted={Boolean(
-                        recentlyPostedOrderKeys[getOrderKey(item)]
-                      )}
                     />
                   )}
-
+              
                   {isEditing && (
                     <button
                       onClick={() =>
@@ -802,9 +704,9 @@ const OrdersSection = ({
                       <X size={14} />
                     </button>
                   )}
+              
                 </div>
               );
-
               if (isEditing) {
                 return (
                   <div key={index} className="flex py-6 group">
@@ -978,15 +880,13 @@ const OrdersSection = ({
       </div>
 
       <div className="flex justify-end gap-3 pt-4 border-t border-gray-300">
-        {canPostToAthena && (
-          <button
-            onClick={openBatchModal}
-            disabled={!visibleOrders.length}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium h-10 px-4 py-2 rounded-md disabled:opacity-50 transition-colors shadow-sm"
-          >
-            Post All Orders
-          </button>
-        )}
+        <button
+          onClick={openBatchModal}
+          disabled={!editableOrders.length}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium h-10 px-4 py-2 rounded-md disabled:opacity-50 transition-colors shadow-sm"
+        >
+          Post All Orders
+        </button>
 
         {!isEditing ? (
           <button
