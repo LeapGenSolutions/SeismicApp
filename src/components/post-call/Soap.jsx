@@ -975,6 +975,7 @@ const Soap = ({ appointmentId, username, appointment }) => {
           doctorEmail={appointment?.doctor_email}
           encounterId={appointment?.athena_encounter_id}
           practiceId={appointment?.athena_practice_id}
+          appointmentId={appointment?.id}
           canPostToAthena={isAthenaAppointment}
         />
       )}
