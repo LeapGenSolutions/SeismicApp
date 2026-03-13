@@ -40,35 +40,6 @@ const getOrderPersistKey = (order = {}, index = 0) =>
     index,
   ].join("|");
 
-const getOrderStatusStorageKey = ({ doctorEmail, encounterId, practiceId, status }) =>
-  [
-    `seismic-${status}-orders`,
-    normalizeOrderValue(doctorEmail),
-    normalizeOrderValue(encounterId),
-    normalizeOrderValue(practiceId),
-  ].join(":");
-
-const readOrderStatusFromSession = (storageKey) => {
-  if (typeof window === "undefined" || !storageKey) return {};
-
-  try {
-    const raw = window.sessionStorage.getItem(storageKey);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-};
-
-const writeOrderStatusToSession = (storageKey, statusKeys) => {
-  if (typeof window === "undefined" || !storageKey) return;
-
-  try {
-    window.sessionStorage.setItem(storageKey, JSON.stringify(statusKeys || {}));
-  } catch {}
-};
-
 const stripInternalOrderFields = (order = {}) => {
   const { __persistKey, ...rest } = order;
   return rest;
@@ -84,7 +55,7 @@ const PostIconButton = ({
   const [status, setStatus] = useState("idle");
 
   const handleClick = () => {
-    if (status !== "idle" || disabled || isPosted || isFailed || isPosting) return;
+    if (status !== "idle" || disabled || isPosted || isPosting) return;
 
     onClick(
       () => {
@@ -131,7 +102,7 @@ const PostIconButton = ({
     <button
       type="button"
       onClick={handleClick}
-      disabled={disabled || status !== "idle" || isPosted || isFailed || isPosting}
+      disabled={disabled || status !== "idle" || isPosted || isPosting}
       className={`inline-flex items-center justify-center h-7 rounded-md border transition-all ${bgClass} ${
         status === "idle" ? "w-7" : ""
       }`}
@@ -141,7 +112,7 @@ const PostIconButton = ({
           : isPosted
           ? "Already posted"
           : isFailed
-          ? "Post failed"
+          ? "Retry post"
           : "Post to Athena"
       }
     >
@@ -156,21 +127,11 @@ const OrdersSection = ({
   doctorEmail,
   encounterId,
   practiceId,
+  appointmentId,
   canPostToAthena = true,
 }) => {
   const { toast } = useToast();
-  const postedOrdersStorageKey = getOrderStatusStorageKey({
-    doctorEmail,
-    encounterId,
-    practiceId,
-    status: "posted",
-  });
-  const failedOrdersStorageKey = getOrderStatusStorageKey({
-    doctorEmail,
-    encounterId,
-    practiceId,
-    status: "failed",
-  });
+  
   const emptyConfirmModal = {
     open: false,
     order: null,
@@ -180,8 +141,6 @@ const OrdersSection = ({
 
   const [editableOrders, setEditableOrders] = useState([]);
   const [originalOrders, setOriginalOrders] = useState([]);
-  const [postedOrderKeys, setPostedOrderKeys] = useState({});
-  const [failedOrderKeys, setFailedOrderKeys] = useState({});
   const [postingOrderKeys, setPostingOrderKeys] = useState({});
   const [editingOrderIndexes, setEditingOrderIndexes] = useState({});
   const [advancedOrderIndexes, setAdvancedOrderIndexes] = useState({});
@@ -193,24 +152,21 @@ const OrdersSection = ({
   };
 
   const markOrderPosted = (order) => {
-    const orderKey = order?.__persistKey;
-    if (!orderKey) return;
-    setPostedOrderKeys((prev) => ({ ...prev, [orderKey]: true }));
-    setFailedOrderKeys((prev) => {
-      if (!prev[orderKey]) return prev;
-      const next = { ...prev };
-      delete next[orderKey];
-      return next;
-    });
-  };
+  const orderKey = order?.__persistKey;
+  if (!orderKey) return;
+
+  setEditableOrders((prev) =>
+    prev.map((o) =>
+      o.__persistKey === orderKey ? { ...o, isPosted: true } : o
+    )
+  );
+};
 
   useEffect(() => {
     const uniqueOrders = [];
     const seen = new Set();
     const incoming = ordersData?.orders || [];
-    const persistedPostedKeys = readOrderStatusFromSession(postedOrdersStorageKey);
-    const persistedFailedKeys = readOrderStatusFromSession(failedOrdersStorageKey);
-
+    
     for (const [index, order] of incoming.entries()) {
       const orderName =
         order.selected_order_name || order.clinical_intent || order.name || "";
@@ -231,36 +187,11 @@ const OrdersSection = ({
     setEditingOrderIndexes({});
     setAdvancedOrderIndexes({});
     setPostingOrderKeys({});
-    setFailedOrderKeys(() => {
-      const next = {};
-      uniqueOrders.forEach((order) => {
-        if (persistedFailedKeys[order.__persistKey]) {
-          next[order.__persistKey] = true;
-        }
-      });
-      return next;
-    });
-    setPostedOrderKeys(() => {
-      const next = {};
-      uniqueOrders.forEach((order) => {
-        if (persistedPostedKeys[order.__persistKey]) {
-          next[order.__persistKey] = true;
-        }
-      });
-      return next;
-    });
-  }, [ordersData, postedOrdersStorageKey, failedOrdersStorageKey]);
+  }, [ordersData]);
 
-  useEffect(() => {
-    writeOrderStatusToSession(postedOrdersStorageKey, postedOrderKeys);
-  }, [postedOrderKeys, postedOrdersStorageKey]);
 
-  useEffect(() => {
-    writeOrderStatusToSession(failedOrdersStorageKey, failedOrderKeys);
-  }, [failedOrderKeys, failedOrdersStorageKey]);
-
-  const isOrderPosted = (order) => Boolean(postedOrderKeys[order?.__persistKey]);
-  const isOrderFailed = (order) => Boolean(failedOrderKeys[order?.__persistKey]);
+  const isOrderPosted = (order) => order?.isPosted === true;
+  const isOrderFailed = () => false;
   const isOrderPosting = (order) => Boolean(postingOrderKeys[order?.__persistKey]);
 
   const handleEditOrder = (index) => {
@@ -324,12 +255,6 @@ const OrdersSection = ({
   const clearOrderFailure = (index) => {
     const orderKey = editableOrders[index]?.__persistKey;
     if (!orderKey) return;
-    setFailedOrderKeys((prev) => {
-      if (!prev[orderKey]) return prev;
-      const next = { ...prev };
-      delete next[orderKey];
-      return next;
-    });
   };
 
   const clearOrderPosting = (order) => {
@@ -343,36 +268,40 @@ const OrdersSection = ({
     });
   };
 
-  const postOrder = async (order, doctorEmail, encounterId, practiceId) => {
+  const postOrder = async (order, doctorEmail, encounterId, practiceId, appointmentId) => {
     let res;
     const payload = stripInternalOrderFields(order);
 
     if (order.order_type === "Imaging") {
-      res = await postImaging(doctorEmail, encounterId, payload, practiceId);
+      res = await postImaging(doctorEmail, encounterId, appointmentId, payload, practiceId);
     } else if (order.order_type === "Lab") {
-      res = await postLab(doctorEmail, encounterId, payload, practiceId);
+      res = await postLab(doctorEmail, encounterId, appointmentId, payload, practiceId);
     } else if (order.order_type === "Procedure") {
-      res = await postProcedure(doctorEmail, encounterId, payload, practiceId);
+      res = await postProcedure(doctorEmail, encounterId, appointmentId, payload, practiceId);
     } else if (order.order_type === "Other") {
-      res = await postOther(doctorEmail, encounterId, payload, practiceId);
+      res = await postOther(doctorEmail, encounterId, appointmentId, payload, practiceId);
     } else if (order.order_type === "Referral") {
-      res = await postReferral(doctorEmail, encounterId, payload, practiceId);
+      res = await postReferral(doctorEmail, encounterId, appointmentId, payload, practiceId);
     } else if (order.order_type === "Vaccine") {
-      res = await postVaccine(doctorEmail, encounterId, payload, practiceId);
+      res = await postVaccine(doctorEmail, encounterId, appointmentId, payload, practiceId);
     } else if (order.order_type === "PatientInfo") {
-      res = await postPatientInfo(doctorEmail, encounterId, payload, practiceId);
+      res = await postPatientInfo(doctorEmail, encounterId, appointmentId, payload, practiceId);
     } else if (order.order_type === "Prescription") {
-      res = await postPrescription(doctorEmail, encounterId, payload, practiceId);
+      res = await postPrescription(doctorEmail, encounterId, appointmentId, payload, practiceId);
     } else if (order.order_type === "DME") {
-      res = await postDME(doctorEmail, encounterId, payload, practiceId);
+      res = await postDME(doctorEmail, encounterId, appointmentId, payload, practiceId);
     } else {
       throw new Error(`Unsupported order type: ${order.order_type}`);
     }
 
-    if (!res || res.error || res.message || res.detailedmessage) {
-      throw new Error(
-        res?.error || res?.message || res?.detailedmessage || "Order post failed"
-      );
+    if (!res) {
+      throw new Error("Order post failed");
+    }
+
+    // API shape: { success: true/false, message: string }
+    // Treat explicit success:false as a failure so callers enter the catch path
+    if (res.success === false) {
+      throw new Error(res.message || "Order post failed");
     }
 
     return res;
@@ -441,7 +370,8 @@ const OrdersSection = ({
                     confirmModal.order,
                     doctorEmail,
                     encounterId,
-                    practiceId
+                    practiceId,
+                    appointmentId
                   );
                   markOrderPosted(confirmModal.order);
                   if (orderIndex !== -1) {
@@ -460,13 +390,6 @@ const OrdersSection = ({
                   confirmModal.onSuccess?.();
                 } catch (error) {
                   if (orderIndex !== -1) {
-                    const orderKey = editableOrders[orderIndex]?.__persistKey;
-                    if (orderKey) {
-                      setFailedOrderKeys((prev) => ({
-                        ...prev,
-                        [orderKey]: true,
-                      }));
-                    }
                     setEditingOrderIndexes((prev) => {
                       const next = { ...prev };
                       delete next[orderIndex];
@@ -550,14 +473,15 @@ const OrdersSection = ({
 
                   {canPostToAthena && (
                     <PostIconButton
-                      onClick={(onSuccess, onError) =>
+                      onClick={(onSuccess, onError) => {
+                        clearOrderFailure(index);
                         setConfirmModal({
                           open: true,
                           order: item,
                           onSuccess,
                           onError,
-                        })
-                      }
+                        });
+                      }}
                       isPosted={isPosted}
                       isFailed={isFailed}
                       isPosting={isPosting}
