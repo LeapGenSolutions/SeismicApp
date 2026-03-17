@@ -9,13 +9,7 @@ import Appointments from "./Pages/Appointments";
 import Patients from "./Pages/Patients";
 import PatientReports from "./Pages/PatientReports";
 import Reports from "./Pages/Reports";
-import BillingReports from "./Pages/BillingReports"; 
-import BillingHistory from "./Pages/BillingHistory";
-import BillCalculation from "./Pages/BillCalculation";
-import InvoicePreview from "./Pages/InvoicePreview";
 import Settings from "./Pages/Settings";
-import AthenaIntegration from "./Pages/AthenaIntegration";
-import PaymentBilling from "./Pages/PaymentBilling";
 import NotFound from "./Pages/not-found";
 import VideoRecorder from "./Pages/VideoRecorder";
 import AboutUs from "./Pages/AboutUs";
@@ -33,7 +27,6 @@ import setMyDetails from "./redux/me-actions";
 import TimelineDashboard from "./Pages/TimelineDashboard";
 import ChatbotWindow from "./components/chatbot/ChatbotWindow";
 
-// Lightweight JWT decoder (no external dependency)
 function decodeJwt(token) {
   try {
     const base64Url = token.split(".")[1];
@@ -51,14 +44,12 @@ function decodeJwt(token) {
     return null;
   }
 }
-
-
 function Router() {
   const queryParams = new URLSearchParams(window.location.search);
   const role = queryParams.get("role");
 
   return (
-    <div className="h-screen flex flex-col md:flex-row overflow-hidden">
+    <div className="h-screen flex overflow-hidden">
       {role !== "patient" && <Sidebar />}
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
@@ -78,18 +69,12 @@ function Router() {
             <Route path="/patients" component={Patients} />
             <Route path="/patients/:patientId" component={PatientReports} />
             <Route path="/reports" component={Reports} />
-            <Route path="/billing-reports" component={BillingReports} />
-            <Route path="/billing-history" component={BillingHistory} />
-            <Route path="/bill-calculation" component={BillCalculation} />
-            <Route path="/invoice/:invoiceId" component={InvoicePreview} />
             <Route path="/settings" component={Settings} />
-            <Route path="/athena-integration" component={AthenaIntegration} />
-            <Route path="/payment-billing" component={PaymentBilling} />
             <Route path="/meeting-room/:callId" component={StreamVideoCoreV3} />
             <Route path="/post-call/:callId" component={PostCallDocumentation} />
             <Route component={NotFound} />
           </Switch>
-          <ChatbotWindow />
+          <ChatbotWindow/>
         </main>
       </div>
     </div>
@@ -98,9 +83,9 @@ function Router() {
 
 function Main() {
   const isAuthenticated = useIsAuthenticated();
+  const [tokenBypass, setTokenBypass] = useState(false)
   const { instance, accounts } = useMsal();
   const [hasRole, setHasRole] = useState(false)
-  const [tokenBypass, setTokenBypass] = useState(false)
   const dispatch = useDispatch()
 
   const queryClient = new QueryClient();
@@ -144,20 +129,12 @@ function Main() {
       setTokenBypass(true);
     } else if (isAuthenticated) {
       requestProfileData()
-    //  window.history.replaceState({}, document.title, window.location.pathname);
-      // Optionally set a default role or user data
-     // dispatch(setMyDetails({
-     //   roles: ["SeismicDoctors"],
-     //   email: "vasdd@gmail.com",
-     //   name: "Guest User"
-     // }));
-     //  setHasRole(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated])
   return (
     <>
-      {(hasRole && isAuthenticated) ? <AuthenticatedTemplate>
+      {hasRole || tokenBypass ? <AuthenticatedTemplate>
         <QueryClientProvider client={queryClient}>
           <Router />
           <Toaster />
@@ -167,7 +144,7 @@ function Main() {
           Sign is successful but you dont previlaged role to view this app. Try contacting your admin
         </AuthenticatedTemplate>
       }
-      {(!isAuthenticated && !tokenBypass) &&
+            {(!isAuthenticated && !tokenBypass) &&
         <UnauthenticatedTemplate>
           <AuthPage />
         </UnauthenticatedTemplate>

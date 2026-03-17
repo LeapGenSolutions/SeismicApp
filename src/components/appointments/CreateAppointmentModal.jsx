@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { createPortal } from "react-dom"; 
+import { createPortal } from "react-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { BACKEND_URL } from "../../constants";
 import { createAppointment } from "../../api/appointment";
@@ -48,11 +48,15 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
   const { toast } = useToast();
   const dispatch = useDispatch();
 
-  useEffect(() => {
-    dispatch(fetchPatientsDetails());
-  }, [dispatch]);
-
   const loggedInDoctor = useSelector((state) => state.me.me);
+
+  useEffect(() => {
+    if (loggedInDoctor?.clinicName) {
+      dispatch(fetchPatientsDetails(loggedInDoctor.clinicName));
+    } else {
+      dispatch(fetchPatientsDetails());
+    }
+  }, [dispatch, loggedInDoctor?.clinicName]);
   const patientsList = useSelector((state) => state.patients.patients);
 
   const [existingPatient, setExistingPatient] = useState(null);
@@ -97,12 +101,50 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
   const norm = (str) => (str || "").toLowerCase().trim();
   const sanitizeNameInput = (value) =>
     String(value || "").replace(/[^a-zA-Z\s'-]/g, "");
-  const isValidName = (value) => /^[A-Za-z][A-Za-z\s'-]*$/.test((value || "").trim());
   const getFirstName = (d) => d.first_name || d.firstname || "";
   const getMiddleName = (d) => d.middle_name || d.middlename || "";
   const getLastName = (d) => d.last_name || d.lastname || "";
   const getGender = (d) => d.gender || d.sex || "";
   const getPhone = (d) => d.phone || d.contactmobilephone || "";
+  const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+  const MIN_DOB_AGE_YEARS = 120;
+
+  const toISODate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayISO = toISODate(new Date());
+
+  const parseISODate = (value) => {
+    if (!DATE_REGEX.test(value || "")) return null;
+
+    const [year, month, day] = value.split("-").map(Number);
+    const parsed = new Date(year, month - 1, day);
+
+    if (
+      parsed.getFullYear() !== year ||
+      parsed.getMonth() !== month - 1 ||
+      parsed.getDate() !== day
+    ) {
+      return null;
+    }
+
+    return parsed;
+  };
+
+  const getAge = (birthDate, referenceDate) => {
+    let age = referenceDate.getFullYear() - birthDate.getFullYear();
+    const hasBirthdayPassedThisYear =
+      referenceDate.getMonth() > birthDate.getMonth() ||
+      (referenceDate.getMonth() === birthDate.getMonth() &&
+        referenceDate.getDate() >= birthDate.getDate());
+
+    if (!hasBirthdayPassedThisYear) age -= 1;
+    return age;
+  };
 
   const resetPatientAndForm = () => {
     setExistingPatient(null);
@@ -142,6 +184,20 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
     }
 
     const matches = patientsList.filter((p) => {
+      const normalizeClinic = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
+      const userClinic = normalizeClinic(loggedInDoctor?.clinicName);
+      const patientClinic = normalizeClinic(
+        p.clinicName ||
+        p.details?.clinicName ||
+        p.original_json?.clinicName ||
+        p.original_json?.details?.clinicName
+      );
+
+      // Clinic Name check
+      if (userClinic && patientClinic !== userClinic) {
+        return false;
+      }
+
       const d = extractDetails(p);
       const full = norm(
         [getFirstName(d), getMiddleName(d), getLastName(d)]
@@ -230,7 +286,6 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
       }
     });
 
-    // ✅ Phone validation (inline)
     if (!existingPatient) {
       newTouched.phone = true;
 
@@ -239,13 +294,27 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
       } else if (formData.phone.length !== 10) {
         errs.phone = "Invalid phone number";
       }
+    }
 
-      if (formData.first_name && !isValidName(formData.first_name)) {
-        errs.first_name = "Only letters allowed";
+    if (formData.appointment_date) {
+      const appointmentDate = parseISODate(formData.appointment_date);
+
+      if (!appointmentDate) {
+        errs.appointment_date = "Invalid appointment date";
+      } else if (formData.appointment_date < todayISO) {
+        errs.appointment_date = "Appointment date cannot be in the past";
       }
+    }
 
-      if (formData.last_name && !isValidName(formData.last_name)) {
-        errs.last_name = "Only letters allowed";
+    if (!existingPatient && formData.dob) {
+      const dob = parseISODate(formData.dob);
+
+      if (!dob) {
+        errs.dob = "Invalid date of birth";
+      } else if (formData.dob > todayISO) {
+        errs.dob = "Date of birth cannot be in the future";
+      } else if (getAge(dob, new Date()) > MIN_DOB_AGE_YEARS) {
+        errs.dob = "Date of birth is out of valid range";
       }
     }
 
@@ -275,6 +344,8 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    //console.log("DEBUG: CreateAppointmentModal - Submitting with formData:", formData);
+    //console.log("DEBUG: CreateAppointmentModal - LoggedInDoctor:", loggedInDoctor);
 
     const requiredErrors = validateForm();
     if (Object.keys(requiredErrors).length > 0) {
@@ -316,6 +387,7 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
             phone: formData.phone?.replace(/\D/g, ""),
             ehr: formData.ehr,
             mrn: formData.mrn,
+            clinicName: loggedInDoctor?.clinicName || "", // Added clinicName with fallback
           }),
         });
 
@@ -357,6 +429,7 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
         phone: formData.phone?.replace(/\D/g, ""),
         patient_id,
         practice_id,
+        clinicName: (loggedInDoctor?.clinicName || "").replace(/\s+/g, " ").trim(), // Added clinicName with fallback
       };
 
       const created = await createAppointment(
@@ -386,7 +459,6 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
     (v) => v !== undefined && v !== null && String(v).trim() !== ""
   );
 
-  // ✅ MODAL JSX (wrapped in portal)
   const modalUI = (
     <div
       className="fixed inset-0 z-[9999] bg-black/40 flex justify-end items-center"
@@ -506,7 +578,7 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
                     type="date"
                     name="appointment_date"
                     value={formData.appointment_date}
-                    min={new Date().toISOString().split("T")[0]}
+                    min={todayISO}
                     onChange={handleChange}
                     error={errors.appointment_date}
                     touched={touched.appointment_date}
@@ -576,15 +648,15 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
                     label="Date of Birth *"
                     name="dob"
                     value={formData.dob}
-                    max={new Date().toISOString().split("T")[0]}
+                    max={todayISO}
                     readOnly={!!existingPatient}
                     onChange={
                       existingPatient
                         ? undefined
                         : (e) =>
-                            handleChange({
-                              target: { name: "dob", value: e.target.value },
-                            })
+                          handleChange({
+                            target: { name: "dob", value: e.target.value },
+                          })
                     }
                     className={existingPatient ? "bg-blue-50 cursor-not-allowed" : ""}
                     error={errors.dob}
@@ -595,7 +667,7 @@ const CreateAppointmentModal = ({ onClose, onSuccess }) => {
                     label="Gender"
                     name="gender"
                     value={formData.gender}
-                    onChange={existingPatient ? () => {} : handleChange}
+                    onChange={existingPatient ? () => { } : handleChange}
                     options={["Male", "Female", "Other"]}
                     disabled={!!existingPatient}
                     className={existingPatient ? "bg-blue-50 cursor-not-allowed" : ""}
@@ -734,7 +806,7 @@ const Select = ({
       value={value}
       onChange={onChange}
       disabled={disabled}
-      className={`border border-blue-300 rounded-md w-full p-2 text-sm bg-white ${className}`}
+      className={`border border-black-300 rounded-md w-full p-2 text-sm bg-white ${className}`}
     >
       <option value="">Select</option>
       {options.map((opt) => (

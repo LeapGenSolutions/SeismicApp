@@ -5,7 +5,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  RefreshCcw,
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 import TeamsDatePicker from "../TeamsDatePicker";
@@ -23,16 +22,13 @@ const CustomToolbar = ({
   view,
   selectedDoctors,
   onDoctorUpdate,
-  isDropdownOpen,
-  setDropdownOpen,
   onAddAppointment,
   onAddBulkAppointment,
-  onRefresh,
-  isRefreshing,
 }) => {
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [isDropdownOpen, setDropdownOpen] = useState(false);
 
   const viewMenuRef = useRef(null);
   const datePickerRef = useRef(null);
@@ -94,7 +90,7 @@ const CustomToolbar = ({
 
   return (
     <div className="w-full border-b border-gray-200 bg-white px-4 py-3 flex items-center justify-between gap-4">
-      
+
       <div className="flex items-center gap-2">
         <button
           onClick={() => onNavigate("TODAY")}
@@ -158,11 +154,10 @@ const CustomToolbar = ({
               {viewOptions.map((opt) => (
                 <button
                   key={opt.value}
-                  className={`block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${
-                    view === opt.value
+                  className={`block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${view === opt.value
                       ? "text-blue-600 font-medium"
                       : "text-gray-700"
-                  }`}
+                    }`}
                   onClick={() => handleViewSelect(opt.value)}
                 >
                   {opt.label}
@@ -180,33 +175,19 @@ const CustomToolbar = ({
         />
       </div>
 
-      <div className="relative flex items-center justify-end gap-2" ref={addMenuRef}>
-        <button
-          onClick={onRefresh}
-          disabled={isRefreshing}
-          className={`flex items-center gap-1 text-sm px-3 py-1.5 rounded-md border ${
-            isRefreshing
-              ? "bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed"
-              : "bg-white text-blue-700 border-blue-200 hover:bg-blue-50"
-          }`}
-        >
-          <RefreshCcw size={14} className={isRefreshing ? "animate-spin" : ""} />
-          {isRefreshing ? "Refreshing..." : "Refresh"}
-        </button>
-
+      <div className="relative flex justify-end" ref={addMenuRef}>
         <button
           disabled={isPastDate()}
-         title={isPastDate() ? "Appointments cannot be added for past dates" : ""}
+          title={isPastDate() ? "Appointments cannot be added for past dates" : ""}
           onClick={() => {
             if (!isPastDate()) {
               setShowAddMenu((prev) => !prev);
             }
           }}
           className={`flex items-center gap-1 text-sm px-3 py-1.5 rounded-md
-            ${
-              isPastDate()
-                ? "bg-gray-300 cursor-default text-gray-600"
-                : "bg-blue-600 text-white hover:bg-blue-700"
+            ${isPastDate()
+              ? "bg-gray-300 cursor-default text-gray-600"
+              : "bg-blue-600 text-white hover:bg-blue-700"
             }
           `}
         >

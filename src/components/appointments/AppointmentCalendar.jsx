@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { format, parse, startOfWeek, getDay } from "date-fns";
@@ -9,6 +9,8 @@ import { fetchAppointmentsByDoctorEmails, checkAppointments } from "../../api/ca
 import CreateAppointmentModal from "./CreateAppointmentModal";
 import { useSelector } from "react-redux";
 import CreateBulkAppointments from "./createBulkAppointments";
+
+import { getColorFromName } from "../../constants/colors";
 
 function capitalizeFirst(str = "") {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
@@ -29,23 +31,23 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
   const [appointments, setAppointments] = useState([]);
   const [selectedDoctors, setSelectedDoctors] = useState([]);
   const [doctorColorMap, setDoctorColorMap] = useState({});
-  const [isDropdownOpen, setDropdownOpen] = useState(false);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBulkCreateModal, setShowBulkCreateModal] = useState(false);
 
   const [currentView, setCurrentView] = useState("day");
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loggedInDoctor = useSelector((state) => state.me.me);
-  const fallbackDoctorEmail = (loggedInDoctor?.email || "").trim().toLowerCase();
+  const allDoctors = useSelector((state) => state.doctors.doctors || []);
 
   useEffect(() => {
     if (onAdd) onAdd(() => setShowCreateModal(true));
     if (onAddBulk) onAddBulk(() => setShowBulkCreateModal(true));
   }, [onAdd, onAddBulk]);
 
-  const applySeismified = useCallback(async (list) => {
+  // Removed conflicting auto-select effect; DoctorMultiSelect handles this.
+
+  const applySeismified = async (list) => {
     const ids = (Array.isArray(list) ? list : [])
       .map((a) => a?.id)
       .filter(Boolean);
@@ -66,38 +68,98 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
         seismified: false,
       }));
     }
-  }, []);
-
-  const refreshAppointments = useCallback(async ({ showLoader = false } = {}) => {
-    const doctorsToFetch =
-      selectedDoctors.length > 0
-        ? selectedDoctors
-        : fallbackDoctorEmail
-          ? [fallbackDoctorEmail]
-          : [];
-
-    if (doctorsToFetch.length === 0) {
-      setAppointments([]);
-      return;
-    }
-
-    if (showLoader) setIsRefreshing(true);
-    try {
-      const data = await fetchAppointmentsByDoctorEmails(doctorsToFetch);
-      const merged = await applySeismified(data);
-      setAppointments(merged);
-    } finally {
-      if (showLoader) setIsRefreshing(false);
-    }
-  }, [selectedDoctors, fallbackDoctorEmail, applySeismified]);
+  };
 
   useEffect(() => {
-    refreshAppointments({ showLoader: false });
-  }, [refreshAppointments]);
+    const fetchData = async () => {
+      const normalize = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
+      const userClinicForComparison = normalize(loggedInDoctor?.clinicName);
+      const userClinicForApi = (loggedInDoctor?.clinicName || "").replace(/\s+/g, " ").trim();
+
+      // If we are strictly filtering by clinic, we might not require selectedDoctors
+      // But preserving existing logic: fetch for selected doctors, THEN filter by clinic
+
+      if (selectedDoctors.length === 0 && !userClinicForComparison) {
+        setAppointments([]);
+        return;
+      }
+
+      // Pass clinicName to the API fetcher (if it supports it) or just fetch and filter client-side
+
+      // Fetch all doctors from Redux to find matches for the clinic
+      // We need to access the full list of doctors to filter by clinic
+      // However, `rawDoctors` is not available in this scope. 
+      // We should use `useSelector` to get `state.doctors.doctors`.
+
+      // NOTE: This logic requires `allDoctors` to be available. 
+      // I need to add `const allDoctors = useSelector((state) => state.doctors.doctors);` at top of component.
+
+      // NOTE: Removed logic that auto-fetched all clinic doctors.
+      // Now strictly respects `selectedDoctors` passed from parent/dropdown.
+      let doctorsToFetch = selectedDoctors;
+
+      console.log("DEBUG: AppointmentCalendar - selectedDoctors:", selectedDoctors);
+      console.log("DEBUG: AppointmentCalendar - doctorsToFetch:", doctorsToFetch);
+
+      const data = await fetchAppointmentsByDoctorEmails(doctorsToFetch, userClinicForApi);
+      console.log("DEBUG: fetched data type:", typeof data, "isArray:", Array.isArray(data));
+      console.log("DEBUG: fetched data sample:", data);
+
+      let flatData = data;
+      // Handle potential nested structure if data is array of day-objects
+      if (Array.isArray(data) && data.length > 0 && data[0].data && Array.isArray(data[0].data)) {
+        console.log("DEBUG: Detected nested data structure, flattening...");
+        flatData = data.flatMap(day => day.data || []);
+      } else if (!Array.isArray(data) && data.data && Array.isArray(data.data)) {
+        // Handle single object wrapper
+        console.log("DEBUG: Detected single object wrapper, extracting data...");
+        flatData = data.data;
+      }
+
+      const merged = await applySeismified(flatData);
+
+      // console.log("DEBUG: AppointmentCalendar - loggedInDoctor.clinicName:", loggedInDoctor?.clinicName);
+
+      // Create a Set of selected doctor emails for efficient lookup (normalized)
+      const selectedDoctorEmails = new Set(
+        selectedDoctors.map(email => (email || "").trim().toLowerCase())
+      );
+
+      const filtered = merged.filter(appt => {
+        // 1. Filter by Clinic Name (Security/Scope)
+        if (userClinicForComparison) {
+          const apptClinic = normalize(
+            appt.clinicName ||
+            appt.details?.clinicName ||
+            appt.original_json?.clinicName ||
+            appt.original_json?.details?.clinicName
+          );
+          if (apptClinic !== userClinicForComparison) return false;
+        } else {
+          // Strict filter for legacy users (must have no clinic)
+          if (appt.clinicName && appt.clinicName.trim() !== "") return false;
+        }
+
+        // 2. Filter by Selected Doctors (View preference)
+        // If selectedDoctors is empty, we might show nothing or everything? 
+        // Logic above says if empty -> return [], so we assume selectedDoctors has entries here.
+        if (selectedDoctorEmails.size > 0) {
+          const apptDoctorEmail = (appt.doctor_email || appt.doctorEmail || "").trim().toLowerCase();
+          if (!selectedDoctorEmails.has(apptDoctorEmail)) return false;
+        }
+
+        return true;
+      });
+
+      setAppointments(filtered);
+    };
+
+    fetchData();
+  }, [selectedDoctors, loggedInDoctor, allDoctors]);
 
   const events = appointments.map((appt) => {
-    const doctorKey = (appt.doctor_email || "").trim().toLowerCase();
-    const color = doctorColorMap[doctorKey];
+    const doctorKey = (appt.doctor_email || appt.doctorEmail || "").trim().toLowerCase();
+    const color = doctorColorMap[doctorKey] || getColorFromName(doctorKey);
 
     const [hours, minutes] = appt.time.split(":").map(Number);
 
@@ -113,7 +175,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
       start,
       end,
       allDay: false,
-      color: color || "#E5E7EB",
+      color: color || "#4B5563",
       ...appt,
     };
   });
@@ -154,9 +216,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
         <div title={tooltip}>
           <span style={{ marginRight: 6 }}>{icon}</span>
           <b>{event.full_name}</b>
-          <span style={{ marginLeft: 6 }}>
-            ({status} • {seismiText})
-          </span>
+          <span style={{ marginLeft: 6 }}>({seismiText})</span>
           <div style={{ fontSize: "11px", opacity: 0.9 }}>{timeRange}</div>
         </div>
       );
@@ -167,9 +227,6 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
         <div title={tooltip}>
           <span style={{ marginRight: 6 }}>{icon}</span>
           <b>{event.full_name}</b>
-          <span style={{ marginLeft: 6, fontSize: "11px", opacity: 0.95 }}>
-            ({status} • {seismiText})
-          </span>
         </div>
       );
     }
@@ -178,7 +235,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
       return (
         <div title={tooltip}>
           <span style={{ marginRight: 6 }}>{icon}</span>
-          {event.full_name} ({status} • {seismiText})
+          {event.full_name}
         </div>
       );
     }
@@ -187,14 +244,11 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
       <div title={tooltip}>
         <span style={{ marginRight: 6 }}>{icon}</span>
         <b>{event.full_name}</b>
-        <span style={{ marginLeft: 6 }}>
-          ({status} • {seismiText})
-        </span>
       </div>
     );
   };
 
-  const handleDoctorUpdate = (ids, doctorList) => {
+  const handleDoctorUpdate = useCallback((ids, doctorList) => {
     setSelectedDoctors(ids);
 
     const colorMap = {};
@@ -205,9 +259,9 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     });
 
     setDoctorColorMap(colorMap);
-  };
+  }, []);
 
-  const handleAppointmentUpdated = (updated) => {
+  const handleAppointmentUpdated = useCallback((updated) => {
     const [hours, minutes] = updated.time.split(":").map(Number);
 
     const start = new Date(`${updated.appointment_date}T00:00:00`);
@@ -219,18 +273,18 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
       prev.map((a) =>
         a.id === updated.id
           ? {
-              ...a,
-              ...updated,
-              start,
-              end,
-              animate: "success",
-            }
+            ...a,
+            ...updated,
+            start,
+            end,
+            animate: "success",
+          }
           : a
       )
     );
-  };
+  }, []);
 
-  const handleAppointmentDeleted = (deleted) => {
+  const handleAppointmentDeleted = useCallback((deleted) => {
     setAppointments((prev) =>
       prev.map((a) =>
         a.id === deleted.id ? { ...a, animate: "fade" } : a
@@ -240,7 +294,25 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
     setTimeout(() => {
       setAppointments((prev) => prev.filter((a) => a.id !== deleted.id));
     }, 200);
-  };
+  }, []);
+
+  const { components } = useMemo(() => ({
+    components: {
+      event: (props) => <EventCell {...props} currentView={currentView} />,
+      toolbar: (props) => (
+        <CustomToolbar
+          {...props}
+          selectedDoctors={selectedDoctors}
+          onDoctorUpdate={handleDoctorUpdate}
+          onAddAppointment={() => setShowCreateModal(true)}
+          onAddBulkAppointment={() => setShowBulkCreateModal(true)}
+        />
+      ),
+    }
+  }), [currentView, selectedDoctors, handleDoctorUpdate]);
+  // Note: dependencies are a bit tricky. CustomToolbar uses setDropdownOpen, setShowCreateModal etc.
+  // These are state setters, so stable.
+  // We include handleDoctorUpdate which is now a stable callback.
 
   return (
     <div style={{ height: "650px", margin: "20px" }}>
@@ -251,6 +323,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
         view={currentView}
         onView={(v) => setCurrentView(v)}
         views={["day", "week", "month", "agenda"]}
+        dayLayoutAlgorithm="no-overlap"
         startAccessor="start"
         endAccessor="end"
         style={{ height: "100%" }}
@@ -261,22 +334,7 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
           eventTimeRangeStartFormat: () => "",
           eventTimeRangeEndFormat: () => "",
         }}
-        components={{
-          event: (props) => <EventCell {...props} currentView={currentView} />,
-          toolbar: (props) => (
-            <CustomToolbar
-              {...props}
-              selectedDoctors={selectedDoctors}
-              onDoctorUpdate={handleDoctorUpdate}
-              isDropdownOpen={isDropdownOpen}
-              setDropdownOpen={setDropdownOpen}
-              onAddAppointment={() => setShowCreateModal(true)}
-              onAddBulkAppointment={() => setShowBulkCreateModal(true)}
-              onRefresh={() => refreshAppointments({ showLoader: true })}
-              isRefreshing={isRefreshing}
-            />
-          ),
-        }}
+        components={components}
       />
 
       {selectedAppointment && (
@@ -309,9 +367,8 @@ const AppointmentCalendar = ({ onAdd, onAddBulk }) => {
               const eventColor = doctorColorMap[doctorKey] || "#E5E7EB";
 
               const newEvent = {
-                title: `${updated.full_name} (${updated.status} • ${
-                  updated.seismified ? "Seismified" : "Not Seismified"
-                })`,
+                title: `${updated.full_name} (${updated.status} • ${updated.seismified ? "Seismified" : "Not Seismified"
+                  })`,
                 start,
                 end,
                 allDay: false,
