@@ -1,5 +1,6 @@
 import {
   buildPermissionsMap,
+  buildFullAccessPermissions,
   computeEffectivePermissions,
   hasAnyPermission,
   hasPermission,
@@ -10,6 +11,7 @@ describe("rbac utilities", () => {
   test("normalizes planned role aliases", () => {
     expect(normalizeRole("NP")).toBe("Nurse Practitioner");
     expect(normalizeRole("BO")).toBe("Staff");
+    expect(normalizeRole("Seismic Doctors")).toBe("SeismicDoctors");
     expect(normalizeRole(["Staff"])).toBe("Staff");
   });
 
@@ -63,5 +65,18 @@ describe("rbac utilities", () => {
         { required: "reports.billing_history", level: "read" },
       ])
     ).toBe(true);
+  });
+
+  test("grants SeismicDoctors full write access across the app", () => {
+    const permissions = computeEffectivePermissions("SeismicDoctors");
+    const fullAccessPermissions = buildFullAccessPermissions();
+
+    expect(permissions).toEqual(fullAccessPermissions);
+    expect(hasPermission(permissions, "dashboard.view_appointments", "write")).toBe(true);
+    expect(hasPermission(permissions, "admin.manage_rbac", "write")).toBe(true);
+    expect(hasAnyPermission(permissions, [
+      { required: "reports.billing_history", level: "write" },
+      { required: "settings.payment_billing", level: "write" },
+    ])).toBe(true);
   });
 });

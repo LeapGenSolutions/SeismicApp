@@ -9,6 +9,8 @@ const ROLE_ALIASES = {
   "staff (back office)": "Staff",
   su: "SU",
   "super admin": "SU",
+  seismicdoctors: "SeismicDoctors",
+  "seismic doctors": "SeismicDoctors",
 };
 
 export const ACCESS_HIERARCHY = {
@@ -18,6 +20,7 @@ export const ACCESS_HIERARCHY = {
 };
 
 export const SYSTEM_ROLES = ["Doctor", "Nurse Practitioner", "Staff", "SU"];
+export const FULL_ACCESS_ROLES = ["SeismicDoctors"];
 
 export const PERMISSION_CATALOG = {
   "dashboard.view_appointments": {
@@ -229,8 +232,19 @@ export function buildPermissionsMap(permissionSource = {}) {
   }, {});
 }
 
+export function buildFullAccessPermissions() {
+  return Object.keys(PERMISSION_CATALOG).reduce((acc, permissionKey) => {
+    acc[permissionKey] = "write";
+    return acc;
+  }, {});
+}
+
 export function getBasePermissionsForRole(role, customRolePermissions = null) {
   const normalizedRole = normalizeRole(role);
+
+  if (FULL_ACCESS_ROLES.includes(normalizedRole)) {
+    return buildFullAccessPermissions();
+  }
 
   if (SYSTEM_ROLES.includes(normalizedRole)) {
     return Object.fromEntries(
