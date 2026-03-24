@@ -57,14 +57,14 @@ function Settings() {
         <HasPermission required="admin.manage_rbac" level="read">
           <Card>
             <CardHeader>
-              <CardTitle>RBAC Management</CardTitle>
+              <CardTitle>Admin Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-gray-600">
                 Review role defaults and apply explicit permission overrides to users.
               </p>
               <Link href="/admin/rbac" className="text-sm font-medium text-blue-600 hover:underline">
-                Open RBAC admin
+                Open admin settings
               </Link>
             </CardContent>
           </Card>
