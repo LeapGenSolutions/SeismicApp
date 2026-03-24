@@ -69,9 +69,15 @@ const SECTION_LABELS = {
 };
 
 const ACCESS_BADGE_STYLES = {
-  write: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  read: "bg-amber-50 text-amber-700 border-amber-200",
-  none: "bg-slate-100 text-slate-600 border-slate-200",
+  write: "bg-blue-50 text-blue-700 border-blue-200",
+  read: "bg-slate-100 text-slate-700 border-slate-300",
+  none: "bg-slate-50 text-slate-500 border-slate-200",
+};
+
+const ACCESS_LABELS = {
+  write: "Read + Write",
+  read: "Read Only",
+  none: "No Access",
 };
 
 const MANAGED_SYSTEM_ROLES = SYSTEM_ROLES.filter((role) => role !== "SU");
@@ -102,11 +108,26 @@ const SYSTEM_ROLE_METADATA = {
   },
 };
 
+const LABEL_ACRONYMS = {
+  ehr: "EHR",
+  soap: "SOAP",
+  rbac: "RBAC",
+  npi: "NPI",
+  ai: "AI",
+};
+
 const formatPermissionLabel = (permissionKey) => {
   const [, action = permissionKey] = permissionKey.split(".");
   return action
     .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((part) => {
+      const normalizedPart = part.toLowerCase();
+      if (LABEL_ACRONYMS[normalizedPart]) {
+        return LABEL_ACRONYMS[normalizedPart];
+      }
+
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
     .join(" ");
 };
 
@@ -125,6 +146,72 @@ const getDisplayName = (user) =>
   [user.firstName, user.lastName].filter(Boolean).join(" ") ||
   user.email ||
   user.id;
+
+const getRoleAccessLevel = (roleName, permissionKey, rolePermissionsByName = {}) => {
+  const basePermissions =
+    rolePermissionsByName[roleName] || getBasePermissionsForRole(roleName);
+
+  return getPermissionLevel(basePermissions, permissionKey);
+};
+
+const formatAccessLabel = (level) => ACCESS_LABELS[level] || level || "No Access";
+
+const formatAccessCountSummary = (levels = []) => {
+  const counts = levels.reduce((acc, level) => {
+    acc[level] = (acc[level] || 0) + 1;
+    return acc;
+  }, {});
+
+  return Object.keys(counts)
+    .sort((a, b) => ACCESS_HIERARCHY[b] - ACCESS_HIERARCHY[a])
+    .map((level) => `${counts[level]} user${counts[level] === 1 ? "" : "s"}: ${formatAccessLabel(level)}`)
+    .join(" | ");
+};
+
+const getOverrideOptionsForPermission = (permissionKey) => {
+  const permissionDefaults = PERMISSION_CATALOG[permissionKey] || {};
+  const supportedLevels = new Set(
+    Object.values(permissionDefaults).filter((level) => level && level !== "none")
+  );
+
+  const orderedLevels = ["write", "read"].filter((level) =>
+    supportedLevels.has(level)
+  );
+
+  return [...orderedLevels, "none"];
+};
+
+const getMeaningfulOverrideChoices = (options, selectedLevels = []) => {
+  if (selectedLevels.length === 0) {
+    return options.map((level) => ({
+      level,
+      changedCount: 0,
+      totalCount: 0,
+    }));
+  }
+
+  const totalCount = selectedLevels.length;
+
+  return options
+    .map((level) => ({
+      level,
+      changedCount: selectedLevels.filter((entry) => entry.level !== level).length,
+      totalCount,
+    }))
+    .filter((choice) => choice.changedCount > 0);
+};
+
+const isCurrentLoggedInUser = (user, loggedInEmail) => {
+  if (!loggedInEmail) {
+    return false;
+  }
+
+  const userEmail = (user.doctor_email || user.email || user.id || "")
+    .trim()
+    .toLowerCase();
+
+  return userEmail === loggedInEmail;
+};
 
 const asRoleList = (value) => {
   if (Array.isArray(value)) {
@@ -288,7 +375,7 @@ function RBACManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    document.title = "RBAC Management - Seismic Connect";
+    document.title = "Admin Settings - Seismic Connect";
   }, []);
 
   const permissionSections = useMemo(() => {
@@ -407,19 +494,22 @@ function RBACManagement() {
   }, [loggedInClinicName, loggedInEmail]);
 
   const filteredUsers = useMemo(() => {
+    const manageableUsers = users.filter(
+      (user) => !isCurrentLoggedInUser(user, loggedInEmail)
+    );
     const query = normalizeSearch(search);
     if (!query) {
-      return users;
+      return manageableUsers;
     }
 
-    return users.filter((user) => {
+    return manageableUsers.filter((user) => {
       const haystack = [getDisplayName(user), user.email, user.role]
         .filter(Boolean)
         .join(" ");
 
       return normalizeSearch(haystack).includes(query);
     });
-  }, [search, users]);
+  }, [loggedInEmail, search, users]);
 
   const groupedUsers = useMemo(() => {
     return filteredUsers.reduce((acc, user) => {
@@ -437,8 +527,13 @@ function RBACManagement() {
   }, [filteredUsers]);
 
   const selectedUsers = useMemo(
-    () => users.filter((user) => selectedUserIds.includes(getUserKey(user))),
-    [selectedUserIds, users]
+    () =>
+      users.filter(
+        (user) =>
+          selectedUserIds.includes(getUserKey(user)) &&
+          !isCurrentLoggedInUser(user, loggedInEmail)
+      ),
+    [loggedInEmail, selectedUserIds, users]
   );
 
   const selectedRoleSummary = useMemo(() => {
@@ -455,6 +550,18 @@ function RBACManagement() {
       users.filter((user) => !MANAGED_SYSTEM_ROLES.includes(normalizeRole(user.role))).length,
     [users]
   );
+
+  useEffect(() => {
+    setSelectedUserIds((current) =>
+      current.filter((userId) =>
+        users.some(
+          (user) =>
+            getUserKey(user) === userId &&
+            !isCurrentLoggedInUser(user, loggedInEmail)
+        )
+      )
+    );
+  }, [loggedInEmail, users]);
 
   const toggleUser = (userId) => {
     setSelectedUserIds((current) =>
@@ -493,12 +600,20 @@ function RBACManagement() {
   };
 
   const applyOverride = async (permissionKey) => {
-    const nextLevel = draftLevels[permissionKey] || "read";
+    const nextLevel = draftLevels[permissionKey];
 
     if (selectedUsers.length === 0) {
       toast({
         title: "No users selected",
         description: "Choose one or more users before applying an override.",
+      });
+      return;
+    }
+
+    if (!nextLevel) {
+      toast({
+        title: "Select an override level",
+        description: "Choose the user-specific access level before applying it.",
       });
       return;
     }
@@ -545,6 +660,11 @@ function RBACManagement() {
         title: "Override applied",
         description: `${formatPermissionLabel(permissionKey)} set to ${nextLevel} for ${selectedUsers.length} user(s).`,
       });
+
+      setDraftLevels((current) => ({
+        ...current,
+        [permissionKey]: "",
+      }));
     } catch (error) {
       toast({
         title: "Failed to save override",
@@ -905,7 +1025,7 @@ function RBACManagement() {
       </AlertDialog>
 
       <PageNavigation
-        title="RBAC Management"
+        title="Admin Settings"
         subtitle={
           loggedInClinicName
             ? `Showing users and roles from ${loggedInClinicName}.`
@@ -913,15 +1033,15 @@ function RBACManagement() {
         }
       />
 
-      <div className="flex flex-wrap gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
+      <div className="inline-flex flex-wrap gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
         {TAB_OPTIONS.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setActiveTab(tab.id)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
               activeTab === tab.id
-                ? "bg-blue-600 text-white"
+                ? "bg-blue-600 text-white shadow-sm"
                 : "text-gray-600 hover:bg-gray-100"
             }`}
           >
@@ -984,6 +1104,10 @@ function RBACManagement() {
             ) : loadError ? (
               <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                 {loadError}
+              </div>
+            ) : users.length > 0 && filteredUsers.length === 0 && !search.trim() ? (
+              <div className="text-sm text-gray-500">
+                No other users are available to manage in Admin Settings.
               </div>
             ) : filteredUsers.length === 0 ? (
               <div className="text-sm text-gray-500">No users matched the current search.</div>
@@ -1113,7 +1237,8 @@ function RBACManagement() {
                     </h2>
                     <p className="mt-2 max-w-xl text-sm text-gray-600">
                       Select one or more users from the left to compare their effective
-                      permissions and apply explicit RBAC overrides.
+                      permissions, review their role-based access, and apply
+                      user-specific overrides only when needed.
                     </p>
                   </CardContent>
                 </Card>
@@ -1138,17 +1263,26 @@ function RBACManagement() {
                     </CardHeader>
                     {!collapsedSections[sectionKey] ? (
                       <CardContent>
+                        <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                          Update access only for the selected users. This does not change
+                          the base role.
+                        </div>
                         <Table>
                           <TableHeader>
                             <TableRow>
                               <TableHead className="w-[220px]">Permission</TableHead>
                               <TableHead>Selected Users</TableHead>
-                              <TableHead className="w-[220px]">Apply Override</TableHead>
+                              <TableHead className="w-[220px]">User-specific Override</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {permissionKeys.map((permissionKey) => {
                               const selectedLevels = selectedUsers.map((user) => {
+                                const roleLevel = getRoleAccessLevel(
+                                  user.role,
+                                  permissionKey,
+                                  rolePermissionsByName
+                                );
                                 const effectiveLevel = getPermissionLevel(
                                   user.effectivePermissions,
                                   permissionKey
@@ -1160,10 +1294,21 @@ function RBACManagement() {
                                   id: getUserKey(user),
                                   name: getDisplayName(user),
                                   role: user.role,
+                                  roleLevel,
                                   level: effectiveLevel,
                                   overridden: overriddenLevel,
                                 };
                               });
+                              const overrideChoices = getMeaningfulOverrideChoices(
+                                getOverrideOptionsForPermission(permissionKey),
+                                selectedLevels
+                              );
+                              const selectedOverrideChoice = overrideChoices.find(
+                                (choice) => choice.level === draftLevels[permissionKey]
+                              );
+                              const distinctSelectedAccess = Array.from(
+                                new Set(selectedLevels.map((entry) => entry.level))
+                              );
 
                               const highestAccess = selectedLevels.reduce(
                                 (current, entry) => {
@@ -1186,12 +1331,23 @@ function RBACManagement() {
                                       {formatPermissionLabel(permissionKey)}
                                     </div>
                                     {highestAccess ? (
-                                      <Badge
-                                        variant="outline"
-                                        className={`mt-3 ${ACCESS_BADGE_STYLES[highestAccess]}`}
-                                      >
-                                        Highest selected access: {highestAccess}
-                                      </Badge>
+                                      <>
+                                        <Badge
+                                          variant="outline"
+                                          className={`mt-3 ${ACCESS_BADGE_STYLES[highestAccess]}`}
+                                        >
+                                          {distinctSelectedAccess.length > 1
+                                            ? "Selected users have different access"
+                                            : `Selected access: ${formatAccessLabel(highestAccess)}`}
+                                        </Badge>
+                                        {distinctSelectedAccess.length > 1 ? (
+                                          <div className="mt-2 text-xs text-gray-500">
+                                            {formatAccessCountSummary(
+                                              selectedLevels.map((entry) => entry.level)
+                                            )}
+                                          </div>
+                                        ) : null}
+                                      </>
                                     ) : null}
                                   </TableCell>
 
@@ -1212,9 +1368,24 @@ function RBACManagement() {
                                             variant="outline"
                                             className={`mt-2 ${ACCESS_BADGE_STYLES[entry.level]}`}
                                           >
-                                            {entry.level}
-                                            {entry.overridden ? " override" : " default"}
+                                            Effective access: {formatAccessLabel(entry.level)}
                                           </Badge>
+                                          {entry.overridden ? (
+                                            <div className="mt-2 text-[11px] text-gray-500">
+                                              Override applied:{" "}
+                                              <span className="font-medium text-gray-700">
+                                                {formatAccessLabel(entry.overridden)}
+                                              </span>
+                                            </div>
+                                          ) : null}
+                                          {entry.roleLevel !== entry.level ? (
+                                            <div className="mt-1 text-[11px] text-gray-500">
+                                              Role access:{" "}
+                                              <span className="font-medium text-gray-700">
+                                                {formatAccessLabel(entry.roleLevel)}
+                                              </span>
+                                            </div>
+                                          ) : null}
                                         </div>
                                       ))}
                                     </div>
@@ -1223,29 +1394,63 @@ function RBACManagement() {
                                   <TableCell className="align-top">
                                     <div className="space-y-3">
                                       <select
-                                        value={draftLevels[permissionKey] || "read"}
+                                        value={draftLevels[permissionKey] || ""}
+                                        disabled={overrideChoices.length === 0}
+                                        title={
+                                          overrideChoices.length > 0
+                                            ? selectedLevels.length > 1
+                                              ? "Choose bulk access update"
+                                              : "Choose override level"
+                                            : "No alternate override"
+                                        }
                                         onChange={(event) =>
                                           setDraftLevels((current) => ({
                                             ...current,
                                             [permissionKey]: event.target.value,
                                           }))
                                         }
-                                        className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 pr-8 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                                       >
-                                        {OVERRIDE_OPTIONS.map((level) => (
-                                          <option key={level} value={level}>
-                                            Set to {level}
+                                        <option value="" disabled>
+                                          {overrideChoices.length > 0
+                                            ? selectedLevels.length > 1
+                                              ? "Choose bulk update"
+                                              : "Choose override level"
+                                            : "No alternate override"}
+                                        </option>
+                                        {overrideChoices.map((choice) => (
+                                          <option key={choice.level} value={choice.level}>
+                                            {selectedLevels.length > 1
+                                              ? `Set all to ${formatAccessLabel(choice.level)}`
+                                              : `Set to ${formatAccessLabel(choice.level)}`}
                                           </option>
                                         ))}
                                       </select>
+                                      {selectedOverrideChoice && selectedLevels.length > 1 ? (
+                                        <p className="text-[11px] leading-5 text-gray-500">
+                                          {selectedOverrideChoice.changedCount} of{" "}
+                                          {selectedOverrideChoice.totalCount} selected users will
+                                          change to {formatAccessLabel(selectedOverrideChoice.level)}.
+                                        </p>
+                                      ) : null}
+                                      {overrideChoices.length === 0 ? (
+                                        <p className="text-[11px] leading-5 text-gray-500">
+                                          There is no other bulk access update available for the
+                                          selected users on this permission.
+                                        </p>
+                                      ) : null}
                                       <Button
                                         onClick={() => applyOverride(permissionKey)}
-                                        disabled={savingPermissionKey === permissionKey}
+                                        disabled={
+                                          savingPermissionKey === permissionKey ||
+                                          !draftLevels[permissionKey] ||
+                                          overrideChoices.length === 0
+                                        }
                                         className="w-full bg-blue-600 text-white hover:bg-blue-700"
                                       >
                                         {savingPermissionKey === permissionKey
                                           ? "Saving..."
-                                          : "Apply to selected users"}
+                                          : "Apply"}
                                       </Button>
                                     </div>
                                   </TableCell>
@@ -1576,7 +1781,7 @@ function RBACManagement() {
                                       >
                                         {OVERRIDE_OPTIONS.map((level) => (
                                           <option key={level} value={level}>
-                                            {level}
+                                            {formatAccessLabel(level)}
                                           </option>
                                         ))}
                                       </select>
