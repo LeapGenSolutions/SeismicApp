@@ -34,6 +34,7 @@ import RBACManagement from "./Pages/RBACManagement";
 import AuthorizedRoute from "./components/auth/AuthorizedRoute";
 import AccessDenied from "./components/auth/AccessDenied";
 import { normalizeRole } from "./lib/rbac";
+import { BACKEND_URL } from "./constants";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,43 @@ function decodeJwt(token) {
     return null;
   }
 }
+
+async function verifyStandaloneSession(idToken) {
+  const claims = decodeJwt(idToken);
+  if (!claims) {
+    throw new Error("Invalid ID token");
+  }
+
+  const response = await fetch(`${BACKEND_URL}api/standalone/auth/verify`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      idToken,
+      email: claims.email || claims.emails?.[0] || "",
+      userId: claims.sub || claims.oid || "",
+    }),
+  });
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    throw new Error(data?.message || data?.error || "Failed to verify standalone session");
+  }
+
+  if (data?.token) {
+    sessionStorage.setItem("backendToken", data.token);
+  }
+
+  return claims;
+}
+
 function Router() {
   const queryParams = new URLSearchParams(window.location.search);
   const role = queryParams.get("role");
@@ -222,10 +260,16 @@ function Main() {
             sessionStorage.setItem("bypassToken", tokenFromUrl);
           }
 
-          const claims = decodeJwt(activeToken);
-          if (claims && isMounted) {
+          try {
+            const claims = await verifyStandaloneSession(activeToken);
             await dispatch(setMyDetails(claims));
-            setTokenBypass(true);
+            if (isMounted) {
+              setTokenBypass(true);
+            }
+          } catch (error) {
+            console.error("Standalone session verification failed:", error);
+            sessionStorage.removeItem("bypassToken");
+            sessionStorage.removeItem("backendToken");
           }
           return;
         }
@@ -254,14 +298,46 @@ function Main() {
       description="Your account is authenticated, but no completed Seismic app role is assigned yet."
     />
   );
+  const registrationDenied = (
+    <AccessDenied
+      title="Registration incomplete"
+      description="Please complete your standalone registration before opening the Seismic app."
+    />
+  );
+  const pendingApprovalDenied = (
+    <AccessDenied
+      title="Approval pending"
+      description="Your account is waiting for clinic administrator approval."
+    />
+  );
+  const rejectedApprovalDenied = (
+    <AccessDenied
+      title="Access not approved"
+      description="Your account has not been approved for Seismic app access."
+    />
+  );
 
   return (
     <>
       {tokenBypass ? (
-        <QueryClientProvider client={queryClient}>
-          <Router />
-          <Toaster />
-        </QueryClientProvider>
+        isAuthorizing ? (
+          <div className="flex min-h-screen items-center justify-center bg-neutral-50 text-neutral-600">
+            Loading your access profile...
+          </div>
+        ) : me?.profileComplete !== true ? (
+          registrationDenied
+        ) : me?.approvalStatus === "pending" ? (
+          pendingApprovalDenied
+        ) : me?.approvalStatus === "rejected" ? (
+          rejectedApprovalDenied
+        ) : hasAppRole ? (
+          <QueryClientProvider client={queryClient}>
+            <Router />
+            <Toaster />
+          </QueryClientProvider>
+        ) : (
+          accessDenied
+        )
       ) : isAuthorizing && isAuthenticated ? (
         <AuthenticatedTemplate>
           <div className="flex min-h-screen items-center justify-center bg-neutral-50 text-neutral-600">
