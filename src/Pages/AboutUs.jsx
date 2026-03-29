@@ -51,8 +51,8 @@ const About = () => {
               <h3 className="text-2xl font-bold text-blue-700 mb-2">Humanizing Healthcare Through Technology</h3>
               <p className="text-neutral-700 mb-4">
                 Seismic Connect leverages AI to handle administrative documentation—giving healthcare providers more time and focus to build authentic, empathetic relationships with patients.
-              </p>
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-md font-medium hover:bg-blue-700 transition">Learn More</button>
+              </p><a href="https://www.leapgen.ai/" target="_blank" rel="noopener noreferrer">
+              <button className="bg-blue-600 text-white px-4 py-2 rounded-md font-medium hover:bg-blue-700 transition">Learn More</button></a>
             </div>
             <div className="ml-0 md:ml-8 mt-8 md:mt-0 flex flex-col items-center justify-center">
               <Handshake className="w-20 h-20 text-blue-500 mb-2" />

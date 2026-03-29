@@ -3,6 +3,7 @@ import {
   Mail, Ticket, CheckCircle, Loader2, MessageCircle, Eye
 } from "lucide-react";
 import { PageNavigation } from "../components/ui/page-navigation";
+import { sendemail, submitticket } from "../api/contactus";
 
 const priorities = ['Low', 'Medium', 'High'];
 const categories = ['Technical', 'Billing', 'General'];
@@ -102,29 +103,46 @@ const Contact = () => {
     setErrors((err) => ({ ...err, [name]: undefined }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const errs = validate(ticket);
-    setErrors(errs);
-    if (Object.keys(errs).length === 0) {
-      setLoading(true);
-      setTimeout(() => {
-        setLoading(false);
-        setSubmitted(true);
-        setTickets((prev) => [
-          {
-            id: `TCK-${Date.now()}`,
-            ...ticket,
-            status: 'Open',
-            comments: [
-              { from: 'Support', text: 'We have received your ticket.', time: new Date().toLocaleString() },
-            ],
-          },
-          ...prev,
-        ]);
-      }, 1200);
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  const errs = validate(ticket);
+  setErrors(errs);
+
+  if (Object.keys(errs).length === 0) {
+    setLoading(true);
+
+    try {
+      const result = await submitticket(ticket);
+
+      console.log("Ticket Success:", result);
+
+      setSubmitted(true);
+
+      setTickets((prev) => [
+        {
+          id: result.id || `TCK-${Date.now()}`, // fallback if backend doesn't send ID
+          ...ticket,
+          status: "Open",
+          comments: [
+            {
+              from: "Support",
+              text: "We have received your ticket.",
+              time: new Date().toLocaleString(),
+            },
+          ],
+        },
+        ...prev,
+      ]);
+
+    } catch (error) {
+      console.error("Ticket Error:", error);
+      setErrors({ api: "Failed to submit ticket. Please try again." });
+    } finally {
+      setLoading(false);
     }
-  };
+  }
+};
 
   const resetForm = () => {
     setTicket(defaultTicket);
@@ -143,22 +161,41 @@ const Contact = () => {
       return newErr;
     });
   };
-  const handleEmailSubmit = (e) => {
-    e.preventDefault();
-    const errs = {};
-    if (!emailForm.name) errs.name = 'Name is required.';
-    if (!emailForm.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailForm.email)) errs.email = 'Valid email is required.';
-    if (!emailForm.subject) errs.subject = 'Subject is required.';
-    if (!emailForm.message) errs.message = 'Message is required.';
-    setEmailErrors(errs);
-    if (Object.keys(errs).length === 0) {
-      setEmailLoading(true);
-      setTimeout(() => {
-        setEmailLoading(false);
-        setEmailSent(true);
-      }, 1200);
+  const handleEmailSubmit = async (e) => {
+  e.preventDefault();
+
+  const errs = {};
+  if (!emailForm.name) errs.name = 'Name is required.';
+  if (!emailForm.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailForm.email)) {
+    errs.email = 'Valid email is required.';
+  }
+  if (!emailForm.subject) errs.subject = 'Subject is required.';
+  if (!emailForm.message) errs.message = 'Message is required.';
+
+  setEmailErrors(errs);
+
+  if (Object.keys(errs).length === 0) {
+    setEmailLoading(true);
+
+    try {
+      const result = await sendemail({
+        name: emailForm.name,
+        email: emailForm.email,
+        subject: emailForm.subject,
+        message: emailForm.message,
+      });
+
+      console.log("API Success:", result);
+      setEmailSent(true);
+
+    } catch (error) {
+      console.error("API Error:", error);
+      setEmailErrors({ api: "Failed to send message. Please try again." });
+    } finally {
+      setEmailLoading(false);
     }
-  };
+  }
+};
   const resetEmail = () => {
     setEmailForm({ name: '', email: '', subject: '', message: '' });
     setEmailErrors({});
@@ -291,6 +328,11 @@ const Contact = () => {
                       </select>
                     </div>
                   </div>
+                  {errors.api && (
+                    <div className="text-red-600 text-sm text-center bg-red-50 border border-red-200 rounded p-2">
+                    {errors.api}
+                    </div>
+                  )}
                   <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700 transition flex items-center justify-center" disabled={loading}>
                     {loading ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
                     Submit
@@ -403,6 +445,11 @@ const Contact = () => {
                   <textarea name="message" value={emailForm.message} onChange={handleEmailChange} className={`mt-1 w-full rounded border px-3 py-2 ${emailErrors.message ? 'border-red-400' : 'border-neutral-300'} focus:outline-none focus:ring-2 focus:ring-blue-200`} rows={4} />
                   {emailErrors.message && <div className="text-red-500 text-xs mt-1">{emailErrors.message}</div>}
                 </div>
+                {emailErrors.api && (
+                  <div className="text-red-600 text-sm text-center bg-red-50 border border-red-200 rounded p-2">
+                  {emailErrors.api}
+                  </div>
+                )}
                 <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700 transition flex items-center justify-center" disabled={emailLoading}>
                   {emailLoading ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
                   Send
