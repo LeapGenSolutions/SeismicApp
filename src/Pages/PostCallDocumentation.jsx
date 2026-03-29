@@ -1,25 +1,20 @@
 import { useEffect, useState } from "react";
+import { useParams, useSearchParams } from "wouter";
+import { navigate } from "wouter/use-browser-location";
+import { useDispatch, useSelector } from "react-redux";
+import { ArrowLeft, User, Calendar as CalendarIcon, IdCard } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import Transcript from "../components/post-call/Transcript";
 import Summary from "../components/post-call/Summary";
 import Soap from "../components/post-call/Soap";
 import Billing from "../components/post-call/Billing";
 import Reccomendations from "../components/post-call/Reccomendations";
-import { useParams } from "wouter";
 import Clusters from "../components/post-call/Clusters";
 import DoctorNotes from "../components/post-call/DoctorNotes";
-import { navigate } from "wouter/use-browser-location";
-import { useSearchParams } from "wouter";
-import {
-  ArrowLeft,
-  User,
-  Calendar as CalendarIcon,
-  IdCard,
-} from "lucide-react";
 import EmotionalConnect from "../components/post-call/EmotionalConnect";
-import { useDispatch, useSelector } from "react-redux";
+import VBCGapSummary from "../components/post-call/VBCGapSummary";
+import CallFeedback from "../components/post-call/PostCallFeedback";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
-import CallFeedback from "../components/post-call/PostCallFeedback"; 
 import { useAnyPermission, usePermission } from "../hooks/use-permission";
 
 const PostCallDocumentation = ({ onSave }) => {
@@ -28,13 +23,11 @@ const PostCallDocumentation = ({ onSave }) => {
   const [prevPage, setPrevPage] = useState(null);
   const dispatch = useDispatch();
 
-  const appointments = useSelector(
-    (state) => state.appointments.appointments
-  );
-
+  const appointments = useSelector((state) => state.appointments.appointments);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const searchParams = useSearchParams()[0];
   const username = searchParams.get("username");
+
   const canViewPostCall = usePermission("post_call.view_all", "read");
   const canViewSoap = usePermission("post_call.edit_soap_notes", "read");
   const canEditSoap = usePermission("post_call.edit_soap_notes", "write");
@@ -59,9 +52,7 @@ const PostCallDocumentation = ({ onSave }) => {
 
   useEffect(() => {
     if (appointments?.length > 0) {
-      const found = appointments.find(
-        (app) => String(app.id) === String(callId)
-      );
+      const found = appointments.find((app) => String(app.id) === String(callId));
       setSelectedAppointment(found || null);
     }
   }, [appointments, callId]);
@@ -112,6 +103,20 @@ const PostCallDocumentation = ({ onSave }) => {
       null
     : null;
 
+  const patientDisplayName = (
+    selectedAppointment?.full_name ||
+    selectedAppointment?.patient_name ||
+    [firstName, lastName].filter(Boolean).join(" ")
+  ).trim();
+
+  const appointmentDate =
+    selectedAppointment?.appointment_date ??
+    selectedAppointment?.appointmentDate ??
+    selectedAppointment?.date_of_service ??
+    selectedAppointment?.visit_date ??
+    selectedAppointment?.scheduledDate ??
+    "";
+
   const documentationTabs = [
     canViewPostCall && { id: "summary", label: "Summary" },
     canViewPostCall && { id: "transcript", label: "Transcript" },
@@ -121,6 +126,7 @@ const PostCallDocumentation = ({ onSave }) => {
     canViewPostCall && { id: "clusters", label: "Clusters" },
     canViewDoctorNotes && { id: "doctorNotes", label: "Doctor Notes" },
     canViewPostCall && { id: "emotionalConnect", label: "Emotional Connect" },
+    canViewPostCall && { id: "vbcGaps", label: "VBC Gaps" },
   ].filter(Boolean);
 
   useEffect(() => {
@@ -136,21 +142,17 @@ const PostCallDocumentation = ({ onSave }) => {
 
   return (
     <>
-      {/* Top bar: Back button + Call Feedback */}
       <div className="flex justify-between items-start mb-4">
         {prevPage !== "video-call" && (
           <button
             onClick={handleback}
-            className="inline-flex items-center px-3 py-1.5 text-sm font-medium 
-              text-white bg-blue-600 border border-blue-700 rounded-lg 
-              hover:bg-blue-700 transition-colors duration-200"
+            className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 border border-blue-700 rounded-lg hover:bg-blue-700 transition-colors duration-200"
           >
             <ArrowLeft className="h-4 w-4 mr-1.5" />
             Back
           </button>
         )}
 
-        {/* Call Feedback entry point (your change) */}
         {canManageFeedback && (
           <div className="ml-auto">
             <CallFeedback username={username} appointmentId={callId} />
@@ -165,9 +167,7 @@ const PostCallDocumentation = ({ onSave }) => {
 
         {selectedAppointment && (
           <div className="bg-white border border-gray-300 rounded-xl shadow p-6 mb-6 mx-6 md:mx-auto md:max-w-5xl">
-            <h2 className="text-2xl font-semibold mb-4 text-gray-700">
-              Patient Info
-            </h2>
+            <h2 className="text-2xl font-semibold mb-4 text-gray-700">Patient Info</h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-gray-800">
               <p className="flex items-center gap-2">
@@ -185,17 +185,13 @@ const PostCallDocumentation = ({ onSave }) => {
               <p className="flex items-center gap-2">
                 <User className="w-4 h-4 text-gray-500" />
                 <span className="text-sm text-gray-500">First Name:</span>
-                <span className="font-medium text-gray-900">
-                  {firstName ?? "—"}
-                </span>
+                <span className="font-medium text-gray-900">{firstName ?? "—"}</span>
               </p>
 
               <p className="flex items-center gap-2">
                 <User className="w-4 h-4 text-gray-500" />
                 <span className="text-sm text-gray-500">Last Name:</span>
-                <span className="font-medium text-gray-900">
-                  {lastName ?? "—"}
-                </span>
+                <span className="font-medium text-gray-900">{lastName ?? "—"}</span>
               </p>
             </div>
 
@@ -285,6 +281,14 @@ const PostCallDocumentation = ({ onSave }) => {
               username={username}
               appointmentId={callId}
               appointment={selectedAppointment}
+            />
+          )}
+
+          {docTab === "vbcGaps" && (
+            <VBCGapSummary
+              appointmentId={callId}
+              patientName={patientDisplayName}
+              appointmentDate={appointmentDate}
             />
           )}
         </CardContent>
