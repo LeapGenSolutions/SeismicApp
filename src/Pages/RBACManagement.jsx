@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
+  RefreshCw,
   Search,
   ShieldCheck,
   SlidersHorizontal,
@@ -37,11 +38,17 @@ import {
 } from "../components/ui/alert-dialog";
 import { fetchDoctorsFromHistory } from "../api/callHistory";
 import {
+  approveUser,
   assignRole,
   createRole,
   deleteRole,
+  fetchInvitations,
+  fetchPendingApprovals,
   fetchRoles,
   manageRbacOverrides,
+  rejectUser,
+  revokeInvitation,
+  sendInvitation,
   updateRole,
 } from "../api/rbac";
 import {
@@ -85,6 +92,8 @@ const OVERRIDE_OPTIONS = ["write", "read", "none"];
 const TAB_OPTIONS = [
   { id: "permissions", label: "User Permissions" },
   { id: "roles", label: "Role Management" },
+  { id: "approvals", label: "Pending Approvals" },
+  { id: "invites", label: "Invite Users" },
 ];
 
 const SYSTEM_ROLE_METADATA = {
@@ -232,6 +241,23 @@ const asRoleList = (value) => {
 const getRolePayload = (value, fallback) =>
   value?.role || value?.data || value?.resource || fallback;
 
+const formatDateTime = (value) => {
+  if (!value) {
+    return "—";
+  }
+
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "—";
+  }
+
+  return parsedDate.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
 const createRoleDraft = (baseRole = "Staff", permissionsByRole = {}) => {
   const normalizedBaseRole = normalizeRole(baseRole) || "Staff";
 
@@ -349,20 +375,34 @@ function RBACManagement() {
   const [activeTab, setActiveTab] = useState("permissions");
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [invitations, setInvitations] = useState([]);
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [rolesError, setRolesError] = useState("");
+  const [approvalsError, setApprovalsError] = useState("");
+  const [invitationsError, setInvitationsError] = useState("");
+  const [refreshingApprovals, setRefreshingApprovals] = useState(false);
   const [draftLevels, setDraftLevels] = useState({});
   const [selectedAssignmentRole, setSelectedAssignmentRole] = useState("");
   const [assigningRole, setAssigningRole] = useState(false);
   const [savingPermissionKey, setSavingPermissionKey] = useState("");
   const [savingRole, setSavingRole] = useState(false);
+  const [sendingInvitation, setSendingInvitation] = useState(false);
+  const [approvingUserId, setApprovingUserId] = useState("");
+  const [rejectingUserId, setRejectingUserId] = useState("");
+  const [revokingInvitationId, setRevokingInvitationId] = useState("");
   const [deletingRoleId, setDeletingRoleId] = useState("");
   const [rolePendingDelete, setRolePendingDelete] = useState(null);
+  const [approvalPendingReject, setApprovalPendingReject] = useState(null);
   const [deleteReplacementRole, setDeleteReplacementRole] = useState("");
   const [editorMode, setEditorMode] = useState("");
+  const [invitationForm, setInvitationForm] = useState({
+    email: "",
+    roleName: "",
+  });
   const [roleForm, setRoleForm] = useState(() => createRoleDraft());
   const [collapsedSections, setCollapsedSections] = useState(() =>
     Object.keys(SECTION_LABELS).reduce((acc, key) => {
@@ -431,11 +471,20 @@ function RBACManagement() {
       setLoading(true);
       setLoadError("");
       setRolesError("");
+      setApprovalsError("");
+      setInvitationsError("");
 
       try {
-        const [usersResult, rolesResult] = await Promise.allSettled([
+        const [
+          usersResult,
+          rolesResult,
+          approvalsResult,
+          invitationsResult,
+        ] = await Promise.allSettled([
           fetchDoctorsFromHistory(loggedInClinicName || undefined),
           fetchRoles(loggedInClinicName || ""),
+          fetchPendingApprovals(),
+          fetchInvitations(),
         ]);
 
         if (usersResult.status !== "fulfilled") {
@@ -449,6 +498,20 @@ function RBACManagement() {
           setRolesError(
             rolesResult.reason?.message ||
               "Role endpoints are not available yet. Custom roles will show once the backend is deployed."
+          );
+        }
+
+        if (approvalsResult.status !== "fulfilled") {
+          setApprovalsError(
+            approvalsResult.reason?.message ||
+              "Pending approvals could not be loaded right now."
+          );
+        }
+
+        if (invitationsResult.status !== "fulfilled") {
+          setInvitationsError(
+            invitationsResult.reason?.message ||
+              "Invitations could not be loaded right now."
           );
         }
 
@@ -487,6 +550,16 @@ function RBACManagement() {
 
         setRoles(loadedRoles);
         setUsers(normalizedUsers);
+        setPendingApprovals(
+          approvalsResult.status === "fulfilled" && Array.isArray(approvalsResult.value)
+            ? approvalsResult.value
+            : []
+        );
+        setInvitations(
+          invitationsResult.status === "fulfilled" && Array.isArray(invitationsResult.value)
+            ? invitationsResult.value
+            : []
+        );
       } catch (error) {
         setLoadError(error?.message || "Failed to load users for RBAC management.");
       } finally {
@@ -601,6 +674,52 @@ function RBACManagement() {
       ...current,
       [sectionKey]: !current[sectionKey],
     }));
+  };
+
+  const refreshUsersSnapshot = async () => {
+    try {
+      const fetchedUsers = await fetchDoctorsFromHistory(loggedInClinicName || undefined);
+      const normalizedClinicName = normalizeClinicName(loggedInClinicName);
+      const rolePermissions = buildRolePermissionsByName(roles);
+
+      const normalizedUsers = (Array.isArray(fetchedUsers) ? fetchedUsers : [])
+        .filter((user) => {
+          if (normalizedClinicName) {
+            return normalizeClinicName(user.clinicName) === normalizedClinicName;
+          }
+
+          const userEmail = (user.doctor_email || user.email || user.id || "")
+            .trim()
+            .toLowerCase();
+          return userEmail === loggedInEmail;
+        })
+        .map((user) => {
+          const roleName = getUserRole(user);
+
+          return {
+            ...user,
+            role: roleName,
+            effectivePermissions: computeEffectivePermissions(
+              roleName,
+              user.customPermissions,
+              rolePermissions[roleName] || null
+            ),
+          };
+        })
+        .sort((a, b) =>
+          getDisplayName(a).localeCompare(getDisplayName(b), undefined, {
+            sensitivity: "base",
+          })
+        );
+
+      setUsers(normalizedUsers);
+    } catch (error) {
+      toast({
+        title: "Failed to refresh users",
+        description:
+          error?.message || "User lists could not be refreshed right now.",
+      });
+    }
   };
 
   const applyOverride = async (permissionKey) => {
@@ -948,6 +1067,187 @@ function RBACManagement() {
     }
   };
 
+  const handleApprovePendingUser = async (user) => {
+    setApprovingUserId(user.userId);
+
+    try {
+      const response = await approveUser(user.userId);
+      const approvedUser = response?.user || {
+        ...user,
+        approvalStatus: "approved",
+        prodAccessGranted: true,
+      };
+
+      setPendingApprovals((current) =>
+        current.filter((entry) => entry.userId !== user.userId)
+      );
+      setUsers((current) =>
+        current.map((entry) =>
+          entry.userId === user.userId
+            ? {
+                ...entry,
+                ...approvedUser,
+              }
+            : entry
+        )
+      );
+
+      toast({
+        title: "User approved",
+        description: `${getDisplayName(user)} can now access the app.`,
+      });
+      await refreshUsersSnapshot();
+    } catch (error) {
+      toast({
+        title: "Failed to approve user",
+        description: error?.message || "Please try again.",
+      });
+    } finally {
+      setApprovingUserId("");
+    }
+  };
+
+  const handleRejectPendingUser = async (user) => {
+    setRejectingUserId(user.userId);
+
+    try {
+      const response = await rejectUser(user.userId);
+      const rejectedUser = response?.user || {
+        ...user,
+        approvalStatus: "rejected",
+        prodAccessGranted: false,
+      };
+
+      setPendingApprovals((current) =>
+        current.filter((entry) => entry.userId !== user.userId)
+      );
+      setUsers((current) =>
+        current.map((entry) =>
+          entry.userId === user.userId
+            ? {
+                ...entry,
+                ...rejectedUser,
+              }
+            : entry
+        )
+      );
+
+      toast({
+        title: "User rejected",
+        description: `${getDisplayName(user)} no longer has a pending approval request.`,
+      });
+      setApprovalPendingReject(null);
+      await refreshUsersSnapshot();
+    } catch (error) {
+      toast({
+        title: "Failed to reject user",
+        description: error?.message || "Please try again.",
+      });
+    } finally {
+      setRejectingUserId("");
+    }
+  };
+
+  const refreshPendingApprovals = async () => {
+    setRefreshingApprovals(true);
+    setApprovalsError("");
+
+    try {
+      const approvals = await fetchPendingApprovals();
+      setPendingApprovals(Array.isArray(approvals) ? approvals : []);
+      toast({
+        title: "Pending approvals refreshed",
+        description: "Latest approval requests are now shown.",
+      });
+    } catch (error) {
+      const message =
+        error?.message || "Pending approvals could not be refreshed right now.";
+      setApprovalsError(message);
+      toast({
+        title: "Refresh failed",
+        description: message,
+      });
+    } finally {
+      setRefreshingApprovals(false);
+    }
+  };
+
+  const handleSendInvitation = async () => {
+    const normalizedEmail = invitationForm.email.trim().toLowerCase();
+    const roleName = invitationForm.roleName;
+
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      toast({
+        title: "Valid email required",
+        description: "Add the teammate email before sending the invitation.",
+      });
+      return;
+    }
+
+    if (!roleName) {
+      toast({
+        title: "Role required",
+        description: "Choose a role for the invited teammate.",
+      });
+      return;
+    }
+
+    const selectedRole = roleInventory.find(
+      (role) => normalizeRole(role.roleName) === normalizeRole(roleName)
+    );
+
+    setSendingInvitation(true);
+
+    try {
+      const response = await sendInvitation({
+        email: normalizedEmail,
+        roleName,
+        skipNpiValidation: Boolean(selectedRole?.skipNpiValidation),
+      });
+
+      if (response?.invitation) {
+        setInvitations((current) => [response.invitation, ...current]);
+      }
+
+      setInvitationForm({
+        email: "",
+        roleName: "",
+      });
+
+      toast({
+        title: "Invitation sent",
+        description: `An invitation was sent to ${normalizedEmail}.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to send invitation",
+        description: error?.message || "Please check the SMTP settings and try again.",
+      });
+    } finally {
+      setSendingInvitation(false);
+    }
+  };
+
+  const handleRevokeInvitation = async (invitation) => {
+    setRevokingInvitationId(invitation.id);
+
+    try {
+      await revokeInvitation(invitation.id);
+      setInvitations((current) => current.filter((entry) => entry.id !== invitation.id));
+      toast({
+        title: "Invitation revoked",
+        description: `${invitation.invitedEmail} can no longer use that invitation.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to revoke invitation",
+        description: error?.message || "Please try again.",
+      });
+    } finally {
+      setRevokingInvitationId("");
+    }
+  };
+
   const isRoleReadOnly =
     editorMode === "view" || roleForm.type === "system" || !editorMode;
 
@@ -1028,6 +1328,43 @@ function RBACManagement() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog
+        open={Boolean(approvalPendingReject)}
+        onOpenChange={(open) => {
+          if (!open && !rejectingUserId) {
+            setApprovalPendingReject(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject pending user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {approvalPendingReject
+                ? `${getDisplayName(approvalPendingReject)} will lose this pending request and stay blocked from app access until re-approved later.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(rejectingUserId)}>
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              onClick={() =>
+                approvalPendingReject
+                  ? handleRejectPendingUser(approvalPendingReject)
+                  : null
+              }
+              disabled={Boolean(rejectingUserId)}
+              className="bg-red-600 text-white hover:bg-red-700 focus:ring-red-600"
+            >
+              {rejectingUserId ? "Rejecting..." : "Reject User"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <PageNavigation
         title="Admin Settings"
         subtitle={
@@ -1054,6 +1391,7 @@ function RBACManagement() {
         ))}
       </div>
 
+      {activeTab === "permissions" || activeTab === "roles" ? (
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <Card className="border border-gray-200 shadow-sm">
           <CardHeader className="space-y-3">
@@ -1829,6 +2167,284 @@ function RBACManagement() {
           )}
         </div>
       </div>
+      ) : activeTab === "approvals" ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Card className="border border-gray-200 shadow-sm">
+              <CardContent className="flex items-center gap-3 p-5">
+                <div className="rounded-full bg-blue-50 p-3 text-blue-600">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-gray-500">
+                    Pending Users
+                  </div>
+                  <div className="text-2xl font-semibold text-gray-900">
+                    {pendingApprovals.length}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-gray-200 shadow-sm">
+              <CardContent className="flex items-center gap-3 p-5">
+                <div className="rounded-full bg-emerald-50 p-3 text-emerald-600">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-gray-500">
+                    Clinic
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    {loggedInClinicName || "Current clinic"}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-gray-200 shadow-sm">
+              <CardContent className="flex items-center gap-3 p-5">
+                <div className="rounded-full bg-amber-50 p-3 text-amber-600">
+                  <SlidersHorizontal className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-gray-500">
+                    Review Flow
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    Approve or reject access
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {approvalsError ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              {approvalsError}
+            </div>
+          ) : null}
+
+          <Card className="border border-gray-200 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <CardTitle className="text-base">Pending Approvals</CardTitle>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={refreshPendingApprovals}
+                disabled={refreshingApprovals}
+              >
+                <RefreshCw
+                  className={`mr-2 h-4 w-4 ${refreshingApprovals ? "animate-spin" : ""}`}
+                />
+                {refreshingApprovals ? "Refreshing..." : "Refresh"}
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loading ? (
+                <div className="text-sm text-gray-500">Loading pending approvals...</div>
+              ) : pendingApprovals.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
+                  No users are waiting for approval right now.
+                </div>
+              ) : (
+                pendingApprovals.map((user) => (
+                  <div
+                    key={user.userId || user.id}
+                    className="flex flex-col gap-4 rounded-xl border border-gray-200 p-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {getDisplayName(user)}
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {(user.email || user.id || "").trim()} • {getUserRole(user)}
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Registered: {formatDateTime(user.updatedAt || user.created_at)}
+                      </div>
+                      {user.invitedBy ? (
+                        <div className="mt-1 text-xs text-gray-500">
+                          Invited by: {user.invitedBy}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        onClick={() => handleApprovePendingUser(user)}
+                        disabled={
+                          approvingUserId === user.userId ||
+                          rejectingUserId === user.userId
+                        }
+                        className="bg-blue-600 text-white hover:bg-blue-700"
+                      >
+                        {approvingUserId === user.userId ? "Approving..." : "Approve"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setApprovalPendingReject(user)}
+                        disabled={
+                          approvingUserId === user.userId ||
+                          rejectingUserId === user.userId
+                        }
+                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                      >
+                        {rejectingUserId === user.userId ? "Rejecting..." : "Reject"}
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Card className="border border-gray-200 shadow-sm">
+              <CardContent className="flex items-center gap-3 p-5">
+                <div className="rounded-full bg-blue-50 p-3 text-blue-600">
+                  <Plus className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-gray-500">
+                    Pending Invitations
+                  </div>
+                  <div className="text-2xl font-semibold text-gray-900">
+                    {invitations.length}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-gray-200 shadow-sm">
+              <CardContent className="flex items-center gap-3 p-5">
+                <div className="rounded-full bg-emerald-50 p-3 text-emerald-600">
+                  <BriefcaseBusiness className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-gray-500">
+                    Role Options
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    {availableRoleOptions.length} active roles
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-gray-200 shadow-sm">
+              <CardContent className="flex items-center gap-3 p-5">
+                <div className="rounded-full bg-amber-50 p-3 text-amber-600">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-gray-500">
+                    Clinic
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    {loggedInClinicName || "Current clinic"}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {invitationsError ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              {invitationsError}
+            </div>
+          ) : null}
+
+          <Card className="border border-gray-200 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base">Invite Team Members</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_220px_auto]">
+              <Input
+                value={invitationForm.email}
+                onChange={(event) =>
+                  setInvitationForm((current) => ({
+                    ...current,
+                    email: event.target.value,
+                  }))
+                }
+                placeholder="teammate@example.com"
+              />
+              <select
+                value={invitationForm.roleName}
+                onChange={(event) =>
+                  setInvitationForm((current) => ({
+                    ...current,
+                    roleName: event.target.value,
+                  }))
+                }
+                className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Choose a role</option>
+                {availableRoleOptions.map((roleName) => (
+                  <option key={roleName} value={roleName}>
+                    {roleName}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                onClick={handleSendInvitation}
+                disabled={sendingInvitation}
+                className="bg-blue-600 text-white hover:bg-blue-700"
+              >
+                {sendingInvitation ? "Sending..." : "Send Invitation"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-gray-200 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base">Pending Invitations</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loading ? (
+                <div className="text-sm text-gray-500">Loading invitations...</div>
+              ) : invitations.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
+                  No active invitations have been sent yet.
+                </div>
+              ) : (
+                invitations.map((invitation) => (
+                  <div
+                    key={invitation.id}
+                    className="flex flex-col gap-4 rounded-xl border border-gray-200 p-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {invitation.invitedEmail}
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {invitation.roleName}
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Sent: {formatDateTime(invitation.createdAt)}
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleRevokeInvitation(invitation)}
+                      disabled={revokingInvitationId === invitation.id}
+                    >
+                      {revokingInvitationId === invitation.id ? "Revoking..." : "Revoke"}
+                    </Button>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
