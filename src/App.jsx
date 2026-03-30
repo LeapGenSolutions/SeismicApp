@@ -28,9 +28,14 @@ import TimelineDashboard from "./Pages/TimelineDashboard";
 import ChatbotWindow from "./components/chatbot/ChatbotWindow";
 import BillingReports from "./Pages/BillingReports";
 import BillingHistory from "./Pages/BillingHistory";
+import BillCalculation from "./Pages/BillCalculation";
+import InvoicePreview from "./Pages/InvoicePreview";
 import AthenaIntegration from "./Pages/AthenaIntegration";
 import PaymentBilling from "./Pages/PaymentBilling";
 import RBACManagement from "./Pages/RBACManagement";
+import VBCDashboard from "./Pages/VBCDashboard";
+import VBCSummary from "./Pages/VBCSummary";
+import VBCWorkQueue from "./Pages/VBCWorkQueue";
 import AuthorizedRoute from "./components/auth/AuthorizedRoute";
 import AccessDenied from "./components/auth/AccessDenied";
 import { normalizeRole } from "./lib/rbac";
@@ -164,8 +169,32 @@ function Router() {
               level="read"
             />
             <AuthorizedRoute
+              path="/billing-reports"
+              component={BillingReports}
+              required="reports.billing_analytics"
+              level="read"
+            />
+            <AuthorizedRoute
               path="/reports/billing-history"
               component={BillingHistory}
+              required="reports.billing_history"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/billing-history"
+              component={BillingHistory}
+              required="reports.billing_history"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/bill-calculation"
+              component={BillCalculation}
+              required="reports.estimated_billing"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/invoice/:invoiceId"
+              component={InvoicePreview}
               required="reports.billing_history"
               level="read"
             />
@@ -184,9 +213,51 @@ function Router() {
               level="read"
             />
             <AuthorizedRoute
+              path="/athena-integration"
+              component={AthenaIntegration}
+              required="settings.ehr_integration"
+              level="read"
+            />
+            <AuthorizedRoute
               path="/settings/payment-billing"
               component={PaymentBilling}
               required="settings.payment_billing"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/payment-billing"
+              component={PaymentBilling}
+              required="settings.payment_billing"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/vbc"
+              component={VBCSummary}
+              required="dashboard.view_appointments"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/vbc/summary"
+              component={VBCSummary}
+              required="dashboard.view_appointments"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/vbc/work-queue"
+              component={VBCWorkQueue}
+              required="dashboard.view_appointments"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/vbc/details"
+              component={VBCDashboard}
+              required="dashboard.view_appointments"
+              level="read"
+            />
+            <AuthorizedRoute
+              path="/vbc-dashboard"
+              component={VBCSummary}
+              required="dashboard.view_appointments"
               level="read"
             />
             <AuthorizedRoute
@@ -238,6 +309,11 @@ function Main() {
         account: accounts[0],
       });
 
+      const scopedToken = response.idToken || response.accessToken || "";
+      if (scopedToken) {
+        sessionStorage.setItem("authToken", scopedToken);
+      }
+
       await dispatch(setMyDetails(response.idTokenClaims));
     } finally {
       setIsAuthorizing(false);
@@ -258,6 +334,7 @@ function Main() {
         if (activeToken) {
           if (tokenFromUrl) {
             sessionStorage.setItem("bypassToken", tokenFromUrl);
+            sessionStorage.setItem("authToken", tokenFromUrl);
           }
 
           try {
