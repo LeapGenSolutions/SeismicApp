@@ -14,6 +14,7 @@ import DoctorNotes from "../components/post-call/DoctorNotes";
 import EmotionalConnect from "../components/post-call/EmotionalConnect";
 import VBCGapSummary from "../components/post-call/VBCGapSummary";
 import CallFeedback from "../components/post-call/PostCallFeedback";
+import { fetchCallHistory, fetchDoctorsFromHistory } from "../api/callHistory";
 import { fetchAppointmentDetails } from "../redux/appointment-actions";
 import { useAnyPermission, usePermission } from "../hooks/use-permission";
 
@@ -27,6 +28,9 @@ const PostCallDocumentation = ({ onSave }) => {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const searchParams = useSearchParams()[0];
   const username = searchParams.get("username");
+  const clinicName = useSelector((state) => state.me?.me?.clinicName || "");
+  const currentUserEmail = useSelector((state) => state.me?.me?.email || "");
+  const [resolvedUsername, setResolvedUsername] = useState(username || "");
 
   const canViewPostCall = usePermission("post_call.view_all", "read");
   const canViewSoap = usePermission("post_call.edit_soap_notes", "read");
@@ -45,10 +49,83 @@ const PostCallDocumentation = ({ onSave }) => {
   ]);
 
   useEffect(() => {
-    if (username) {
-      dispatch(fetchAppointmentDetails(username));
+    setResolvedUsername(username || "");
+  }, [username]);
+
+  useEffect(() => {
+    if (resolvedUsername) {
+      dispatch(fetchAppointmentDetails(resolvedUsername));
     }
-  }, [dispatch, username]);
+  }, [dispatch, resolvedUsername]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
+
+    const resolveCallOwner = async () => {
+      const candidateEmails = new Set(
+        [
+          username,
+          currentUserEmail,
+          selectedAppointment?.doctor_email,
+          selectedAppointment?.doctorEmail,
+          selectedAppointment?.userID,
+        ]
+          .map(normalizeEmail)
+          .filter(Boolean)
+      );
+
+      try {
+        if (clinicName) {
+          const clinicUsers = await fetchDoctorsFromHistory(clinicName);
+          (Array.isArray(clinicUsers) ? clinicUsers : []).forEach((user) => {
+            const email = normalizeEmail(
+              user?.doctor_email || user?.email || user?.id
+            );
+            if (email) {
+              candidateEmails.add(email);
+            }
+          });
+        }
+
+        if (candidateEmails.size === 0) {
+          return;
+        }
+
+        const history = await fetchCallHistory(Array.from(candidateEmails));
+        const matchingEntry = (Array.isArray(history) ? history : [])
+          .filter((entry) => String(entry?.appointmentID) === String(callId))
+          .sort(
+            (a, b) =>
+              new Date(b?.endTime || b?.startTime || 0) -
+              new Date(a?.endTime || a?.startTime || 0)
+          )[0];
+
+        const matchingUser = normalizeEmail(matchingEntry?.userID);
+
+        if (isActive && matchingUser) {
+          setResolvedUsername(matchingUser);
+        }
+      } catch {
+        // Keep the route username if a better match cannot be resolved.
+      }
+    };
+
+    resolveCallOwner();
+
+    return () => {
+      isActive = false;
+    };
+  }, [
+    callId,
+    clinicName,
+    currentUserEmail,
+    selectedAppointment?.doctor_email,
+    selectedAppointment?.doctorEmail,
+    selectedAppointment?.userID,
+    username,
+  ]);
 
   useEffect(() => {
     if (appointments?.length > 0) {
@@ -155,7 +232,7 @@ const PostCallDocumentation = ({ onSave }) => {
 
         {canManageFeedback && (
           <div className="ml-auto">
-            <CallFeedback username={username} appointmentId={callId} />
+            <CallFeedback username={resolvedUsername} appointmentId={callId} />
           </div>
         )}
       </div>
@@ -225,7 +302,7 @@ const PostCallDocumentation = ({ onSave }) => {
 
           {docTab === "summary" && (
             <Summary
-              username={username}
+              username={resolvedUsername}
               appointmentId={callId}
               patientId={
                 selectedAppointment?.patient_id ||
@@ -238,12 +315,12 @@ const PostCallDocumentation = ({ onSave }) => {
           )}
 
           {docTab === "transcript" && (
-            <Transcript username={username} appointmentId={callId} />
+            <Transcript username={resolvedUsername} appointmentId={callId} />
           )}
 
           {docTab === "soap" && (
             <Soap
-              username={username}
+              username={resolvedUsername}
               appointmentId={callId}
               appointment={selectedAppointment}
               canEdit={canEditSoap}
@@ -252,24 +329,24 @@ const PostCallDocumentation = ({ onSave }) => {
           )}
 
           {docTab === "recommendations" && (
-            <Reccomendations username={username} appointmentId={callId} />
+            <Reccomendations username={resolvedUsername} appointmentId={callId} />
           )}
 
           {docTab === "billing" && (
             <Billing
-              username={username}
+              username={resolvedUsername}
               appointmentId={callId}
               canEdit={canEditBilling}
             />
           )}
 
           {docTab === "clusters" && (
-            <Clusters username={username} appointmentId={callId} />
+            <Clusters username={resolvedUsername} appointmentId={callId} />
           )}
 
           {docTab === "doctorNotes" && (
             <DoctorNotes
-              username={username}
+              username={resolvedUsername}
               appointmentId={callId}
               canCreate={canCreateDoctorNotes}
               canEditExisting={canEditDoctorNotes}
@@ -278,7 +355,7 @@ const PostCallDocumentation = ({ onSave }) => {
 
           {docTab === "emotionalConnect" && selectedAppointment && (
             <EmotionalConnect
-              username={username}
+              username={resolvedUsername}
               appointmentId={callId}
               appointment={selectedAppointment}
             />

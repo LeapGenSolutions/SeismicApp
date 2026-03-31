@@ -100,6 +100,23 @@ function Router() {
   const queryParams = new URLSearchParams(window.location.search);
   const role = queryParams.get("role");
   const isPatientView = role === "patient";
+  const appointmentsRouteChecks = [
+    { required: "appointments.select_providers", level: "read" },
+    { required: "appointments.add", level: "write" },
+    { required: "appointments.modify", level: "write" },
+    { required: "appointments.delete", level: "write" },
+    { required: "appointments.patient_reports", level: "read" },
+    { required: "appointments.join_call", level: "write" },
+    { required: "appointments.post_call_doc", level: "read" },
+  ];
+  const patientsRouteChecks = [
+    { required: "patients.info", level: "read" },
+    { required: "patients.clinical_summary", level: "read" },
+    { required: "patients.upcoming_appointment", level: "write" },
+    { required: "patients.join_call", level: "write" },
+    { required: "patients.previous_calls", level: "read" },
+    { required: "patients.post_call_doc", level: "read" },
+  ];
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -117,14 +134,12 @@ function Router() {
             <AuthorizedRoute
               path="/"
               component={Dashboard}
-              required="dashboard.view_appointments"
-              level="read"
+              allow
             />
             <AuthorizedRoute
               path="/appointments"
               component={Appointments}
-              required="appointments.select_providers"
-              level="read"
+              checks={appointmentsRouteChecks}
             />
             <AuthorizedRoute
               path="/video-call"
@@ -138,8 +153,7 @@ function Router() {
             <AuthorizedRoute
               path="/patients"
               component={Patients}
-              required="patients.info"
-              level="read"
+              checks={patientsRouteChecks}
             />
             <AuthorizedRoute
               path="/patients/:patientId"
